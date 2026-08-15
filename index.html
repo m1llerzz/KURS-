@@ -1,9 +1,16 @@
 <!doctype html>
-<html lang="ru">
+<html lang="uz">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Сколько дойдёт</title>
+<title>Qancha yetadi — сколько дойдёт</title>
+
+<!-- Описание видно при пересылке ссылки в чат: это первое, что читает
+     человек, которому переслали расчёт. Оба языка сразу, места хватает. -->
+<meta name="description" content="Qancha pul kartaga yetib boradi. Сколько денег реально дойдёт до карты в Узбекистане.">
+<meta property="og:title" content="Qancha yetadi">
+<meta property="og:description" content="Kartaga qancha pul yetib boradi — komissiya, kurs va qabul qiluvchi bank hisobga olinadi. Сколько реально дойдёт до карты.">
+<meta property="og:type" content="website">
 
 <!-- Среда Telegram: тема, кнопки, отправка в чат. Без этой строки мини-апп не работает. -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -102,6 +109,16 @@
 
   .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
 
+  /* Переключатель языка. Кнопки узкие, поэтому width:100% от общего
+     правила button здесь надо перебить, иначе они растянутся на экран. */
+  .langs { display: flex; gap: 6px; justify-content: flex-end; }
+  .langs .lang {
+    width: auto; padding: 5px 11px; font-size: 12px; font-weight: 700;
+    letter-spacing: .06em; border-radius: 8px;
+    background: transparent; color: var(--muted); border: 1.5px solid var(--line);
+  }
+  .langs .lang.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
   /* Служебный класс. !important здесь осознанно: любое правило вида
      .something { display: flex } объявленное ниже перебило бы его по порядку,
      и элемент бы не спрятался. Один раз наступили — оставляем защиту. */
@@ -128,56 +145,65 @@
 <body>
 <div class="wrap">
 
+  <!-- ── Язык ─────────────────────────────────────────────── -->
+  <!-- Переключатель наверху и всегда виден: у многих телефон по-русски,
+       а читать человек хочет на своём. Прятать его в меню нельзя. -->
+  <div class="langs">
+    <button class="lang" data-lang="uz" type="button">UZ</button>
+    <button class="lang" data-lang="ru" type="button">RU</button>
+  </div>
+
   <!-- ── Первый запуск ────────────────────────────────────── -->
   <div id="intro" class="intro hidden">
-    <h1>Сколько денег реально дойдёт до карты</h1>
-    <p>Перевод уходит в рублях или долларах. В сумы его превращает <b>банк получателя</b> — по своему курсу в день зачисления. Этого курса отправитель не видит нигде.</p>
+    <h1 data-i18n="intro.h1"></h1>
+    <p data-i18n-html="intro.p1"></p>
     <div class="bignum">
-      <span class="v">до 400 000 сум</span>
-      <span class="k">теряется на переводе 50 000 ₽ только из-за выбора способа</span>
+      <span class="v" data-i18n="intro.big.v"></span>
+      <span class="k" data-i18n="intro.big.k"></span>
     </div>
-    <p>Мы считаем итог на карту с учётом комиссии, курса и банка получателя. Деньги не переводим и не принимаем — только показываем цифру.</p>
-    <button id="introOk" class="ghost">Понятно, скрыть</button>
+    <p data-i18n="intro.p2"></p>
+    <button id="introOk" class="ghost" data-i18n="intro.ok"></button>
   </div>
 
   <!-- ── Ввод ─────────────────────────────────────────────── -->
   <div id="calcUI" class="wrap" style="padding:0">
     <div>
-      <div class="lbl">Отправляю</div>
+      <div class="lbl" data-i18n="lbl.send"></div>
       <div class="field" style="margin-top:6px">
         <input id="summa" type="number" inputmode="numeric" value="50000" min="1000" step="1000">
-        <span class="hint">рублей из России</span>
+        <span class="hint" data-i18n="hint.rub"></span>
       </div>
     </div>
 
     <div>
-      <div class="lbl">Банк получателя</div>
+      <div class="lbl" data-i18n="lbl.bank"></div>
       <div class="field" style="margin-top:6px">
         <select id="bank"></select>
-        <span class="hint">без него покажем вилку</span>
+        <span class="hint" data-i18n="hint.bank"></span>
       </div>
     </div>
 
-    <button id="schitat">Посчитать</button>
+    <button id="schitat" data-i18n="btn.calc"></button>
   </div>
 
   <!-- ── Результат ────────────────────────────────────────── -->
   <div id="loss" class="loss hidden">
-    <span class="t">Разница между лучшим и худшим</span>
+    <span class="t" data-i18n="loss.t"></span>
     <span class="n" id="lossNum">—</span>
     <span class="s" id="lossSub"></span>
   </div>
 
   <div id="results"></div>
 
-  <button id="share" class="ghost hidden">Отправить в чат</button>
+  <button id="share" class="ghost hidden" data-i18n="btn.share"></button>
 
   <p id="disclaimer" class="note hidden"></p>
   <p id="kursDate" class="note"></p>
 
 </div>
 
-<!-- Порядок важен: данные → формулы → экран -->
+<!-- Порядок важен: тексты → данные → формулы → экран -->
+<script src="i18n.js"></script>
 <script src="data.js"></script>
 <script src="calc.js"></script>
 <script src="app.js"></script>

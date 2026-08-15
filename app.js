@@ -28,6 +28,9 @@
   };
 
   let posledniyRaschet = null;
+  let posledniyKurs = null;
+
+  const t = window.I18N.t;
 
   /* ── Форматирование ──────────────────────────────────── */
 
@@ -36,9 +39,9 @@
   }
 
   function srok(minut) {
-    if (minut < 60) return minut + ' мин';
-    if (minut < 1440) return Math.round(minut / 60) + ' ч';
-    return Math.round(minut / 1440) + ' дн';
+    if (minut < 60) return minut + ' ' + t('time.min');
+    if (minut < 1440) return Math.round(minut / 60) + ' ' + t('time.hour');
+    return Math.round(minut / 1440) + ' ' + t('time.day');
   }
 
   /* ── Курс ЦБ: сеть → кеш на сутки → запасные значения ── */
@@ -88,7 +91,10 @@
     el.results.innerHTML = '';
 
     if (!raschet.results.length) {
-      el.results.innerHTML = '<p class="note">Данные обновляются. Загляните через час — показывать неверные цифры мы не будем.</p>';
+      const pusto = document.createElement('p');
+      pusto.className = 'note';
+      pusto.textContent = t('empty');
+      el.results.appendChild(pusto);
       el.loss.classList.add('hidden');
       el.share.classList.add('hidden');
       return;
@@ -99,24 +105,24 @@
       kartochka.className = 'card' + (i === 0 ? ' best' : '');
 
       const metki = [];
-      if (i === 0) metki.push('<span class="tag best">Больше всего</span>');
-      else if (r.svezhest === 'ustarelo') metki.push('<span class="tag">Данные вчера</span>');
+      if (i === 0) metki.push('<span class="tag best">' + t('tag.best') + '</span>');
+      else if (r.svezhest === 'ustarelo') metki.push('<span class="tag">' + t('tag.stale') + '</span>');
 
       const detali = [];
       detali.push(srok(r.delivery_minutes));
-      if (r.ocenochnyi) detali.push('курс банка оценочный');
+      if (r.ocenochnyi) detali.push(t('detail.est'));
       // Наценка бывает и отрицательной — тогда банк даёт лучше официального курса.
       // Писать «хуже на −1,9%» нельзя, это читается как ошибка.
       // И не показываем вовсе, если данные рассогласованы: курс банка и курс ЦБ
       // от разных дат дают бессмысленную цифру, которая подрывает доверие.
       if (r.nacenka_percent !== null && r.dannye_soglasovany && Math.abs(r.nacenka_percent) >= 0.1) {
         detali.push(r.nacenka_percent > 0
-          ? 'банк хуже курса ЦБ на ' + r.nacenka_percent.toFixed(1) + '%'
-          : 'банк лучше курса ЦБ на ' + Math.abs(r.nacenka_percent).toFixed(1) + '%');
+          ? t('detail.worse',  { p: r.nacenka_percent.toFixed(1) })
+          : t('detail.better', { p: Math.abs(r.nacenka_percent).toFixed(1) }));
       } else if (r.nacenka_percent !== null && !r.dannye_soglasovany) {
-        detali.push('курс банка требует обновления');
+        detali.push(t('detail.stale'));
       }
-      if (r.vyshe_limita) detali.push('выше лимита, нужна верификация');
+      if (r.vyshe_limita) detali.push(t('detail.limit'));
 
       const summa = r.vilka
         ? sum(r.vilka.ot) + ' – ' + sum(r.vilka.do)
@@ -124,7 +130,7 @@
 
       kartochka.innerHTML =
         '<span class="top"><span class="svc">' + r.name + '</span>' + metki.join('') + '</span>' +
-        '<span class="sum">' + summa + ' сум</span>' +
+        '<span class="sum">' + summa + ' ' + t('unit.sum') + '</span>' +
         '<span class="brk">' + detali.join(' · ') + '</span>';
 
       kartochka.addEventListener('click', function () { pokazatRazbor(r); });
@@ -132,63 +138,113 @@
     });
 
     if (raschet.hidden_loss_uzs > 0) {
-      el.lossNum.textContent = sum(raschet.hidden_loss_uzs) + ' сум';
-      el.lossSub.textContent = 'на ' + sum(el.summa.value) + ' ₽ · столько теряется на выборе способа';
+      el.lossNum.textContent = sum(raschet.hidden_loss_uzs) + ' ' + t('unit.sum');
+      el.lossSub.textContent = t('loss.sub', { sum: sum(el.summa.value) });
       el.loss.classList.remove('hidden');
     } else {
       el.loss.classList.add('hidden');
     }
 
-    let podpis = raschet.disclaimer;
-    if (window.TEST_DATA) podpis = 'ТЕСТОВЫЕ ДАННЫЕ, цифры выдуманы. ' + podpis;
+    // disclaimer приходит из calc ключом, а не готовой фразой.
+    let podpis = t(raschet.disclaimer);
+    if (window.TEST_DATA) podpis = t('test') + podpis;
     el.disclaimer.textContent = podpis;
     el.disclaimer.classList.remove('hidden');
 
     // Без свежего курса ЦБ расчёт становится ориентировочным — говорим об этом
     // прямо, а не подсовываем цифру как ни в чём не бывало.
     el.kursDate.textContent = kursy.zapas || !kursy.date
-      ? 'Курс ЦБ обновить не удалось — считаем по запасным значениям, цифры ориентировочные'
-      : 'Курс ЦБ на ' + kursy.date;
+      ? t('kurs.fail')
+      : t('kurs.date', { d: kursy.date });
     el.share.classList.remove('hidden');
   }
 
   function pokazatRazbor(r) {
-    const stroki = r.razbor.map(function (p) { return p[0] + ': ' + p[1]; }).join('\n');
-    const hvost = r.ocenochnyi
-      ? '\n\nКурс банка получателя оценочный — банк ставит его в день зачисления.'
-      : '';
-    const text = r.name + '\n\n' + stroki + '\n\nПридёт на карту: ' + sum(r.total_uzs) + ' сум' + hvost;
+    const stroki = r.razbor.map(function (p) { return t(p[0]) + ': ' + p[1]; }).join('\n');
+    const hvost = r.ocenochnyi ? '\n\n' + t('popup.est') : '';
+    const text = r.name + '\n\n' + stroki + '\n\n'
+      + t('popup.total') + ': ' + sum(r.total_uzs) + ' ' + t('unit.sum') + hvost;
     if (tg && tg.showPopup) tg.showPopup({ title: r.name, message: text });
     else alert(text);
   }
 
-  /* ── Отправка в чат (этап 1: текстом) ────────────────── */
+  /* ── Отправка в чат ──────────────────────────────────── */
+
+  /**
+   * Пересылка — единственный канал, по которому про нас узнают бесплатно.
+   * Поэтому в сообщении обязаны быть три вещи: цифра ради которой смотрят,
+   * разница ради которой удивляются, и ссылка ради которой возвращаются.
+   * Раньше ссылки не было — расчёт гулял по чатам, а прийти к нам было некуда.
+   */
+  function sobratTekst() {
+    const top = posledniyRaschet.results.slice(0, 3).map(function (r) {
+      return r.name + ' — ' + sum(r.total_uzs) + ' ' + t('unit.sum');
+    }).join('\n');
+
+    return t('share.title', { sum: sum(el.summa.value) }) + '\n\n' + top +
+      '\n\n' + t('share.diff', { loss: sum(posledniyRaschet.hidden_loss_uzs) }) +
+      '\n\n' + t('share.cta');
+  }
 
   function otpravitVChat() {
     if (!posledniyRaschet) return;
-    const top = posledniyRaschet.results.slice(0, 3).map(function (r) {
-      return r.name + ' — ' + sum(r.total_uzs) + ' сум';
-    }).join('\n');
+    const text = sobratTekst();
+    const link = window.BOT_LINK || '';
 
-    const text =
-      'Перевод ' + sum(el.summa.value) + ' ₽ в Узбекистан\n\n' + top +
-      '\n\nРазница: ' + sum(posledniyRaschet.hidden_loss_uzs) + ' сум';
+    // Штатный путь: экран выбора чата. Ссылку подставляет сам Telegram
+    // отдельным параметром, поэтому в тексте её дублировать не нужно.
+    // switchInlineQuery здесь не годится — он требует включённого inline-режима
+    // у бота, а его у нас нет и заводить ради одной кнопки незачем.
+    const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) +
+                     '&text=' + encodeURIComponent(text);
 
-    if (tg && tg.switchInlineQuery) tg.switchInlineQuery(text, ['users', 'groups']);
-    else if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      alert('Расчёт скопирован — вставьте в чат.');
+    if (tg && tg.openTelegramLink) { tg.openTelegramLink(shareUrl); return; }
+
+    // Вне Telegram кнопка тоже должна работать: приложение открывают и в браузере.
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text + '\n' + link);
+      alert(text + '\n' + link);
+    } else {
+      window.open(shareUrl, '_blank');
     }
   }
 
   /* ── Запуск ──────────────────────────────────────────── */
 
   function zapolnitBanki() {
-    const opts = ['<option value="">Не знаю</option>'];
+    // Выбранный банк надо сохранить: смена языка перерисовывает список,
+    // и без этого выбор человека молча слетал бы на «не знаю».
+    const bylo = el.bank.value;
+    const opts = ['<option value="">' + t('bank.any') + '</option>'];
     window.BANKS.forEach(function (b) {
       opts.push('<option value="' + b.id + '">' + b.name + '</option>');
     });
     el.bank.innerHTML = opts.join('');
+    if (bylo) el.bank.value = bylo;
+  }
+
+  /* ── Язык ────────────────────────────────────────────── */
+
+  function primenitYazyk() {
+    document.documentElement.lang = window.I18N.get();
+
+    document.querySelectorAll('[data-i18n]').forEach(function (node) {
+      node.textContent = t(node.getAttribute('data-i18n'));
+    });
+    // Отдельный атрибут для строк с разметкой внутри: подставлять их
+    // через textContent нельзя, а гнать через innerHTML всё подряд не нужно.
+    document.querySelectorAll('[data-i18n-html]').forEach(function (node) {
+      node.innerHTML = t(node.getAttribute('data-i18n-html'));
+    });
+
+    document.querySelectorAll('.lang').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-lang') === window.I18N.get());
+    });
+
+    zapolnitBanki();
+    // Результат на экране тоже надо перевести, иначе половина страницы
+    // останется на прежнем языке до следующего нажатия «Посчитать».
+    if (posledniyRaschet) narisovat(posledniyRaschet, posledniyKurs);
   }
 
   function poschitat() {
@@ -196,6 +252,7 @@
     if (!summa || summa < 1000) return;
 
     zagruzitKursy().then(function (kursy) {
+      posledniyKurs = kursy;
       posledniyRaschet = window.CALC.poschitat(
         { summa: summa, bank_id: el.bank.value || null, corridor: 'RU-UZ' },
         window.SERVICES, window.BANKS, kursy
@@ -223,8 +280,16 @@
     try { localStorage.setItem('intro_pokazan', '1'); } catch (e) {}
   }
 
-  zapolnitBanki();
+  primenitYazyk();
   pokazatIntro();
+
+  document.querySelectorAll('.lang').forEach(function (b) {
+    b.addEventListener('click', function () {
+      window.I18N.set(b.getAttribute('data-lang'));
+      primenitYazyk();
+    });
+  });
+
   el.introOk.addEventListener('click', zakrytIntro);
   el.schitat.addEventListener('click', poschitat);
   el.share.addEventListener('click', otpravitVChat);

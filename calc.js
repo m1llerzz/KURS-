@@ -81,11 +81,13 @@ window.CALC = (function () {
     return {
       total_uzs: okruglitVniz(itog),
       ocenochnyi: false,
+      // Первым элементом пары идёт ключ перевода, а не готовая подпись:
+      // язык — забота экрана, формулы про него знать не должны.
       razbor: [
-        ['Отправлено', summa + ' ₽'],
-        ['Комиссия сервиса', '− ' + Math.round(summa - baza) + ' ₽'],
-        ['К конвертации', Math.round(baza) + ' ₽'],
-        ['Курс сервиса', '× ' + servis.rate_rub_uzs],
+        ['razbor.sent',      summa + ' ₽'],
+        ['razbor.fee',       '− ' + Math.round(summa - baza) + ' ₽'],
+        ['razbor.toconv',    Math.round(baza) + ' ₽'],
+        ['razbor.rate_serv', '× ' + servis.rate_rub_uzs],
       ],
     };
   }
@@ -103,12 +105,12 @@ window.CALC = (function () {
       bank_name: bank.name,
       nacenka_percent: nacenkaBanka(bank.rate_usd_uzs, kursy.usd_uzs),
       razbor: [
-        ['Отправлено', summa + ' ₽'],
-        ['Комиссия сервиса', '− ' + Math.round(summa - baza) + ' ₽'],
-        ['К конвертации', Math.round(baza) + ' ₽'],
-        ['Курс рубль → доллар', '÷ ' + kursRubUsd.toFixed(2)],
-        ['Ушло в валюте', vValute.toFixed(2) + ' $'],
-        ['Курс банка → сум', '× ' + bank.rate_usd_uzs],
+        ['razbor.sent',        summa + ' ₽'],
+        ['razbor.fee',         '− ' + Math.round(summa - baza) + ' ₽'],
+        ['razbor.toconv',      Math.round(baza) + ' ₽'],
+        ['razbor.rate_rubusd', '÷ ' + kursRubUsd.toFixed(2)],
+        ['razbor.in_currency', vValute.toFixed(2) + ' $'],
+        ['razbor.rate_bank',   '× ' + bank.rate_usd_uzs],
       ],
     };
   }
@@ -177,7 +179,7 @@ window.CALC = (function () {
       hidden_loss_uzs: skrytaya_poterya,
       calculated_at: new Date().toISOString(),
       // Обязательная строка интерфейса. Не убирать — см. LEGAL.md.
-      disclaimer: 'Мы не переводим деньги. Курс банка получателя оценочный — банк ставит его в день зачисления, итог может отличаться.',
+      disclaimer: 'disclaimer.main',
     };
   }
 
