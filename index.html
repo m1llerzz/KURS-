@@ -238,6 +238,44 @@
 
   .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
 
+  /* ── Куда уходят деньги ─────────────────────────────────────────
+     Главное обещание продукта — показать невидимое. Раньше разбор
+     прятался в попапе, который открывают единицы. Теперь он на экране,
+     и видно, что курс забирает больше комиссии. */
+  .razbor {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 13px 15px 12px;
+    display: flex; flex-direction: column; gap: 9px;
+  }
+  .razbor .rt {
+    font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+  }
+  .razbor .rr { display: flex; flex-direction: column; gap: 5px; }
+  .razbor .rl {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; font-size: 13.5px;
+  }
+  .razbor .rl .k { color: var(--muted); }
+  .razbor .rl .v { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+  .razbor .rl.minus .v { color: var(--warn); }
+  .razbor .rl.itog {
+    border-top: 1px solid var(--line); padding-top: 8px; margin-top: 2px;
+    font-size: 15px;
+  }
+  .razbor .rl.itog .k { color: var(--ink); font-weight: 700; }
+  .razbor .rl.itog .v { font-size: 19px; color: var(--accent); letter-spacing: -.02em; }
+
+  /* Полоса потерь: сколько от официального курса осталось человеку.
+     Одна картинка вместо абзаца — видно, что забрали, и что дошло. */
+  .razbor .rbar {
+    display: flex; height: 7px; border-radius: 999px; overflow: hidden;
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+  .razbor .rbar i { display: block; height: 100%; }
+  .razbor .rbar .ost { background: var(--accent); }
+  .razbor .rbar .pot { background: color-mix(in srgb, var(--warn) 70%, transparent); }
+
   /* Быстрый выбор суммы. Набирать «50000» на телефоне — пять точных
      попаданий по цифрам и открытая клавиатура поверх половины экрана.
      Одно нажатие вместо этого убирает главное трение перед цифрой,
@@ -423,6 +461,13 @@
        незачем, цифра подождёт полсекунды. -->
   <div id="results" aria-live="polite" aria-atomic="false"></div>
 
+  <!-- Куда уходят деньги. Заполняется кодом после расчёта. -->
+  <div id="razbor" class="razbor hidden">
+    <span class="rt" data-i18n="br.t"></span>
+    <div class="rbar" id="rBar" aria-hidden="true"></div>
+    <div class="rr" id="rRows"></div>
+  </div>
+
   <button id="share" class="ghost hidden" data-i18n="btn.share"></button>
 
   <!-- ── Подписка на оповещения ───────────────────────────── -->
@@ -441,9 +486,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=18"></script>
-<script src="data.js?v=18"></script>
-<script src="calc.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="i18n.js?v=19"></script>
+<script src="data.js?v=19"></script>
+<script src="calc.js?v=19"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

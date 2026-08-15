@@ -299,6 +299,77 @@ try:
              len(otpravleno) == 1 and "редупреж" in otpravleno[0]["text"],
              otpravleno[0]["text"][:160] if otpravleno else "")
 
+    # ── Подписка предлагается ПОСЛЕ пользы, и один раз ──────────────
+
+    NOVYY = -777002
+    otpravleno.clear()
+    bot.privetstvie(NOVYY, "ru")
+    proverka("на /start приходит ровно одно сообщение", len(otpravleno) == 1,
+             "два подряд читаются как спам, каким бы полезным ни было второе")
+    proverka("в приветствии нет предложения подписки",
+             len(otpravleno) == 1 and "Написать, когда" not in otpravleno[0]["text"])
+    proverka("в приветствии сразу есть живой курс",
+             len(otpravleno) == 1 and "149" in otpravleno[0]["text"],
+             otpravleno[0]["text"][:200] if otpravleno else "")
+    proverka("в приветствии не осталось незаполненных мест",
+             len(otpravleno) == 1 and "{" not in otpravleno[0]["text"],
+             "фигурная скобка на экране — это забытая подстановка")
+    proverka("приветствие короткое",
+             len(otpravleno) == 1 and len(otpravleno[0]["text"]) < 420,
+             "длина: " + str(len(otpravleno[0]["text"]) if otpravleno else 0) +
+             " — стена текста на телефоне не читается")
+
+    for _lang in ("uz", "ru"):
+        otpravleno.clear()
+        bot.privetstvie(NOVYY, _lang)
+        proverka("приветствие собирается на " + _lang,
+                 len(otpravleno) == 1 and "{" not in otpravleno[0]["text"])
+
+    hranilishche.zapisat_cheloveka(NOVYY, lang="ru")
+    proverka("новый человек НЕ подписан по умолчанию",
+             not (hranilishche.chelovek(NOVYY) or {}).get("uvedomlyat"),
+             "согласие, которого не давали, — это спам, как его ни назови")
+    proverka("новый человек не попадает в рассылку",
+             all(c["chat_id"] != NOVYY for c in hranilishche.podpisannye()))
+
+    otpravleno.clear()
+    bot.mozhet_predlozhit_podpisku(NOVYY)
+    proverka("после расчёта предложение приходит", len(otpravleno) == 1,
+             "человек уже увидел свою цифру — вот теперь можно спросить")
+    proverka("это именно предложение подписки",
+             len(otpravleno) == 1 and "Написать, когда" in otpravleno[0]["text"],
+             otpravleno[0]["text"][:80] if otpravleno else "")
+
+    otpravleno.clear()
+    bot.mozhet_predlozhit_podpisku(NOVYY)
+    proverka("второй раз не спрашиваем", len(otpravleno) == 0,
+             "повторный тот же вопрос — это давление, а не предложение")
+
+    # Согласился — больше не спрашиваем никогда.
+    hranilishche.zapisat_cheloveka(NOVYY, uvedomlyat=True, sprosili_podpisku=True)
+    otpravleno.clear()
+    bot.mozhet_predlozhit_podpisku(NOVYY)
+    proverka("согласившегося не спрашиваем", len(otpravleno) == 0)
+
+    # Незнакомый chat_id — приложение могли открыть мимо бота.
+    otpravleno.clear()
+    bot.mozhet_predlozhit_podpisku(-999999)
+    proverka("незнакомому не пишем", len(otpravleno) == 0,
+             "приложение открывается и вне Telegram")
+    otpravleno.clear()
+    bot.mozhet_predlozhit_podpisku(None)
+    proverka("без chat_id не падаем", len(otpravleno) == 0)
+
+    try:
+        if hranilishche.na_postgres():
+            hranilishche._vypolnit("DELETE FROM podpischiki WHERE chat_id = %s", (NOVYY,))
+        else:
+            _v = hranilishche._chitat_fayl()
+            _v.pop(str(NOVYY), None)
+            hranilishche._pisat_fayl(_v)
+    except Exception:
+        pass
+
     # ── Еженедельная сводка ─────────────────────────────────────────
 
     otpravleno.clear()

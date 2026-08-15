@@ -50,6 +50,9 @@
     vHint:      document.getElementById('vHint'),
     subCta:     document.getElementById('subCta'),
     subBtn:     document.getElementById('subBtn'),
+    razbor:     document.getElementById('razbor'),
+    rBar:       document.getElementById('rBar'),
+    rRows:      document.getElementById('rRows'),
   };
 
   // Telegram кеширует html и js порознь, и какое-то время после обновления
@@ -510,11 +513,82 @@
         ? t('kurs.fail')
         : t('kurs.date', { d: kursy.date });
 
+    narisovatRazbor(luchshiy, kursy);
+
     el.share.classList.remove('hidden');
     // Просьбу о подписке показываем только теперь — после того, как
     // человек получил цифру, ради которой пришёл. Это не приём, а порядок:
     // сначала польза, потом просьба. Наоборот получаешь отказ.
     if (el.subCta) el.subCta.classList.remove('hidden');
+  }
+
+  /**
+   * «Куда уходят деньги» — главное обещание продукта на экране.
+   *
+   * Человек видит три строки: сколько было бы по официальному курсу,
+   * сколько забрал курс сервиса, сколько забрала комиссия, и что осталось.
+   * Раньше этот разбор жил в попапе, который открывают единицы, — то есть
+   * то, ради чего продукт существует, видели единицы.
+   *
+   * Считаем от курса ЦБ, а не от суммы в рублях: рубли человек и так знает,
+   * а вот что он мог бы получить по официальному курсу — не знает никто.
+   */
+  function narisovatRazbor(luchshiy, kursy) {
+    if (!el.razbor || !luchshiy || !kursy || !kursy.rub_uzs) {
+      if (el.razbor) el.razbor.classList.add('hidden');
+      return;
+    }
+
+    const summaRub = parseFloat(el.summa.value);
+    const servis = SERVISY.filter(function (s) { return s.id === luchshiy.service_id; })[0];
+    if (!isFinite(summaRub) || !servis) {
+      el.razbor.classList.add('hidden');
+      return;
+    }
+
+    const poCB = summaRub * kursy.rub_uzs;
+    const itog = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
+
+    // Комиссия сервиса в рублях — и та же величина в сумах, чтобы всё
+    // в разборе считалось в одних единицах и складывалось на глазах.
+    const komissiyaRub = (servis.fee_fixed || 0) + summaRub * ((servis.fee_percent || 0) / 100);
+    const komissiya = Math.round(komissiyaRub * kursy.rub_uzs);
+
+    // Остальное съел курс. Считаем вычитанием, а не по формуле: так
+    // строки гарантированно сходятся с итогом, и человек не поймает нас
+    // на арифметике, которая не бьётся.
+    const kurs = Math.max(0, Math.round(poCB - itog - komissiya));
+
+    const stroki = [];
+    stroki.push('<span class="rl"><span class="k">' + t('br.cb') +
+      '</span><span class="v">' + sum(poCB) + '</span></span>');
+
+    if (kurs > 0) {
+      stroki.push('<span class="rl minus"><span class="k">' + t('br.rate') +
+        '</span><span class="v">− ' + sum(kurs) + '</span></span>');
+    }
+
+    if (servis.fee_unknown) {
+      stroki.push('<span class="rl"><span class="k">' + t('br.fee') +
+        '</span><span class="v" style="color:var(--muted);font-weight:600">' +
+        t('br.fee_unknown') + '</span></span>');
+    } else if (komissiya > 0) {
+      stroki.push('<span class="rl minus"><span class="k">' + t('br.fee') +
+        '</span><span class="v">− ' + sum(komissiya) + '</span></span>');
+    }
+
+    stroki.push('<span class="rl itog"><span class="k">' + t('br.total') +
+      '</span><span class="v">' + sum(itog) + ' ' + t('unit.sum') + '</span></span>');
+
+    el.rRows.innerHTML = stroki.join('');
+
+    // Полоса: сколько дошло и сколько забрали. Одна картинка вместо абзаца.
+    const doshlo = poCB > 0 ? Math.max(0, Math.min(100, (itog / poCB) * 100)) : 100;
+    el.rBar.innerHTML =
+      '<i class="ost" style="width:' + doshlo.toFixed(1) + '%"></i>' +
+      '<i class="pot" style="width:' + (100 - doshlo).toFixed(1) + '%"></i>';
+
+    el.razbor.classList.remove('hidden');
   }
 
   function pokazatRazbor(r) {
@@ -702,6 +776,7 @@
     el.loss.classList.add('hidden');
     el.share.classList.add('hidden');
     el.disclaimer.classList.add('hidden');
+    if (el.razbor) el.razbor.classList.add('hidden');
     posledniyRaschet = null;
     if (el.idle) el.idle.classList.remove('hidden');
   }

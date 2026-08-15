@@ -248,6 +248,45 @@ function dozhdatsya() {
     polosy.length === 2 && polosy[0].style.width === polosy[1].style.width,
     'курс у сервисов совпадает — и это тоже правда, которую видно');
 
+  /* ── Куда уходят деньги ────────────────────────────────────────── */
+
+  proverka('разбор показан', vidno(w, 'razbor'),
+    'это главное обещание продукта — показать невидимое');
+
+  const strokiRazbora = w.document.querySelectorAll('#rRows .rl');
+  proverka('в разборе есть строки', strokiRazbora.length >= 3,
+    'строк: ' + strokiRazbora.length);
+  proverka('первая строка — курс ЦБ',
+    strokiRazbora.length > 0 && /ЦБ|Markaziy/.test(strokiRazbora[0].textContent),
+    strokiRazbora.length ? strokiRazbora[0].textContent : '');
+  proverka('есть строка про курс сервиса',
+    Array.prototype.some.call(strokiRazbora, function (s) {
+      return s.classList.contains('minus');
+    }), 'потеря на курсе обязана быть видна отдельной строкой');
+  proverka('последняя строка — итог',
+    strokiRazbora.length > 0 &&
+    strokiRazbora[strokiRazbora.length - 1].classList.contains('itog'));
+
+  // Арифметика разбора обязана сходиться: человек проверит её на калькуляторе.
+  const chisla = Array.prototype.map.call(strokiRazbora, function (s) {
+    const v = s.querySelector('.v').textContent.replace(/[^\d]/g, '');
+    return v ? parseInt(v, 10) : null;
+  });
+  const verh = chisla[0];
+  const niz = chisla[chisla.length - 1];
+  const vychety = chisla.slice(1, -1).filter(function (x) { return x !== null && x > 0; })
+    .reduce(function (a, b) { return a + b; }, 0);
+  proverka('строки разбора сходятся с итогом',
+    Math.abs(verh - vychety - niz) <= 1000,
+    'сверху ' + verh + ' минус ' + vychety + ' должно дать ' + niz);
+
+  const dolya = w.document.querySelectorAll('#rBar i');
+  proverka('полоса потерь нарисована', dolya.length === 2,
+    'частей: ' + dolya.length);
+  proverka('полоса потерь не пустая',
+    dolya.length === 2 && parseFloat(dolya[0].style.width) > 50,
+    'дошло должно быть большей частью, иначе что-то посчитано не так');
+
   proverka('результат объявляется голосом',
     w.document.getElementById('results').getAttribute('aria-live') === 'polite',
     'иначе незрячий нажимает «Посчитать» и не узнаёт, что что-то изменилось');

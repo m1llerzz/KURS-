@@ -124,14 +124,17 @@ TEKSTY = {
     "uz": {
         "vybran": "Til: O‘zbekcha",
         "privet": (
-            "<b>Pul jo‘natishdan oldin bitta savol: bugunmi yoki ertaga?</b>\n\n"
-            "So‘nggi oyda rubl kursi 155 dan 141 gacha tushdi. Bu 9%. "
-            "50 000 rublda — 670 ming so‘m. Kun tanlash servis tanlashdan "
-            "ko‘ra ko‘proq pul hal qiladi, lekin buni sizga hech kim aytmaydi.\n\n"
-            "Men aytaman. Bugungi kurs oyning o‘rtachasidan qanday farq "
-            "qilishini ko‘rsataman va kartaga aniq qancha tushishini hisoblab beraman.\n\n"
-            "O‘n soniya. Bepul. Pul o‘tkazmaymiz — faqat hisoblaymiz."
+            "<b>Yuborishdan oldin: bugunmi yoki kutamizmi?</b>\n\n"
+            "Oy ichida rubl kursi 9% ga o‘zgardi. 50 000 rublda bu — 670 ming "
+            "so‘m. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.\n\n"
+            "{stroka_kursa}\n\n"
+            "Bepul. Pul o‘tkazmaymiz — faqat hisoblaymiz."
         ),
+        # Живая строка курса прямо в приветствии. Человек получает пользу
+        # в первом же сообщении, до всякого нажатия, — и сразу видит, что
+        # цифры тут настоящие, а не рассказ о том, какие мы хорошие.
+        "privet_kurs": "Bugun: <b>{kurs}</b> so‘m · oyda o‘rtacha {srednee} — {verdikt}",
+        "privet_bez_kursa": "Summani kiriting — kartaga qancha yetib borishini aytaman.",
         "knopka": "Hisoblash",
         "knopka_kurs": "Bugungi kurs",
         "podpiska_predlozhenie": (
@@ -203,14 +206,14 @@ TEKSTY = {
     "ru": {
         "vybran": "Язык: русский",
         "privet": (
-            "<b>Перед отправкой один вопрос: сегодня или завтра?</b>\n\n"
-            "За последний месяц курс рубля прошёл путь от 155 до 141. Это 9%. "
-            "На 50 000 ₽ — 670 тысяч сум. День отправки решает больше денег, "
-            "чем выбор сервиса, и об этом вам не говорит никто.\n\n"
-            "Я говорю. Покажу, чем сегодняшний курс отличается от среднего за "
-            "месяц, и посчитаю, сколько именно дойдёт до карты.\n\n"
-            "Десять секунд. Бесплатно. Деньги не переводим — только считаем."
+            "<b>Перед отправкой: сегодня или подождать?</b>\n\n"
+            "За месяц курс рубля прошёл 9%. На 50 000 ₽ это 670 тысяч сум. "
+            "Не какой сервис, а какой <b>день</b> — вот где основные деньги.\n\n"
+            "{stroka_kursa}\n\n"
+            "Бесплатно. Деньги не переводим — только считаем."
         ),
+        "privet_kurs": "Сегодня: <b>{kurs}</b> сум · в среднем за месяц {srednee} — {verdikt}",
+        "privet_bez_kursa": "Введите сумму — скажу, сколько дойдёт до карты.",
         "knopka": "Посчитать",
         "knopka_kurs": "Курс сегодня",
         "podpiska_predlozhenie": (
@@ -322,31 +325,75 @@ def poslat(chat_id, text, knopki=None, html=True):
 
 # ── Экраны разговора ─────────────────────────────────────────────────
 
-def sprosit_yazyk(chat_id):
+def sprosit_yazyk(chat_id, posle=""):
+    """Спрашиваем язык. `posle` — что сделать после выбора: показать
+    приветствие (по умолчанию) или сразу предложить подписку, если человек
+    пришёл по ссылке «хочу оповещения» из приложения.
+    """
     poslat(chat_id, VYBOR_YAZYKA, [[
-        {"text": "O‘zbekcha", "callback_data": "lang:uz"},
-        {"text": "Русский", "callback_data": "lang:ru"},
+        {"text": "O‘zbekcha", "callback_data": "lang:uz:" + posle},
+        {"text": "Русский", "callback_data": "lang:ru:" + posle},
     ]], html=False)
 
 
 def privetstvie(chat_id, lang):
+    """Одно сообщение. Ровно одно.
+
+    Раньше следом сразу летело второе — предложение подписки. Два
+    сообщения подряд от бота, которому человек написал одно слово,
+    читаются как спам, каким бы полезным ни было второе.
+    """
     t = TEKSTY[lang]
-    poslat(chat_id, t["privet"], [
+    ocenka = (svezhie_dannye() or {}).get("sovet")
+
+    # Курс подставляем прямо в приветствие. Человек получает пользу в первом
+    # же сообщении, до единого нажатия, — и сразу видит, что цифры здесь
+    # настоящие, а не рассказ о том, какие мы хорошие.
+    if ocenka:
+        stroka = t["privet_kurs"].format(
+            kurs=ocenka["segodnya"], srednee=ocenka["srednee_30"],
+            verdikt=VERDIKTY[lang][ocenka["verdikt"]].lower())
+    else:
+        stroka = t["privet_bez_kursa"]
+
+    poslat(chat_id, t["privet"].format(stroka_kursa=stroka), [
         [{"text": t["knopka"], "web_app": {"url": PRILOZHENIE}}],
         [{"text": t["knopka_kurs"], "callback_data": "kurs"}],
     ])
-    # Подписку предлагаем отдельным сообщением и ПОСЛЕ пользы, а не до:
-    # просить разрешение писать у человека, который ещё ничего не получил,
-    # значит получить отказ. Сначала показываем, что умеем.
-    predlozhit_podpisku(chat_id, lang)
 
 
 def predlozhit_podpisku(chat_id, lang):
     t = TEKSTY[lang]
+    hranilishche.zapisat_cheloveka(chat_id, sprosili_podpisku=True)
     poslat(chat_id, t["podpiska_predlozhenie"], [[
         {"text": t["podpiska_da"], "callback_data": "sub:1"},
         {"text": t["podpiska_net"], "callback_data": "sub:0"},
     ]], html=False)
+
+
+def mozhet_predlozhit_podpisku(chat_id):
+    """Предложить подписку — но только когда человек уже получил пользу.
+
+    Момент выбран не случайно: приложение сообщает боту о расчёте, значит
+    человек только что увидел свою цифру. Предложение придёт в чат и
+    попадётся ему на глаза, когда он выйдет из приложения, — а не до того,
+    как он вообще понял, зачем мы нужны.
+
+    Условия жёсткие: спрашиваем ОДИН раз за всю жизнь, не спрашиваем тех,
+    кто уже согласился, и не спрашиваем того, кто уже отказался. Второй
+    заход с тем же вопросом — это давление, а не предложение.
+    """
+    if not chat_id:
+        return
+    c = hranilishche.chelovek(chat_id)
+    if not c:
+        return                       # не наш человек, приложение открыто со стороны
+    if c.get("sprosili_podpisku") or c.get("uvedomlyat"):
+        return
+
+    lang = c.get("lang") if c.get("lang") in TEKSTY else "uz"
+    predlozhit_podpisku(chat_id, lang)
+    hranilishche.sobytie(chat_id, "podpiska_predlozhena")
 
 
 def _stroka_summy(lang, ocenka, summa):
@@ -532,13 +579,38 @@ def obrabotat_soobshchenie(soobshchenie):
         poslat(chat_id, TEKSTY[lang]["pomoshch"])
         return
 
-    # /start и всё остальное. Знакомому язык уже известен — второй раз
-    # спрашивать значит начинать отношения заново при каждом заходе.
-    if izvesten:
+    # ── /start с параметром ──────────────────────────────────────────
+    # Ссылка «хочу оповещения» из приложения ведёт на /start uved, а
+    # пересланный расчёт — на /start share. Без разбора параметра человек,
+    # нажавший в приложении «да, пишите», попадал на общее приветствие и
+    # не понимал, куда делась его просьба.
+    if nizhniy.startswith("/start"):
+        chasti = tekst.split(None, 1)
+        parametr = chasti[1].strip().lower() if len(chasti) > 1 else ""
+
+        if not izvesten:
+            sprosit_yazyk(chat_id, posle="uved" if parametr == "uved" else "")
+            hranilishche.sobytie(chat_id, "novyy", {"start": parametr[:32]})
+            return
+
+        if parametr == "uved":
+            predlozhit_podpisku(chat_id, lang)
+            return
+
         privetstvie(chat_id, lang)
-    else:
+        return
+
+    # ── Всё остальное ────────────────────────────────────────────────
+    if not izvesten:
         sprosit_yazyk(chat_id)
-        hranilishche.sobytie(chat_id, "novyy", {"start": tekst[:64]})
+        hranilishche.sobytie(chat_id, "novyy", {"start": tekst[:32]})
+        print("сообщение", chat_id, tekst[:40], flush=True)
+        return
+
+    # Знакомому на произвольный текст показываем КУРС, а не приветствие.
+    # Раньше в ответ на «спасибо» прилетал рассказ о том, кто мы такие, —
+    # это выглядит так, будто бот тебя не помнит.
+    pokazat_kurs(chat_id, lang)
     print("сообщение", chat_id, tekst[:40], flush=True)
 
 
@@ -553,16 +625,31 @@ def obrabotat_nazhatie(nazhatie):
     vyzov("answerCallbackQuery", {"callback_query_id": nazhatie["id"]})
 
     if dannye.startswith("lang:"):
-        lang = dannye.split(":", 1)[1]
+        chasti = dannye.split(":")
+        lang = chasti[1] if len(chasti) > 1 else "uz"
+        posle = chasti[2] if len(chasti) > 2 else ""
         if lang not in TEKSTY:
             lang = "uz"
         hranilishche.zapisat_cheloveka(chat_id, lang=lang)
-        vyzov("editMessageText", {
-            "chat_id": chat_id,
-            "message_id": soobshchenie["message_id"],
-            "text": TEKSTY[lang]["vybran"],
-        })
-        privetstvie(chat_id, lang)
+
+        # Вопрос про язык убираем совсем, а не превращаем в надпись
+        # «Язык: русский». Отработавший вопрос — это мусор в переписке,
+        # и его накапливается по одному на каждый заход.
+        udaleno = vyzov("deleteMessage", {
+            "chat_id": chat_id, "message_id": soobshchenie["message_id"]})
+        if not udaleno or not udaleno.get("ok"):
+            # Старше двух суток Telegram удалять не даёт — тогда хотя бы
+            # снимаем кнопки, чтобы по ним не нажимали второй раз.
+            vyzov("editMessageText", {
+                "chat_id": chat_id,
+                "message_id": soobshchenie["message_id"],
+                "text": TEKSTY[lang]["vybran"],
+            })
+
+        if posle == "uved":
+            predlozhit_podpisku(chat_id, lang)
+        else:
+            privetstvie(chat_id, lang)
         hranilishche.sobytie(chat_id, "yazyk", {"lang": lang})
         return
 
@@ -836,10 +923,20 @@ class Stranica(BaseHTTPRequestHandler):
 
             tip = str(telo.get("tip") or "")[:40]
             if tip:
-                chat_id = telo.get("chat_id")
-                hranilishche.sobytie(
-                    int(chat_id) if str(chat_id or "").lstrip("-").isdigit() else None,
-                    tip, telo.get("dannye"))
+                syroy_id = str(telo.get("chat_id") or "")
+                chat_id = int(syroy_id) if syroy_id.lstrip("-").isdigit() else None
+                hranilishche.sobytie(chat_id, tip, telo.get("dannye"))
+
+                # Человек только что посчитал — значит уже получил то, зачем
+                # приходил. Вот теперь можно спросить про оповещения: он
+                # увидит вопрос, когда закроет приложение.
+                #
+                # Отдельным потоком: отправка в Telegram занимает до секунды,
+                # а приложение ждать нашу вежливость не должно.
+                if tip == "raschet" and chat_id:
+                    threading.Thread(
+                        target=mozhet_predlozhit_podpisku,
+                        args=(chat_id,), daemon=True).start()
         except Exception as oshibka:
             print("[событие] не разобрано:", repr(oshibka)[:120], flush=True)
 

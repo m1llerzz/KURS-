@@ -110,7 +110,13 @@ def podnyat():
             lang           TEXT    NOT NULL DEFAULT 'uz',
             summa_rub      INTEGER,
             bank_id        TEXT,
-            uvedomlyat     BOOLEAN NOT NULL DEFAULT TRUE,
+            -- ПО УМОЛЧАНИЮ НЕТ. Раньше здесь стояло TRUE, и человек,
+            -- написавший боту одно слово, автоматически попадал в рассылку.
+            -- Согласие, которого не давали, — это спам, как его ни назови.
+            uvedomlyat     BOOLEAN NOT NULL DEFAULT FALSE,
+            -- Спрашивали ли уже. Предложение подписки показывается один
+            -- раз в жизни: второй раз это давление, а не предложение.
+            sprosili_podpisku BOOLEAN NOT NULL DEFAULT FALSE,
             posledniy_verdikt TEXT,
             -- Курс, при котором человек просил его разбудить. Он ставит
             -- его сам — и именно поэтому возвращается: это его решение,
@@ -124,6 +130,13 @@ def podnyat():
     # CREATE TABLE IF NOT EXISTS её не тронет, и запись цели упадёт молча.
     _vypolnit("ALTER TABLE podpischiki ADD COLUMN IF NOT EXISTS "
               "cel_kurs DOUBLE PRECISION")
+    _vypolnit("ALTER TABLE podpischiki ADD COLUMN IF NOT EXISTS "
+              "sprosili_podpisku BOOLEAN NOT NULL DEFAULT FALSE")
+    # Таблица могла быть создана прошлой версией, где согласие было
+    # включено по умолчанию. Меняем умолчание для новых записей; уже
+    # накопленные не трогаем — снимать согласие у тех, кто его давал,
+    # так же неправильно, как ставить тем, кто не давал.
+    _vypolnit("ALTER TABLE podpischiki ALTER COLUMN uvedomlyat SET DEFAULT FALSE")
 
     _vypolnit("""
         CREATE TABLE IF NOT EXISTS sobytiya (
@@ -140,7 +153,8 @@ def zapisat_cheloveka(chat_id, **polya):
     """Создаёт или обновляет человека. Пустые поля не затирают старые."""
     chat_id = int(chat_id)
     razresheno = {"lang", "summa_rub", "bank_id", "uvedomlyat",
-                  "posledniy_verdikt", "uvedomlen_v", "cel_kurs"}
+                  "posledniy_verdikt", "uvedomlen_v", "cel_kurs",
+                  "sprosili_podpisku"}
     # Список полей — не удобство, а защита: имена колонок подставляются
     # в SQL строкой, и без белого списка сюда однажды приедет что угодно.
     # Значение при этом всегда идёт параметром, никогда не склейкой.
@@ -166,7 +180,11 @@ def zapisat_cheloveka(chat_id, **polya):
             return
 
         vse = _chitat_fayl()
-        chelovek = vse.get(str(chat_id), {"chat_id": chat_id, "uvedomlyat": True,
+        # uvedomlyat False по умолчанию — так же, как в базе. Согласие,
+        # которого не давали, не должно возникать из значения по умолчанию
+        # ни в одном из двух хранилищ.
+        chelovek = vse.get(str(chat_id), {"chat_id": chat_id, "uvedomlyat": False,
+                                          "sprosili_podpisku": False,
                                           "lang": "uz", "sozdan_v": _teper()})
         chelovek.update(polya)
         chelovek["aktiven_v"] = _teper()
@@ -179,14 +197,14 @@ def chelovek(chat_id):
     if na_postgres():
         stroki = _vypolnit(
             "SELECT chat_id, lang, summa_rub, bank_id, uvedomlyat, "
-            "posledniy_verdikt, cel_kurs "
+            "posledniy_verdikt, cel_kurs, sprosili_podpisku "
             "FROM podpischiki WHERE chat_id = %s", (chat_id,), vernut=True)
         if not stroki:
             return None
         s = stroki[0]
         return {"chat_id": s[0], "lang": s[1], "summa_rub": s[2],
                 "bank_id": s[3], "uvedomlyat": s[4], "posledniy_verdikt": s[5],
-                "cel_kurs": s[6]}
+                "cel_kurs": s[6], "sprosili_podpisku": s[7]}
     return _chitat_fayl().get(str(chat_id))
 
 

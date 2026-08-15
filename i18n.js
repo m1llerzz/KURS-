@@ -124,6 +124,14 @@ window.I18N = (function () {
       'sub.p':           'Faqat kurs odatdagidan yaxshi bo’lganda yozaman — ya’ni jim turishim sizga pulga tushadigan paytda. Uch kunda bir martadan ko’p emas.',
       'sub.btn':         'Ha, xabar bering',
 
+      // ── Pul qayerga ketadi ───────────────────────────────────────
+      'br.t':            'Pul qayerga ketadi',
+      'br.cb':           'Markaziy bank kursi bo‘yicha',
+      'br.rate':         'Xizmat kursi',
+      'br.fee':          'Komissiya',
+      'br.fee_unknown':  'e’lon qilinmagan',
+      'br.total':        'Kartaga tushadi',
+
       'err.net':         'Yangi kurslarni olib bo’lmadi — {d} holatidagi ma’lumot bilan hisobladim',
 
       // Пересылка — главный способ, которым про нас узнают. Поэтому здесь
@@ -234,6 +242,14 @@ window.I18N = (function () {
       'sub.t':           'Написать, когда курс станет лучше?',
       'sub.p':           'Пишу только когда курс выше обычного — то есть когда моё молчание стоило бы вам денег. Не чаще раза в трое суток.',
       'sub.btn':         'Да, пишите',
+
+      // ── Куда уходят деньги ───────────────────────────────────────
+      'br.t':            'Куда уходят деньги',
+      'br.cb':           'По официальному курсу ЦБ',
+      'br.rate':         'Курс сервиса',
+      'br.fee':          'Комиссия',
+      'br.fee_unknown':  'не объявлена',
+      'br.total':        'Придёт на карту',
 
       'err.net':         'Свежие курсы не получены — считаю по данным на {d}',
 
