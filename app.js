@@ -80,10 +80,15 @@
     return stroka.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
+  /**
+   * Срок доставки словами. Число подставляется внутрь строки языка,
+   * а не приклеивается к ней: по-узбекски время требует окончания
+   * («10 daqiqada»), и склейка вида «10 daq» читалась обрывком.
+   */
   function srok(minut) {
-    if (minut < 60) return minut + ' ' + t('time.min');
-    if (minut < 1440) return Math.round(minut / 60) + ' ' + t('time.hour');
-    return Math.round(minut / 1440) + ' ' + t('time.day');
+    if (minut < 60) return t('time.min', { n: minut });
+    if (minut < 1440) return t('time.hour', { n: Math.round(minut / 60) });
+    return t('time.day', { n: Math.round(minut / 1440) });
   }
 
   /* ── Курс ЦБ: сеть → кеш на сутки → запасные значения ── */

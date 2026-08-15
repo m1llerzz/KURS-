@@ -99,13 +99,18 @@
   button:disabled { opacity: .45; cursor: not-allowed; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+  /* Главная плашка расчёта. Раньше была красной, и весь экран читался
+     как предупреждение о беде: человек приходил посчитать, а получал упрёк.
+     Красный оставлен только за настоящими ошибками ввода — там он к месту.
+     Здесь акцент темы: цифра та же, но она зовёт считать, а не пугает. */
   .loss {
-    background: var(--alert-bg); border: 1px solid color-mix(in srgb, var(--alert) 30%, transparent);
-    border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px;
+    background: color-mix(in srgb, var(--accent) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 12px; padding: 13px 15px; display: flex; flex-direction: column; gap: 2px;
   }
   .loss .t { font-size: 12px; color: var(--muted); font-weight: 600; }
   .loss .n {
-    font-size: 25px; font-weight: 800; color: var(--alert);
+    font-size: 27px; font-weight: 800; color: var(--accent);
     font-variant-numeric: tabular-nums; letter-spacing: -.02em;
   }
   .loss .s { font-size: 12.5px; color: var(--muted); }
@@ -181,7 +186,7 @@
     padding: 16px 18px; display: flex; flex-direction: column; gap: 2px;
   }
   .intro .bignum .v {
-    font-size: 30px; font-weight: 800; color: var(--alert);
+    font-size: 30px; font-weight: 800; color: var(--accent);
     font-variant-numeric: tabular-nums; letter-spacing: -.02em;
   }
   .intro .bignum .k { font-size: 13px; color: var(--muted); }
@@ -273,9 +278,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=7"></script>
-<script src="data.js?v=7"></script>
-<script src="calc.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="i18n.js?v=8"></script>
+<script src="data.js?v=8"></script>
+<script src="calc.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

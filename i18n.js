@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ЯЗЫКИ
  *
  * Два языка: узбекский (латиница) и русский. Узбекский первый — отправитель
@@ -32,10 +32,10 @@ window.I18N = (function () {
       'lbl.send':        'Yuboraman',
       'hint.rub':        'rubl, Rossiyadan',
       'lbl.bank':        'Qabul qiluvchi bank',
-      'hint.bank':       'tanlanmasa, oraliqni ko’rsatamiz',
+      'hint.bank':       'bilmasangiz - oraliqni ko’rsatamiz',
       'bank.any':        'Bilmayman',
       'btn.calc':        'Hisoblash',
-      'btn.share':       'Chatga yuborish',
+      'btn.share':       'Yaqinlaringizga yuborish',
 
       'idle.rate':       '1 ₽ = {r} so’m',
       'idle.rate.sub':   'Markaziy bank kursi, {d} — hisob shundan boshlanadi',
@@ -48,22 +48,22 @@ window.I18N = (function () {
       'err.max':         'Eng ko’pi {max} ₽ — bundan katta o’tkazmani xizmatlar bir amalda qabul qilmaydi',
       'err.nan':         'Summani raqam bilan kiriting',
 
-      'loss.t':          'Eng yaxshi va eng yomon usul farqi',
-      'loss.sub':        '{sum} ₽ dan · usul tanlashda shuncha yo’qoladi',
+      'loss.t':          'Usullar orasidagi farq',
+      'loss.sub':        '{sum} ₽ da eng yaxshi usul shuncha qo’shadi',
 
       'tag.best':        'Eng ko’p',
-      'tag.stale':       'Kechagi ma’lumot',
+      'tag.stale':       'kecha yangilangan',
 
       'unit.sum':        'so’m',
-      'time.min':        'daq',
-      'time.hour':       'soat',
-      'time.day':        'kun',
+      'time.min':        '{n} daqiqada',
+      'time.hour':       '{n} soatda',
+      'time.day':        '{n} kunda',
 
       'detail.est':      'bank kursi taxminiy',
-      'detail.worse':    'bank Markaziy bank kursidan {p}% yomonroq',
-      'detail.better':   'bank Markaziy bank kursidan {p}% yaxshiroq',
-      'detail.stale':    'bank kursi yangilanishi kerak',
-      'detail.limit':    'limitdan yuqori, tasdiqlash kerak',
+      'detail.worse':    'bank kursi rasmiydan {p}% past',
+      'detail.better':   'bank kursi rasmiydan {p}% yuqori',
+      'detail.stale':    'bank kursi aniqlanmoqda',
+      'detail.limit':    'limitdan yuqori - hujjat tekshiruvi kerak',
 
       'empty':           'Ma’lumotlar yangilanmoqda. Bir soatdan keyin kiring — noto’g’ri raqam ko’rsatmaymiz.',
       'test':            'TEST MA’LUMOT, raqamlar o’ylab topilgan. ',
@@ -102,10 +102,10 @@ window.I18N = (function () {
       'lbl.send':        'Отправляю',
       'hint.rub':        'рублей из России',
       'lbl.bank':        'Банк получателя',
-      'hint.bank':       'без него покажем вилку',
+      'hint.bank':       'не знаете - покажем от и до',
       'bank.any':        'Не знаю',
       'btn.calc':        'Посчитать',
-      'btn.share':       'Отправить в чат',
+      'btn.share':       'Отправить своим',
 
       'idle.rate':       '1 ₽ = {r} сум',
       'idle.rate.sub':   'Курс ЦБ, {d} — с него начинается расчёт',
@@ -118,22 +118,22 @@ window.I18N = (function () {
       'err.max':         'Максимум {max} ₽ — больше сервисы не проводят одной операцией',
       'err.nan':         'Введите сумму цифрами',
 
-      'loss.t':          'Разница между лучшим и худшим',
-      'loss.sub':        'на {sum} ₽ · столько теряется на выборе способа',
+      'loss.t':          'Разница между способами',
+      'loss.sub':        'на {sum} ₽ · столько добавит лучший способ',
 
       'tag.best':        'Больше всего',
-      'tag.stale':       'Данные вчера',
+      'tag.stale':       'обновлено вчера',
 
       'unit.sum':        'сум',
-      'time.min':        'мин',
-      'time.hour':       'ч',
-      'time.day':        'дн',
+      'time.min':        'за {n} мин',
+      'time.hour':       'за {n} ч',
+      'time.day':        'за {n} дн',
 
-      'detail.est':      'курс банка оценочный',
-      'detail.worse':    'банк хуже курса ЦБ на {p}%',
-      'detail.better':   'банк лучше курса ЦБ на {p}%',
-      'detail.stale':    'курс банка требует обновления',
-      'detail.limit':    'выше лимита, нужна верификация',
+      'detail.est':      'курс банка примерный',
+      'detail.worse':    'курс банка ниже официального на {p}%',
+      'detail.better':   'курс банка выше официального на {p}%',
+      'detail.stale':    'курс банка уточняется',
+      'detail.limit':    'выше лимита - нужна проверка документов',
 
       'empty':           'Данные обновляются. Загляните через час — показывать неверные цифры мы не будем.',
       'test':            'ТЕСТОВЫЕ ДАННЫЕ, цифры выдуманы. ',
