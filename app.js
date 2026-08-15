@@ -51,6 +51,7 @@
     vHint:      document.getElementById('vHint'),
     subCta:     document.getElementById('subCta'),
     subBtn:     document.getElementById('subBtn'),
+    srcUpd:     document.getElementById('srcUpd'),
     razbor:     document.getElementById('razbor'),
     rBar:       document.getElementById('rBar'),
     rRows:      document.getElementById('rRows'),
@@ -167,6 +168,16 @@
       stroka = chislo.toFixed(0);
     }
     return stroka.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  /**
+   * Дробное число так, как его пишут по-русски и по-узбекски: 141,76.
+   * JavaScript печатает 141.76, а человек в обеих странах читает через
+   * запятую. Мелочь ровно до того момента, пока не поймёшь, что именно
+   * из таких мелочей складывается ощущение самоделки.
+   */
+  function chislo(n, znakov) {
+    return Number(n).toFixed(znakov === undefined ? 2 : znakov).replace('.', ',');
   }
 
   /**
@@ -321,8 +332,8 @@
     else if (ploho) el.verdict.classList.add('bad');
 
     el.vHead.textContent = t('v.' + o.verdikt);
-    el.vRate.textContent = t('v.rate', { r: o.segodnya.toFixed(2) });
-    el.vAvg.textContent = t('v.avg', { r: o.srednee_30.toFixed(2) });
+    el.vRate.textContent = t('v.rate', { r: chislo(o.segodnya) });
+    el.vAvg.textContent = t('v.avg', { r: chislo(o.srednee_30) });
 
     // Значок с отклонением — для тех, кто листает быстро и текст не читает.
     // Знак обязателен: «5,4%» без него можно прочесть в любую сторону.
@@ -336,8 +347,8 @@
 
     // Подписи под графиком: крайние значения месяца и период. Без них
     // линия красивая, но сравнить её не с чем.
-    if (el.vOsL) el.vOsL.textContent = o.min_30.toFixed(2);
-    if (el.vOsR) el.vOsR.textContent = o.max_30.toFixed(2) + ' · ' + t('v.days');
+    if (el.vOsL) el.vOsL.textContent = chislo(o.min_30);
+    if (el.vOsR) el.vOsR.textContent = chislo(o.max_30) + ' · ' + t('v.days');
 
     // Точка на шкале месяца. Ставим в следующем кадре, чтобы переход был
     // виден: заданное в тот же кадр значение браузер не анимирует.
@@ -357,8 +368,22 @@
     if (o.pozicia_percent <= 2) chasti.push(t('v.pos.worst'));
     else if (o.pozicia_percent >= 98) chasti.push(t('v.pos.best'));
     else chasti.push(t('v.pos', { p: o.pozicia_percent }));
-    if (o.trend) chasti.push(t('v.trend.' + o.trend));
-    chasti.push(t('v.range', { mn: o.min_30.toFixed(2), mx: o.max_30.toFixed(2) }));
+
+    // Направление без величины ни к чему не обязывает: «падает» человек
+    // прочитает и пожмёт плечами, «за неделю −2,1%» — уже решение.
+    if (o.nedelya_percent !== null && o.nedelya_percent !== undefined
+        && Math.abs(o.nedelya_percent) >= 0.1) {
+      chasti.push(o.nedelya_percent > 0
+        ? t('v.week.up',   { p: o.nedelya_percent.toFixed(1).replace('.', ',') })
+        : t('v.week.down', { p: Math.abs(o.nedelya_percent).toFixed(1).replace('.', ',') }));
+    } else if (o.trend) {
+      chasti.push(t('v.trend.' + o.trend));
+    }
+
+    chasti.push(t('v.range', {
+      mn: o.min_30.toFixed(2).replace('.', ','),
+      mx: o.max_30.toFixed(2).replace('.', ','),
+    }));
     el.vMeta.textContent = chasti.join(' · ');
 
     obnovitVygodu();
@@ -733,6 +758,18 @@
     if (bylo) el.bank.value = bylo;
   }
 
+  /**
+   * Время последнего сбора данных. Ставится рядом с источниками:
+   * названный источник без даты — это половина доверия, а в денежном
+   * продукте половины не бывает.
+   */
+  function pokazatIstochniki() {
+    if (!el.srcUpd) return;
+    const kogda = (posledniyKurs && posledniyKurs.date)
+      || (window.KURSY_ZAPAS && window.KURSY_ZAPAS.date);
+    el.srcUpd.textContent = t('src.upd', { d: kogda || '—' });
+  }
+
   /* ── Язык ────────────────────────────────────────────────── */
 
   function primenitYazyk() {
@@ -750,6 +787,7 @@
     });
 
     zapolnitBanki();
+    pokazatIstochniki();
     // Вердикт и результат на экране тоже надо перевести, иначе половина
     // страницы останется на прежнем языке до следующего нажатия.
     pokazatVerdikt();
@@ -847,6 +885,7 @@
 
   zagruzitDannye().then(function () {
     zapolnitBanki();
+    pokazatIstochniki();
     pokazatVerdikt();
     if (posledniyRaschet) poschitat();
 

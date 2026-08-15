@@ -113,6 +113,15 @@ window.I18N = (function () {
       'v.do.obychno':      'Kurs odatdagidek. Quyida — kartaga qancha tushishi.',
       'v.range':         'oyda {mn} dan {mx} gacha',
       'v.days':          '30 kun',
+      'v.week.up':       'haftada +{p}%',
+      'v.week.down':     'haftada −{p}%',
+
+      // ── Raqamlar qayerdan ────────────────────────────────────────
+      'src.t':           'Raqamlar qayerdan',
+      'src.cb':          'Rasmiy kurs — O‘zbekiston Markaziy bankining ochiq API si',
+      'src.svc':         'O‘tkazma kurslari — bank.uz, pul o‘tkazmalari sahifasi',
+      'src.upd':         'Har soatda yangilanadi. Oxirgi marta: {d}',
+      'src.no':          'Biz pul o‘tkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz.',
 
       // ── Servis kursi rasmiy kursga nisbatan ──────────────────────
       'svc.markup':      'kurs rasmiydan {p}% past',
@@ -237,6 +246,17 @@ window.I18N = (function () {
       'v.do.obychno':      'Курс обычный. Ниже — сколько дойдёт до карты.',
       'v.range':         'за месяц от {mn} до {mx}',
       'v.days':          '30 дней',
+      'v.week.up':       'за неделю +{p}%',
+      'v.week.down':     'за неделю −{p}%',
+
+      // ── Откуда цифры ─────────────────────────────────────────────
+      // В денежном продукте это не мелкий шрифт внизу, а причина верить
+      // всему остальному. Источники называем поимённо и проверяемо.
+      'src.t':           'Откуда цифры',
+      'src.cb':          'Официальный курс — открытый API Центрального банка Узбекистана',
+      'src.svc':         'Курсы переводов — bank.uz, страница денежных переводов',
+      'src.upd':         'Обновляется каждый час. Последний раз: {d}',
+      'src.no':          'Мы не переводим и не принимаем деньги. Только считаем.',
 
       // ── Курс сервиса против официального ─────────────────────────
       'svc.markup':      'курс на {p}% ниже официального',

@@ -133,9 +133,19 @@ def analiz(istoriya):
     else:
         verdikt = "obychno"
 
+    # Сдвиг за неделю. «Курс падает» — это направление, а «за неделю на 2%»
+    # это уже величина, по которой человек может решать. Одно без другого
+    # не работает: направление без величины ни к чему не обязывает.
+    nedelya = None
+    if len(kursy) >= 8:
+        bylo = kursy[-8]
+        if bylo:
+            nedelya = round((segodnya - bylo) / bylo * 100, 2)
+
     return {
         "verdikt": verdikt,
         "deystvie": deystvie(verdikt, trend),
+        "nedelya_percent": nedelya,
         "segodnya": round(segodnya, 2),
         "srednee_30": round(srednee, 2),
         "min_30": round(minimum, 2),

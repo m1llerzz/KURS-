@@ -327,9 +327,19 @@ window.CALC = (function () {
     else if (otklonenie <= -PORAG_ZAMETNOSTI) verdikt = 'nize_obychnogo';
     else verdikt = 'obychno';
 
+    // Сдвиг за неделю. «Курс падает» — это направление, а «за неделю на 2%»
+    // уже величина, по которой человек может решать. Одно без другого
+    // не работает: направление без величины ни к чему не обязывает.
+    let nedelya = null;
+    if (kursy.length >= 8) {
+      const bylo = kursy[kursy.length - 8];
+      if (bylo) nedelya = Math.round(((segodnya - bylo) / bylo) * 100 * 100) / 100;
+    }
+
     return {
       verdikt: verdikt,
       deystvie: deystvie(verdikt, trend),
+      nedelya_percent: nedelya,
       segodnya: Math.round(segodnya * 100) / 100,
       srednee_30: Math.round(sred * 100) / 100,
       min_30: Math.round(minimum * 100) / 100,

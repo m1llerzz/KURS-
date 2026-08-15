@@ -128,6 +128,27 @@ function dozhdatsya() {
   proverka('банк спрятан, пока курсов банков нет', !vidno(w, 'bankBlock'),
     'пустой список в выпадашке обещает данные, которых нет');
 
+  // Направление без величины ни к чему не обязывает.
+  proverka('показан сдвиг за неделю', /неделю|haftada/i.test(tekst(w, 'vMeta')),
+    tekst(w, 'vMeta'));
+  proverka('числа на экране через запятую',
+    !/\d\.\d/.test(tekst(w, 'vRate') + tekst(w, 'vAvg') + tekst(w, 'vOsL') + tekst(w, 'vOsR')),
+    'по-русски и по-узбекски дробная часть отделяется запятой');
+
+  // Источники — причина верить всему остальному.
+  const src = w.document.querySelector('details.src');
+  proverka('блок источников есть', !!src);
+  proverka('названы оба источника поимённо',
+    src && /Центрального банка|Markaziy bank/.test(src.textContent)
+        && /bank\.uz/.test(src.textContent),
+    'источник без имени доверия не добавляет');
+  proverka('у источников есть дата',
+    /\d{2}\.\d{2}\.\d{4}|—/.test(tekst(w, 'srcUpd')), tekst(w, 'srcUpd'));
+  proverka('сказано, что мы не переводим деньги',
+    src && /не переводим|o‘tkazmaymiz/.test(src.textContent));
+  proverka('источники свёрнуты по умолчанию', src && !src.open,
+    'тому, кому достаточно цифры, это мешать не должно');
+
   /* ── 1b. Элементы интерфейса вердикта ──────────────────────────── */
 
   proverka('значок отклонения показан', /%/.test(tekst(w, 'vBadge')), tekst(w, 'vBadge'));
@@ -186,7 +207,8 @@ function dozhdatsya() {
     'v.trend.rastet', 'v.trend.padaet', 'v.trend.stoit',
     'v.onsum.plus', 'v.onsum.minus', 'v.onsum.zero',
     'v.do.otpravlyat', 'v.do.mozhno_zhdat', 'v.do.ne_zhdat', 'v.do.obychno',
-    'v.range', 'v.days',
+    'v.range', 'v.days', 'v.week.up', 'v.week.down',
+    'src.t', 'src.cb', 'src.svc', 'src.upd', 'src.no',
     'svc.markup', 'svc.fee_unknown', 'svc.official', 'svc.lost',
     'sub.t', 'sub.p', 'sub.btn', 'popup.go', 'err.net',
     'svc.lost.t', 'br.t', 'br.cb', 'br.rate', 'br.fee', 'br.fee_unknown', 'br.total',
