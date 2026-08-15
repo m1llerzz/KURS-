@@ -225,6 +225,18 @@
    * разница ради которой удивляются, и ссылка ради которой возвращаются.
    * Раньше ссылки не было — расчёт гулял по чатам, а прийти к нам было некуда.
    */
+  /** Один языковой блок пересылки. */
+  function blokPeresylki(lang, procent) {
+    let text = t('share.title', { sum: sum(el.summa.value) }, lang);
+    if (procent !== null) {
+      text += '\n' + t('share.diff', { p: procent }, lang);
+    }
+    // Последняя строка — прямое обращение к тому, кто читает пересылку.
+    // Без неё сообщение остаётся рассказом о себе, и человек не понимает,
+    // что от него хотят.
+    return text + '\n' + t('share.cta', null, lang);
+  }
+
   function sobratTekst() {
     // Никаких сумов в пересылке. Чужие итоги читателю ничего не говорят:
     // у него другая сумма и другой банк, а длинные числа в чате читаются
@@ -233,24 +245,23 @@
     const luchshiy = posledniyRaschet.results[0];
     const bazovyi = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
 
-    let text = t('share.title', { sum: sum(el.summa.value) });
-
+    let procent = null;
     const poterya = posledniyRaschet.hidden_loss_uzs;
     if (poterya > 0 && bazovyi > 0) {
-      const procent = (poterya / bazovyi) * 100;
+      const dolya = (poterya / bazovyi) * 100;
       // Меньше десятой доли процента — разницы по сути нет, и говорить
       // о ней значит обещать несуществующую выгоду.
-      if (procent >= 0.1) {
-        text += '\n' + t('share.diff', {
-          p: procent.toFixed(1).replace('.', ','),
-        });
-      }
+      if (dolya >= 0.1) procent = dolya.toFixed(1).replace('.', ',');
     }
 
-    // Последняя строка — прямое обращение к тому, кто читает пересылку.
-    // Без неё сообщение остаётся рассказом о себе, и человек не понимает,
-    // что от него хотят.
-    return text + '\n\n' + t('share.cta');
+    // Оба языка сразу. Расчёт пересылают в общие чаты, где сидят и те, кто
+    // читает по-узбекски, и те, кто по-русски: сообщение на одном языке
+    // половина аудитории пролистывает, не разобравшись, о чём оно.
+    // Первым идёт язык отправителя — его прочтут те, кому он пишет чаще.
+    const svoy = window.I18N.get();
+    const chuzhoy = svoy === 'ru' ? 'uz' : 'ru';
+
+    return blokPeresylki(svoy, procent) + '\n\n· · ·\n\n' + blokPeresylki(chuzhoy, procent);
   }
 
   function otpravitVChat() {

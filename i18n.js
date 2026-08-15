@@ -182,8 +182,16 @@ window.I18N = (function () {
 
   let yazyk = opredelit();
 
-  function t(klyuch, podstanovki) {
-    let stroka = TEKSTY[yazyk][klyuch];
+  /**
+   * @param {string} klyuch
+   * @param {object} [podstanovki]
+   * @param {string} [drugoyYazyk] — взять строку на другом языке, не меняя
+   *        текущий. Нужно пересылке: она уходит в чат сразу на двух языках,
+   *        и переключать язык всего приложения ради этого нельзя.
+   */
+  function t(klyuch, podstanovki, drugoyYazyk) {
+    const slovar = TEKSTY[drugoyYazyk] || TEKSTY[yazyk];
+    let stroka = slovar[klyuch];
     if (stroka === undefined) stroka = TEKSTY.ru[klyuch];
     if (stroka === undefined) return klyuch;   // ключ забыли — видно сразу
     if (!podstanovki) return stroka;
