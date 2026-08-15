@@ -85,9 +85,8 @@ window.I18N = (function () {
 
       // Пересылка — главный способ, которым про нас узнают. Поэтому здесь
       // не только цифры: нужна строка, объясняющая чужому человеку, что он видит.
-      'share.title':     '{sum} ₽ O’zbekistonga o’tkazma',
-      'share.diff':      'Usullar orasidagi farq: {loss} so’m',
-      'share.cta':       'O’zingiznikini hisoblang:',
+      'share.title':     '{sum} ₽ yuborsam — kartaga {best} so’m tushadi.',
+      'share.diff':      'Boshqa usulni tanlasam, {loss} so’m kam bo’lardi. Shuning uchun tekshirib ko’ring.',
     },
 
     ru: {
@@ -154,9 +153,8 @@ window.I18N = (function () {
       'razbor.in_currency': 'Ушло в валюте',
       'razbor.rate_bank':   'Курс банка → сум',
 
-      'share.title':     'Перевод {sum} ₽ в Узбекистан',
-      'share.diff':      'Разница между способами: {loss} сум',
-      'share.cta':       'Посчитать свой:',
+      'share.title':     'Отправляю {sum} ₽ — на карту придёт {best} сум.',
+      'share.diff':      'Выбрал бы другой способ — пришло бы на {loss} сум меньше. Проверь свой перевод.',
     },
 
   };

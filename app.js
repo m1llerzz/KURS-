@@ -58,8 +58,26 @@
 
   /* ── Форматирование ──────────────────────────────────── */
 
+  /**
+   * Число с пробелами по три знака.
+   *
+   * toString() у больших чисел переключается на запись вида 5e+28, и в
+   * пересланном сообщении это выглядело набором символов из спама.
+   * Валидация суммы такого уже не допускает, но форматирование обязано
+   * быть устойчивым само по себе: оно попадает в чужие чаты.
+   */
   function sum(n) {
-    return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const chislo = Math.round(Number(n));
+    if (!isFinite(chislo)) return '—';
+    // toFixed(0) спасает не до конца: выше 10²¹ он тоже переходит на 5e+28.
+    // BigInt печатает все знаки честно и без степеней.
+    let stroka;
+    try {
+      stroka = BigInt(chislo).toString();
+    } catch (e) {
+      stroka = chislo.toFixed(0);
+    }
+    return stroka.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
   function srok(minut) {
@@ -203,13 +221,20 @@
    * Раньше ссылки не было — расчёт гулял по чатам, а прийти к нам было некуда.
    */
   function sobratTekst() {
-    const top = posledniyRaschet.results.slice(0, 3).map(function (r) {
-      return r.name + ' — ' + sum(r.total_uzs) + ' ' + t('unit.sum');
-    }).join('\n');
+    // Две строки, не список. Пересылку читают в чужом чате мельком: список
+    // из трёх способов со ссылкой сверху выглядит спамом и его пролистывают.
+    // Работает личное утверждение и одна цифра — разница, которой человек
+    // не ожидал. Название и кнопка приходят карточкой приложения сами.
+    const luchshiy = posledniyRaschet.results[0];
+    const itog = luchshiy.vilka
+      ? sum(luchshiy.vilka.ot) + '–' + sum(luchshiy.vilka.do)
+      : sum(luchshiy.total_uzs);
 
-    return t('share.title', { sum: sum(el.summa.value) }) + '\n\n' + top +
-      '\n\n' + t('share.diff', { loss: sum(posledniyRaschet.hidden_loss_uzs) }) +
-      '\n\n' + t('share.cta');
+    let text = t('share.title', { sum: sum(el.summa.value), best: itog });
+    if (posledniyRaschet.hidden_loss_uzs > 0) {
+      text += '\n\n' + t('share.diff', { loss: sum(posledniyRaschet.hidden_loss_uzs) });
+    }
+    return text;
   }
 
   function otpravitVChat() {
