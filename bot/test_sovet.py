@@ -122,6 +122,59 @@ proverka("живой ряд — тренд падает", zhivoy["trend"] == "pa
 proverka("живой ряд — не будим человека", sovet.stoit_uvedomit(zhivoy) is False)
 
 
+# ── Что делать: совет обязан учитывать направление ───────────────────
+#
+# Здесь чинили настоящую ошибку. Раньше совет выводился только из
+# отклонения от среднего: курс ниже обычного — «подожди». На живых данных
+# рубль падал весь месяц, каждый день был ниже среднего, и приложение
+# каждый день советовало ждать, пока курс становился всё хуже.
+
+proverka("падающий курс — НЕ советуем ждать",
+         zhivoy["deystvie"] == "ne_zhdat", zhivoy["deystvie"] +
+         " — в падающем рынке «подожди» стоит человеку денег")
+
+# Курс упал сильно ниже среднего и последние дни отыгрывает обратно —
+# единственный случай, когда ожидание действительно может окупиться.
+rastet_nizko = sovet.analiz(ryad([160, 160, 160, 135, 136, 137, 140, 141, 142]))
+proverka("растущий и низкий курс — ждать можно",
+         rastet_nizko["deystvie"] == "mozhno_zhdat",
+         rastet_nizko["deystvie"] + " при вердикте " + rastet_nizko["verdikt"]
+         + " и тренде " + str(rastet_nizko["trend"]))
+
+proverka("высокий растущий курс — отправлять",
+         vysoko["deystvie"] == "otpravlyat", vysoko["deystvie"])
+
+proverka("ровный курс — ничего особенного",
+         rovno["deystvie"] == "obychno", rovno["deystvie"])
+
+# Курс выше обычного, но пошёл вниз — это «отправляй, пока хорошо»,
+# а не «не жди»: человеку нужно действие, а не описание.
+vysoko_padaet = sovet.analiz(ryad([140] * 6 + [152, 151, 150]))
+proverka("высокий и падающий — отправлять сейчас",
+         vysoko_padaet["deystvie"] == "otpravlyat",
+         vysoko_padaet["deystvie"] + " при вердикте " + vysoko_padaet["verdikt"])
+
+proverka("совет есть всегда, когда есть вердикт",
+         all(sovet.analiz(ryad(r)) is None or sovet.analiz(ryad(r)).get("deystvie")
+             for r in ([140] * 10, [150] * 9 + [140], [140] * 9 + [150])))
+
+# Прямая проверка таблицы решений — без неё легко сломать одну ветку.
+proverka("падение + низкий = не ждать",
+         sovet.deystvie("ploho", "padaet") == "ne_zhdat")
+proverka("падение + высокий = отправлять",
+         sovet.deystvie("otlichno", "padaet") == "otpravlyat")
+proverka("рост + низкий = можно ждать",
+         sovet.deystvie("ploho", "rastet") == "mozhno_zhdat")
+proverka("рост + высокий = отправлять",
+         sovet.deystvie("horosho", "rastet") == "otpravlyat")
+proverka("стоит + низкий = можно ждать",
+         sovet.deystvie("nize_obychnogo", "stoit") == "mozhno_zhdat")
+proverka("стоит + обычный = обычно",
+         sovet.deystvie("obychno", "stoit") == "obychno")
+proverka("без тренда не падаем",
+         sovet.deystvie("obychno", None) == "obychno")
+
+
 # ── Итог ─────────────────────────────────────────────────────────────
 
 print("Пройдено:", len(provereno))

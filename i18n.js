@@ -107,9 +107,10 @@ window.I18N = (function () {
       'v.onsum.plus':    '{sum} ₽ uchun odatdagidan {n} so’m ko’p olasiz',
       'v.onsum.minus':   '{sum} ₽ uchun odatdagidan {n} so’m kam olasiz',
       'v.onsum.zero':    'Kurs odatdagidek — shoshilishning hojati yo’q',
-      'v.hint.good':     'Yubormoqchi bo’lsangiz — bugun yaxshi kun.',
-      'v.hint.bad':      'Shoshilinch bo’lmasa, kutgan ma’qul.',
-      'v.hint.normal':   'Kurs odatdagidek. Quyida — kartaga qancha tushishi.',
+      'v.do.otpravlyat':   'Yubormoqchi bo’lsangiz — bugun yaxshi kun.',
+      'v.do.mozhno_zhdat': 'Kurs odatdagidan past, lekin ko’tarilmoqda — kutish ma’noli.',
+      'v.do.ne_zhdat':     'Kurs tushmoqda — qancha kutsangiz, shuncha kam yetadi.',
+      'v.do.obychno':      'Kurs odatdagidek. Quyida — kartaga qancha tushishi.',
       'v.range':         'oyda {mn} dan {mx} gacha',
       'v.days':          '30 kun',
 
@@ -227,9 +228,13 @@ window.I18N = (function () {
       'v.onsum.plus':    'На {sum} ₽ вы получите на {n} сум больше обычного',
       'v.onsum.minus':   'На {sum} ₽ вы получите на {n} сум меньше обычного',
       'v.onsum.zero':    'Курс как обычно — спешить некуда',
-      'v.hint.good':     'Если собирались отправлять — сегодня хороший день.',
-      'v.hint.bad':      'Если дело не срочное, есть смысл подождать.',
-      'v.hint.normal':   'Курс обычный. Ниже — сколько дойдёт до карты.',
+      // Совет говорит, что ДЕЛАТЬ, и учитывает направление курса.
+      // Раньше здесь было просто «ниже обычного — подожди», и в падающем
+      // рынке это советовало ждать, когда каждый следующий день хуже.
+      'v.do.otpravlyat':   'Если собирались отправлять — сегодня хороший день.',
+      'v.do.mozhno_zhdat': 'Курс ниже обычного и растёт — есть смысл подождать.',
+      'v.do.ne_zhdat':     'Курс падает — чем дольше ждёте, тем меньше дойдёт.',
+      'v.do.obychno':      'Курс обычный. Ниже — сколько дойдёт до карты.',
       'v.range':         'за месяц от {mn} до {mx}',
       'v.days':          '30 дней',
 

@@ -363,9 +363,10 @@
 
     obnovitVygodu();
 
-    el.vHint.textContent = horosho ? t('v.hint.good')
-      : ploho ? t('v.hint.bad')
-      : t('v.hint.normal');
+    // Совет берём из deystvie, а не из вердикта: вердикт говорит, каков
+    // курс, а совет — что делать, и это разные вещи. В падающем рынке
+    // курс ниже обычного, но ждать нельзя: завтра будет ещё меньше.
+    el.vHint.textContent = t('v.do.' + (o.deystvie || 'obychno'));
   }
 
   /**

@@ -456,6 +456,10 @@ def pokazat_kurs(chat_id, lang):
     if stroka_summy:
         stroki += ["", stroka_summy]
 
+    # Что делать — отдельной строкой и последней. Человек читает курс,
+    # а уходит с решением; без этой строки он уходит только с цифрой.
+    stroki += ["", DEYSTVIYA[lang][ocenka.get("deystvie") or "obychno"]]
+
     # Кнопка цели стоит рядом с курсом не случайно: человек видит цифру,
     # решает «мало» — и тут же может сказать, при какой напомнить.
     # Спрятанная в меню, эта возможность не нашлась бы никогда.
@@ -817,16 +821,21 @@ POST_KANALA = {
     ),
 }
 
-SOVET_KANALA = {
+# Совет говорит, что ДЕЛАТЬ, и учитывает направление курса. Раньше здесь
+# было «ниже обычного — подожди», и в падающем рынке это советовало ждать,
+# когда каждый следующий день хуже предыдущего.
+DEYSTVIYA = {
     "uz": {
-        "horosho": "Yubormoqchi bo‘lsangiz — bugun yaxshi kun.",
-        "ploho": "Shoshilinch bo‘lmasa, kutgan ma’qul.",
-        "obychno": "Kurs odatdagidek.",
+        "otpravlyat":   "Yubormoqchi bo‘lsangiz — bugun yaxshi kun.",
+        "mozhno_zhdat": "Kurs past, lekin ko‘tarilmoqda — kutish ma’noli.",
+        "ne_zhdat":     "Kurs tushmoqda — qancha kutsangiz, shuncha kam yetadi.",
+        "obychno":      "Kurs odatdagidek.",
     },
     "ru": {
-        "horosho": "Если собирались отправлять — сегодня хороший день.",
-        "ploho": "Если дело не срочное, есть смысл подождать.",
-        "obychno": "Курс обычный.",
+        "otpravlyat":   "Если собирались отправлять — сегодня хороший день.",
+        "mozhno_zhdat": "Курс ниже обычного и растёт — есть смысл подождать.",
+        "ne_zhdat":     "Курс падает — чем дольше ждёте, тем меньше дойдёт.",
+        "obychno":      "Курс обычный.",
     },
 }
 
@@ -859,9 +868,7 @@ def opublikovat_v_kanale():
     # пересылают. Берём именно её, а не проценты: проценты не чувствуют.
     razmah = int(round((ocenka["max_30"] - ocenka["min_30"]) * 50000))
 
-    horosho = ocenka["verdikt"] in ("otlichno", "horosho")
-    ploho = ocenka["verdikt"] in ("ploho", "nize_obychnogo")
-    kluch_soveta = "horosho" if horosho else "ploho" if ploho else "obychno"
+    kluch_soveta = ocenka.get("deystvie") or "obychno"
 
     bloki = []
     for lang in ("uz", "ru"):
@@ -871,7 +878,7 @@ def opublikovat_v_kanale():
             verdikt=VERDIKTY[lang][ocenka["verdikt"]],
             mn=chislo(ocenka["min_30"]), mx=chislo(ocenka["max_30"]),
             razmah=summa_slovom(razmah),
-            sovet=SOVET_KANALA[lang][kluch_soveta],
+            sovet=DEYSTVIYA[lang][kluch_soveta],
         ))
 
     tekst = "\n\n· · ·\n\n".join(bloki)

@@ -119,7 +119,11 @@ function dozhdatsya() {
   proverka('разница показана в сумах', /\d/.test(tekst(w, 'vOnSum')), tekst(w, 'vOnSum'));
   proverka('на 50 000 ₽ разница около 400 тысяч',
     /40[0-9]\s?\d{3}/.test(tekst(w, 'vOnSum')), tekst(w, 'vOnSum'));
-  proverka('есть совет подождать', tekst(w, 'vHint').length > 5, tekst(w, 'vHint'));
+  // Курс падал весь месяц. Совет «подожди» здесь стоил бы человеку денег:
+  // каждый следующий день был хуже предыдущего.
+  proverka('совет учитывает направление курса',
+    /падает|tushmoqda/i.test(tekst(w, 'vHint')),
+    tekst(w, 'vHint') + ' — при падающем курсе советовать ждать нельзя');
 
   proverka('банк спрятан, пока курсов банков нет', !vidno(w, 'bankBlock'),
     'пустой список в выпадашке обещает данные, которых нет');
@@ -181,7 +185,8 @@ function dozhdatsya() {
     'v.rate', 'v.avg', 'v.pos', 'v.pos.worst', 'v.pos.best',
     'v.trend.rastet', 'v.trend.padaet', 'v.trend.stoit',
     'v.onsum.plus', 'v.onsum.minus', 'v.onsum.zero',
-    'v.hint.good', 'v.hint.bad', 'v.hint.normal', 'v.range', 'v.days',
+    'v.do.otpravlyat', 'v.do.mozhno_zhdat', 'v.do.ne_zhdat', 'v.do.obychno',
+    'v.range', 'v.days',
     'svc.markup', 'svc.fee_unknown', 'svc.official', 'svc.lost',
     'sub.t', 'sub.p', 'sub.btn', 'popup.go', 'err.net',
     'svc.lost.t', 'br.t', 'br.cb', 'br.rate', 'br.fee', 'br.fee_unknown', 'br.total',

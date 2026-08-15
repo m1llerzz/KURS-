@@ -251,6 +251,34 @@ window.CALC = (function () {
   }
 
   /**
+   * Что человеку делать. Это НЕ то же самое, что вердикт.
+   *
+   * Ошибка, которую здесь чинили: раньше совет выводился только из
+   * отклонения от среднего. Курс ниже обычного — значит «подожди».
+   *
+   * На живых данных это оказалось вредным. Рубль падал весь месяц: каждый
+   * день был ниже среднего, каждый день приложение говорило «подожди», и
+   * каждый следующий день курс был ХУЖЕ предыдущего. Совет стоил человеку
+   * денег ровно столько раз, сколько он его послушал.
+   *
+   * Ждать имеет смысл только тогда, когда курс РАСТЁТ.
+   *
+   * Тот же расчёт есть у бота в sovet.py — совпадение проверяет
+   * bot/test_parity.py. Разойдясь, они дадут человеку разные советы.
+   */
+  function deystvie(verdikt, trend) {
+    const nizhe = verdikt === 'ploho' || verdikt === 'nize_obychnogo';
+    const vyshe = verdikt === 'otlichno' || verdikt === 'horosho';
+
+    if (trend === 'padaet') return vyshe ? 'otpravlyat' : 'ne_zhdat';
+    if (trend === 'rastet') return nizhe ? 'mozhno_zhdat' : 'otpravlyat';
+
+    if (vyshe) return 'otpravlyat';
+    if (nizhe) return 'mozhno_zhdat';
+    return 'obychno';
+  }
+
+  /**
    * @param {Array<{date:string, rub_uzs:number}>} istoriya
    * @returns {object|null} null — если данных меньше недели: на трёх днях
    *          «среднее» это случайность, а совет человеку про его деньги
@@ -301,6 +329,7 @@ window.CALC = (function () {
 
     return {
       verdikt: verdikt,
+      deystvie: deystvie(verdikt, trend),
       segodnya: Math.round(segodnya * 100) / 100,
       srednee_30: Math.round(sred * 100) / 100,
       min_30: Math.round(minimum * 100) / 100,
