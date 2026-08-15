@@ -157,11 +157,23 @@ class Stranica(BaseHTTPRequestHandler):
     засыпает после четверти часа тишины, и пинг не даёт ему уснуть.
     """
 
-    def do_GET(self):
+    OTVET = "QanchaYetadi bot: живой".encode("utf-8")
+
+    def _shapka(self):
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(self.OTVET)))
         self.end_headers()
-        self.wfile.write("QanchaYetadi bot: живой".encode("utf-8"))
+
+    def do_GET(self):
+        self._shapka()
+        self.wfile.write(self.OTVET)
+
+    def do_HEAD(self):
+        # UptimeRobot проверяет живость методом HEAD, а не GET. Без этого
+        # обработчика BaseHTTPRequestHandler отвечает 501, монитор считает
+        # сервис упавшим и шлёт письма о недоступности — при живом сервисе.
+        self._shapka()
 
     def log_message(self, *args):
         pass                      # пинги раз в пять минут засоряют журнал
