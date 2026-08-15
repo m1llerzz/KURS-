@@ -7,11 +7,20 @@
 """
 import json
 import os
+import tempfile
 import threading
 import urllib.error
 import urllib.request
 
 os.environ.setdefault("BOT_TOKEN", "0:proverka")
+
+# Проверки не должны трогать боевой список подписчиков. Раньше трогали:
+# файл писался рядом с ботом, попадал под git add -A и уезжал в публичный
+# репозиторий. Данных внутри не оказалось, но полагаться на это нельзя.
+_VREMENNYY = os.path.join(tempfile.gettempdir(), "qy_test_podpischiki.json")
+os.environ["HRANILISHCHE_FAYL"] = _VREMENNYY
+if os.path.exists(_VREMENNYY):
+    os.remove(_VREMENNYY)
 
 import bot          # noqa: E402
 import sovet        # noqa: E402
@@ -178,6 +187,10 @@ except Exception as oshibka:
 # в Telegram подменяем — всё остальное настоящее, включая хранилище.
 
 import hranilishche  # noqa: E402
+
+proverka("проверки пишут во временный файл, не в боевой",
+         hranilishche.na_postgres() or hranilishche.FAYL == _VREMENNYY,
+         "иначе тестовый прогон однажды затрёт настоящий список людей")
 
 otpravleno = []
 nastoyashchiy_poslat = bot.poslat

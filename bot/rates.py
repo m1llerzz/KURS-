@@ -124,6 +124,60 @@ def kurs_valyuty(kod, data):
         return None
 
 
+FAYL_ISTORII = os.path.join(PAPKA, "istoriya_kesh.json")
+
+
+def istoriya_s_keshem(dney=30):
+    """История с суточным кешем на диске.
+
+    Зачем кеш. Курс ЦБ меняется раз в рабочий день, а снимок пересобирается
+    раз в час. Без кеша это 720 запросов к чужому серверу в сутки за
+    данными, которые обновляются один раз, — так себя не ведут, и однажды
+    нас просто перестанут пускать.
+
+    Кеш живёт на диске рядом с ботом. На Render диск эфемерный, и после
+    перезапуска история соберётся заново — это нормально: она нужна раз
+    в сутки, а не постоянно.
+    """
+    segodnya = datetime.now(timezone.utc).date().isoformat()
+
+    try:
+        if os.path.exists(FAYL_ISTORII):
+            with open(FAYL_ISTORII, "r", encoding="utf-8") as f:
+                kesh = json.load(f)
+            if kesh.get("sobrano") == segodnya and len(kesh.get("ryad") or []) >= 7:
+                return kesh["ryad"]
+    except Exception:
+        pass
+
+    ryad = istoriya_cb(dney)
+
+    # Сеть подвела — отдаём вчерашний кеш, если он есть. Вердикт по
+    # вчерашнему ряду честнее отсутствия вердикта: за сутки среднее
+    # за месяц не меняется настолько, чтобы совет перевернулся.
+    if len(ryad) < 7:
+        try:
+            if os.path.exists(FAYL_ISTORII):
+                with open(FAYL_ISTORII, "r", encoding="utf-8") as f:
+                    staryy = json.load(f).get("ryad") or []
+                if len(staryy) >= 7:
+                    print("[rates] история не собралась, беру вчерашнюю", flush=True)
+                    return staryy
+        except Exception:
+            pass
+        return ryad
+
+    try:
+        vremenny = FAYL_ISTORII + ".tmp"
+        with open(vremenny, "w", encoding="utf-8") as f:
+            json.dump({"sobrano": segodnya, "ryad": ryad}, f, ensure_ascii=False)
+        os.replace(vremenny, FAYL_ISTORII)
+    except Exception as oshibka:
+        print("[rates] кеш истории не записался:", repr(oshibka)[:120], flush=True)
+
+    return ryad
+
+
 def istoriya_cb(dney=30):
     """Курс рубля за последние N дней. Нужен для оповещений и для ответа
     на вопрос «сегодня хороший курс или подождать».
@@ -306,7 +360,7 @@ def snimok(s_istoriey=True):
         "cbu": cb,
         "services": servisy,
         "banks": banki,
-        "history": istoriya_cb(30) if s_istoriey else [],
+        "history": istoriya_s_keshem(30) if s_istoriey else [],
     }
 
 

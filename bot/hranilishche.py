@@ -25,7 +25,11 @@ from datetime import datetime, timezone
 
 URL_BAZY = os.environ.get("DATABASE_URL", "").strip()
 PAPKA = os.path.dirname(os.path.abspath(__file__))
-FAYL = os.path.join(PAPKA, "podpischiki.json")
+
+# Путь можно подменить переменной. Нужно проверкам: без этого они писали
+# живых людей в тот же файл, что и работающий бот, и однажды тестовый
+# прогон затёр бы настоящий список. Заодно файл не попадает в репозиторий.
+FAYL = os.environ.get("HRANILISHCHE_FAYL") or os.path.join(PAPKA, "podpischiki.json")
 
 _zamok = threading.Lock()
 _pg = None
