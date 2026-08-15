@@ -59,6 +59,10 @@
     font-family: inherit; font-size: 21px; font-weight: 700; width: 100%;
     padding: 0; font-variant-numeric: tabular-nums;
   }
+  /* Раскрытый список рисует система, и фон у него свой — почти всегда белый.
+     Цвет текста при этом наследуется от темы, поэтому в тёмной теме пункты
+     оказывались светлыми на белом. Задаём паре фон и текст явно. */
+  .field select option { background: var(--bg); color: var(--ink); }
   .field select { font-size: 16px; font-weight: 600; }
   .field input:focus, .field select:focus { outline: none; }
   .field:focus-within { border-color: var(--accent); }
@@ -71,7 +75,10 @@
     border: none; border-radius: 12px; padding: 14px; width: 100%; cursor: pointer;
     background: var(--accent); color: var(--accent-ink);
   }
-  button.ghost { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+  /* Текст красим в --ink, а не в --accent: в тёмных темах Telegram цвет
+     кнопки бывает почти чёрным, и надпись на прозрачном фоне пропадает.
+     Акцент оставляем только на рамке — там он ничего не ломает. */
+  button.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--accent); }
   button:disabled { opacity: .45; cursor: not-allowed; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 

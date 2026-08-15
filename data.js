@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ДАННЫЕ ПРИЛОЖЕНИЯ
  *
  * ВНИМАНИЕ: сейчас здесь тестовые числа. Они выдуманы.
@@ -26,7 +26,7 @@ window.BOT_LINK = 'https://t.me/QanchaYetadi_bot/call?startapp=share';
 window.SERVICES = [
   {
     id: 'servis-a',
-    name: 'Способ A',
+    name: 'Usul A',
     route: 'A',                  // A — сервис объявляет курс сам
     corridors: ['RU-UZ'],
     fee_fixed: 199,              // рублей
@@ -40,7 +40,7 @@ window.SERVICES = [
   },
   {
     id: 'servis-b',
-    name: 'Способ B',
+    name: 'Usul B',
     route: 'B',                  // B — конвертирует банк получателя
     corridors: ['RU-UZ'],
     fee_fixed: 0,
@@ -54,7 +54,7 @@ window.SERVICES = [
   },
   {
     id: 'servis-c',
-    name: 'Способ C',
+    name: 'Usul C',
     route: 'A',
     corridors: ['RU-UZ'],
     fee_fixed: 29,
@@ -68,7 +68,7 @@ window.SERVICES = [
   },
   {
     id: 'servis-d',
-    name: 'Способ D',
+    name: 'Usul D',
     route: 'A',
     corridors: ['RU-UZ'],
     fee_fixed: 0,
@@ -83,9 +83,9 @@ window.SERVICES = [
 ];
 
 window.BANKS = [
-  { id: 'bank-1', name: 'Банк 1', rate_usd_uzs: 13250, incoming_fee: 0, checked_at: '2026-08-14T09:00:00Z' },
-  { id: 'bank-2', name: 'Банк 2', rate_usd_uzs: 13100, incoming_fee: 0, checked_at: '2026-08-14T09:00:00Z' },
-  { id: 'bank-3', name: 'Банк 3', rate_usd_uzs: 12850, incoming_fee: 0, checked_at: '2026-08-14T09:00:00Z' },
+  { id: 'bank-1', name: 'Bank 1', rate_usd_uzs: 13250, incoming_fee: 0, checked_at: '2026-08-14T09:00:00Z' },
+  { id: 'bank-2', name: 'Bank 2', rate_usd_uzs: 13100, incoming_fee: 0, checked_at: '2026-08-14T09:00:00Z' },
+  { id: 'bank-3', name: 'Bank 3', rate_usd_uzs: 12850, incoming_fee: 0, checked_at: '2026-08-14T09:00:00Z' },
 ];
 
 /**
