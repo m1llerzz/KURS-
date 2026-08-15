@@ -952,9 +952,35 @@ def svodka_dlya_svoih():
 
     if ocenka:
         stroki.append("")
-        stroki.append("Курс сегодня: %s (среднее %s), вердикт %s"
-                      % (ocenka.get("segodnya"), ocenka.get("srednee_30"),
-                         ocenka.get("verdikt")))
+        stroki.append("Курс сегодня: %s (среднее %s), вердикт %s, совет %s"
+                      % (chislo(ocenka.get("segodnya")),
+                         chislo(ocenka.get("srednee_30")),
+                         ocenka.get("verdikt"), ocenka.get("deystvie")))
+
+    # Здоровье сбора. Разбор страницы bank.uz держится на её вёрстке, и в
+    # день, когда вёрстку поменяют, курсы сервисов перестанут собираться
+    # молча. Приложение спрячет их само через 72 часа по правилу свежести,
+    # но узнать об этом надо раньше, чем через три дня.
+    d = svezhie_dannye() or {}
+    predupredit = []
+    if not (d.get("services") or []):
+        predupredit.append("НЕ СОБИРАЮТСЯ КУРСЫ СЕРВИСОВ — проверь разбор bank.uz")
+    if not d.get("cbu"):
+        predupredit.append("НЕ ОТВЕЧАЕТ ЦБ Узбекистана")
+
+    sobrano = d.get("generated_at")
+    if sobrano:
+        try:
+            vozrast = (datetime.now(timezone.utc)
+                       - datetime.fromisoformat(sobrano)).total_seconds() / 3600
+            if vozrast > 26:
+                predupredit.append("ДАННЫЕ НЕ ОБНОВЛЯЛИСЬ %d ч" % vozrast)
+        except Exception:
+            pass
+
+    if predupredit:
+        stroki.append("")
+        stroki += predupredit
 
     poslat(admin, "\n".join(stroki))
     print("[сводка] отправлена", flush=True)

@@ -464,6 +464,46 @@ try:
              otpravleno[0]["text"][:100] if otpravleno else "")
     proverka("в сводке есть курс и вердикт",
              len(otpravleno) == 1 and "вердикт" in otpravleno[0]["text"])
+    # Сбор сломался — сводка обязана об этом кричать. Разбор страницы
+    # bank.uz держится на её вёрстке, и в день, когда её поменяют, курсы
+    # перестанут собираться молча.
+    with bot._zamok:
+        _sohr = bot._dannye["snimok"]
+        bot._dannye["snimok"] = {"ok": False, "cbu": None, "services": [],
+                                 "sovet": None, "generated_at": None}
+    otpravleno.clear()
+    bot.svodka_dlya_svoih()
+    proverka("сводка кричит, когда курсы не собираются",
+             len(otpravleno) == 1
+             and "НЕ СОБИРАЮТСЯ" in otpravleno[0]["text"]
+             and "НЕ ОТВЕЧАЕТ ЦБ" in otpravleno[0]["text"],
+             otpravleno[0]["text"][-200:] if otpravleno else "")
+    # Здоровый снимок собираем явно: в подменённом для проверки целей
+    # сервисов нет вовсе, и предупреждение на нём сработало бы по делу.
+    import sovet as _sv
+    _ryad = [{"date": "2026-08-%02d" % (i + 1), "rub_uzs": 140.0} for i in range(20)]
+    with bot._zamok:
+        bot._dannye["snimok"] = {
+            "ok": True, "cbu": {"rub_uzs": 140.0, "usd_uzs": 12000, "date": "20.08.2026"},
+            "services": [{"id": "x", "name": "X", "nacenka_percent": 4.0}],
+            "banks": [], "history": _ryad, "sovet": _sv.analiz(_ryad),
+            "generated_at": bot.datetime.now(bot.timezone.utc).replace(
+                microsecond=0).isoformat(),
+        }
+        bot._dannye["obnovleno"] = __import__("time").time()
+
+    otpravleno.clear()
+    bot.svodka_dlya_svoih()
+    proverka("при живом сборе сводка не пугает зря",
+             len(otpravleno) == 1
+             and "НЕ СОБИРАЮТСЯ" not in otpravleno[0]["text"]
+             and "НЕ ОТВЕЧАЕТ" not in otpravleno[0]["text"]
+             and "НЕ ОБНОВЛЯЛИСЬ" not in otpravleno[0]["text"],
+             otpravleno[0]["text"][-160:] if otpravleno else "")
+
+    with bot._zamok:
+        bot._dannye["snimok"] = _sohr
+
     proverka("без базы сводка предупреждает о потере событий",
              hranilishche.na_postgres()
              or "DATABASE_URL" in otpravleno[0]["text"],
