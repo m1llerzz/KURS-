@@ -209,10 +209,13 @@
 
 </div>
 
-<!-- Порядок важен: тексты → данные → формулы → экран -->
-<script src="i18n.js"></script>
-<script src="data.js"></script>
-<script src="calc.js"></script>
-<script src="app.js"></script>
+<!-- Порядок важен: тексты → данные → формулы → экран.
+     ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
+     часов, и без смены адреса человек продолжает видеть старую версию.
+     Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
+<script src="i18n.js?v=3"></script>
+<script src="data.js?v=3"></script>
+<script src="calc.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
