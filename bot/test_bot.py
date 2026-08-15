@@ -370,6 +370,72 @@ try:
     except Exception:
         pass
 
+    # ── Пост в канал ────────────────────────────────────────────────
+    #
+    # Канал — главный источник людей: на него подписываются охотнее,
+    # чем открывают приложение. Пост обязан быть полезным сам по себе,
+    # иначе канал отписывают за неделю.
+
+    poslannye = []
+    nastoyashchiy_vyzov = bot.vyzov
+
+    def perehvat_vyzova(metod, telo=None):
+        if metod == "sendMessage":
+            poslannye.append(telo or {})
+            return {"ok": True}
+        return {"ok": True}
+
+    bot.vyzov = perehvat_vyzova
+    try:
+        os.environ.pop("CHANNEL_ID", None)
+        poslannye.clear()
+        proverka("без CHANNEL_ID в канал не пишем",
+                 bot.opublikovat_v_kanale() is False and len(poslannye) == 0)
+
+        os.environ["CHANNEL_ID"] = "@testovyy_kanal"
+        poslannye.clear()
+        proverka("пост опубликован", bot.opublikovat_v_kanale() is True)
+        proverka("пост ушёл в указанный канал",
+                 len(poslannye) == 1 and poslannye[0].get("chat_id") == "@testovyy_kanal")
+
+        post = poslannye[0]["text"] if poslannye else ""
+        proverka("в посте есть курс", "149" in post, post[:120])
+        proverka("в посте есть среднее за месяц", "140" in post or "141" in post)
+        proverka("в посте оба языка",
+                 "Курс рубля" in post and "rubl kursi" in post,
+                 "канал читают и те, и другие")
+        proverka("в посте нет незаполненных мест", "{" not in post,
+                 "фигурная скобка в публичном посте — это позор")
+        proverka("в посте есть размах месяца в сумах",
+                 "50 000" in post and "сум" in post,
+                 "цифра, ради которой пост пересылают")
+        proverka("в посте есть совет", "день" in post or "kun" in post)
+        proverka("пост не гигантский", len(post) < 1024,
+                 "длина " + str(len(post)) + " — Telegram режет длинные посты")
+
+        knopka = (poslannye[0].get("reply_markup") or {}).get("inline_keyboard")
+        proverka("под постом есть кнопка", bool(knopka))
+        proverka("кнопка ведёт обычной ссылкой, не web_app",
+                 knopka and "url" in knopka[0][0],
+                 "в канале Telegram не разрешает кнопки web_app")
+        proverka("в ссылке есть метка канала",
+                 knopka and "startapp=kanal" in knopka[0][0]["url"],
+                 "без метки не понять, окупается ли канал")
+
+        # Данных нет — молчим, а не публикуем пустой пост.
+        with bot._zamok:
+            sohranyonnoe = bot._dannye["snimok"]
+            bot._dannye["snimok"] = {"ok": False, "sovet": None}
+        poslannye.clear()
+        proverka("без вердикта пост не публикуется",
+                 bot.opublikovat_v_kanale() is False and len(poslannye) == 0,
+                 "пустой пост в канале хуже отсутствия поста")
+        with bot._zamok:
+            bot._dannye["snimok"] = sohranyonnoe
+    finally:
+        bot.vyzov = nastoyashchiy_vyzov
+        os.environ.pop("CHANNEL_ID", None)
+
     # ── Еженедельная сводка ─────────────────────────────────────────
 
     otpravleno.clear()

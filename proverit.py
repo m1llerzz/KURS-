@@ -105,6 +105,42 @@ def zapustit(imya, komanda, papka, propustit_esli=None, prichina=""):
     return "upalo"
 
 
+def proverit_bom():
+    """Ни одного файла с меткой BOM в начале.
+
+    Наступили на живом прогоне: редактор PowerShell дописывает в начало
+    файла невидимые три байта, и Python отказывается такой файл читать —
+    «invalid non-printable character U+FEFF» в первой строке, где на вид
+    ничего нет. В HTML и JS ломается тише и потому опаснее.
+
+    Проверка занимает миллисекунды и снимает целый класс поломок,
+    которые ищут по полчаса.
+    """
+    plohie = []
+    for papka, _, fayly in os.walk(KORNI):
+        if "node_modules" in papka or "__pycache__" in papka or ".git" in papka:
+            continue
+        for imya in fayly:
+            if not imya.endswith((".py", ".js", ".html", ".json", ".txt", ".md")):
+                continue
+            put = os.path.join(papka, imya)
+            try:
+                with open(put, "rb") as f:
+                    if f.read(3) == b"\xef\xbb\xbf":
+                        plohie.append(os.path.relpath(put, KORNI))
+            except Exception:
+                pass
+
+    if plohie:
+        print("%s- %-28s BOM в начале файла%s" % (KRASNY, "кодировка файлов", SBROS))
+        for p in plohie:
+            print("      " + p)
+        return "upalo"
+
+    print("%s+ %-28s BOM нигде нет%s" % (ZELYONY, "кодировка файлов", SBROS))
+    return "proshlo"
+
+
 def main():
     print("Проверки проекта Qancha yetadi")
     print("=" * 58)
@@ -113,6 +149,7 @@ def main():
     net_jsdom = not est_jsdom()
 
     itogi = [
+        proverit_bom(),
         zapustit("вердикт (sovet.py)", [sys.executable, "test_sovet.py"], BOT),
         zapustit("бот и /api/rates", [sys.executable, "test_bot.py"], BOT),
         zapustit("паритет py и js", [sys.executable, "test_parity.py"], BOT,

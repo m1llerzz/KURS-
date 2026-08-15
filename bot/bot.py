@@ -46,6 +46,12 @@ if not TOKEN:
 API = "https://api.telegram.org/bot" + TOKEN
 PRILOZHENIE = "https://m1llerzz.github.io/KURS-/"
 
+# Ссылка на мини-апп для КАНАЛА. В канале кнопка web_app не работает —
+# Telegram разрешает там только обычный адрес. Метка kanal нужна, чтобы
+# в цифрах было видно, сколько людей приходит из канала: без неё нельзя
+# понять, окупается ли он вообще.
+PRILOZHENIE_SSYLKA = "https://t.me/QanchaYetadi_bot/call?startapp=kanal"
+
 # Как часто пересобираем курсы. ЦБ меняет курс раз в рабочий день, но
 # курсы сервисов на bank.uz двигаются в течение дня, и час — разумная
 # середина между свежестью и вежливостью к чужому серверу.
@@ -284,6 +290,23 @@ TEKSTY = {
 }
 
 
+def chislo(z, znakov=2):
+    """Число так, как его пишут по-русски и по-узбекски: через запятую.
+
+    Питон печатает 141.76, а человек в обеих странах читает 141,76. Точка
+    в дробной части — мелочь ровно до того момента, пока не поймёшь, что
+    именно из таких мелочей складывается ощущение «сделано на коленке».
+    """
+    if z is None:
+        return "—"
+    return ("%.*f" % (znakov, float(z))).replace(".", ",")
+
+
+def summa_slovom(n):
+    """Целое число с пробелами по три знака: 673000 -> 673 000."""
+    return "{:,}".format(int(round(n))).replace(",", " ")
+
+
 def yazyk(chat_id, po_umolchaniyu="uz"):
     c = hranilishche.chelovek(chat_id)
     lang = (c or {}).get("lang") or po_umolchaniyu
@@ -351,7 +374,7 @@ def privetstvie(chat_id, lang):
     # настоящие, а не рассказ о том, какие мы хорошие.
     if ocenka:
         stroka = t["privet_kurs"].format(
-            kurs=ocenka["segodnya"], srednee=ocenka["srednee_30"],
+            kurs=chislo(ocenka["segodnya"]), srednee=chislo(ocenka["srednee_30"]),
             verdikt=VERDIKTY[lang][ocenka["verdikt"]].lower())
     else:
         stroka = t["privet_bez_kursa"]
@@ -423,9 +446,9 @@ def pokazat_kurs(chat_id, lang):
     stroki = [
         "<b>" + VERDIKTY[lang][ocenka["verdikt"]] + "</b>",
         "",
-        t["kurs_segodnya"].format(kurs=ocenka["segodnya"]),
-        t["kurs_srednee"].format(srednee=ocenka["srednee_30"]),
-        t["kurs_koridor"].format(mn=ocenka["min_30"], mx=ocenka["max_30"]),
+        t["kurs_segodnya"].format(kurs=chislo(ocenka["segodnya"])),
+        t["kurs_srednee"].format(srednee=chislo(ocenka["srednee_30"])),
+        t["kurs_koridor"].format(mn=chislo(ocenka["min_30"]), mx=chislo(ocenka["max_30"])),
     ]
     if ocenka.get("trend"):
         stroki.append(t["trend"][ocenka["trend"]])
@@ -471,7 +494,7 @@ def sprosit_cel(chat_id, lang):
         return
     zhdyom_cel.add(chat_id)
     poslat(chat_id, TEKSTY[lang]["cel_sprosit"].format(
-        kurs=ocenka["segodnya"], mx=ocenka["max_30"]))
+        kurs=chislo(ocenka["segodnya"]), mx=chislo(ocenka["max_30"])))
 
 
 def prinyat_cel(chat_id, lang, tekst):
@@ -506,9 +529,9 @@ def prinyat_cel(chat_id, lang, tekst):
     # сигнала, который может не прийти.
     ocenka = (svezhie_dannye() or {}).get("sovet") or {}
     maksimum = ocenka.get("max_30")
-    otvet = TEKSTY[lang]["cel_prinyata"].format(cel=cel)
+    otvet = TEKSTY[lang]["cel_prinyata"].format(cel=chislo(cel))
     if maksimum and cel > maksimum:
-        otvet += "\n\n" + TEKSTY[lang]["cel_slishkom"].format(mx=maksimum)
+        otvet += "\n\n" + TEKSTY[lang]["cel_slishkom"].format(mx=chislo(maksimum))
 
     poslat(chat_id, otvet)
     hranilishche.sobytie(chat_id, "cel_zadana",
@@ -705,7 +728,7 @@ def proverit_celi():
         chat_id = c["chat_id"]
         lang = c.get("lang") if c.get("lang") in TEKSTY else "uz"
         otvet = poslat(chat_id, TEKSTY[lang]["cel_dostignuta"].format(
-            kurs=segodnya, cel=cel,
+            kurs=chislo(segodnya), cel=chislo(cel),
             stroka_summy=_stroka_summy(lang, ocenka, c.get("summa_rub"))), [
                 [{"text": TEKSTY[lang]["knopka"], "web_app": {"url": PRILOZHENIE}}]
             ])
@@ -745,8 +768,8 @@ def razoslat_uvedomleniya():
         t = TEKSTY[lang]
         tekst = t["uvedomlenie"].format(
             verdikt=VERDIKTY[lang][ocenka["verdikt"]],
-            kurs=ocenka["segodnya"],
-            srednee=ocenka["srednee_30"],
+            kurs=chislo(ocenka["segodnya"]),
+            srednee=chislo(ocenka["srednee_30"]),
             stroka_summy=_stroka_summy(lang, ocenka, c.get("summa_rub")),
         )
         otvet = poslat(chat_id, tekst, [
@@ -770,6 +793,106 @@ def razoslat_uvedomleniya():
         time.sleep(0.2)
 
     print("[оповещения] отправлено", otpravleno, "пропущено", propushcheno, flush=True)
+
+
+POST_KANALA = {
+    "uz": (
+        "<b>Bugungi rubl kursi</b>\n\n"
+        "1 ₽ = <b>{kurs}</b> so‘m\n"
+        "Oyda o‘rtacha: {srednee}\n"
+        "{verdikt}\n\n"
+        "Oy davomida kurs {mn} dan {mx} gacha yurdi. "
+        "50 000 rublda eng yaxshi va eng yomon kun orasidagi farq — "
+        "<b>{razmah} so‘m</b>.\n\n"
+        "{sovet}"
+    ),
+    "ru": (
+        "<b>Курс рубля сегодня</b>\n\n"
+        "1 ₽ = <b>{kurs}</b> сум\n"
+        "В среднем за месяц: {srednee}\n"
+        "{verdikt}\n\n"
+        "За месяц курс ходил от {mn} до {mx}. На переводе 50 000 ₽ разница "
+        "между лучшим и худшим днём — <b>{razmah} сум</b>.\n\n"
+        "{sovet}"
+    ),
+}
+
+SOVET_KANALA = {
+    "uz": {
+        "horosho": "Yubormoqchi bo‘lsangiz — bugun yaxshi kun.",
+        "ploho": "Shoshilinch bo‘lmasa, kutgan ma’qul.",
+        "obychno": "Kurs odatdagidek.",
+    },
+    "ru": {
+        "horosho": "Если собирались отправлять — сегодня хороший день.",
+        "ploho": "Если дело не срочное, есть смысл подождать.",
+        "obychno": "Курс обычный.",
+    },
+}
+
+
+def opublikovat_v_kanale():
+    """Ежедневный пост с курсом в канал.
+
+    Зачем это важнее, чем кажется. Узкое место продукта — не деньги и не
+    код, а люди. На канал подписываются охотно: курс смотрят каждый день,
+    и ради этого не надо ничего устанавливать. Приложение открывают те,
+    кому нужно посчитать; канал читают все.
+
+    Пост полезен сам по себе, даже если человек никогда не откроет
+    приложение. Это условие: канал, который существует ради ссылки,
+    отписывают за неделю.
+
+    Пишем один раз в сутки. Адрес канала — в переменной CHANNEL_ID
+    (@imya_kanala или числовой id). Нет переменной — молчим.
+    """
+    kanal = os.environ.get("CHANNEL_ID", "").strip()
+    if not kanal:
+        return False
+
+    ocenka = (svezhie_dannye() or {}).get("sovet")
+    if not ocenka:
+        print("[канал] вердикта нет, пост не публикую", flush=True)
+        return False
+
+    # Размах месяца на переводе 50 000 ₽ — цифра, ради которой пост
+    # пересылают. Берём именно её, а не проценты: проценты не чувствуют.
+    razmah = int(round((ocenka["max_30"] - ocenka["min_30"]) * 50000))
+
+    horosho = ocenka["verdikt"] in ("otlichno", "horosho")
+    ploho = ocenka["verdikt"] in ("ploho", "nize_obychnogo")
+    kluch_soveta = "horosho" if horosho else "ploho" if ploho else "obychno"
+
+    bloki = []
+    for lang in ("uz", "ru"):
+        bloki.append(POST_KANALA[lang].format(
+            kurs=chislo(ocenka["segodnya"]),
+            srednee=chislo(ocenka["srednee_30"]),
+            verdikt=VERDIKTY[lang][ocenka["verdikt"]],
+            mn=chislo(ocenka["min_30"]), mx=chislo(ocenka["max_30"]),
+            razmah=summa_slovom(razmah),
+            sovet=SOVET_KANALA[lang][kluch_soveta],
+        ))
+
+    tekst = "\n\n· · ·\n\n".join(bloki)
+
+    otvet = vyzov("sendMessage", {
+        "chat_id": kanal,
+        "text": tekst,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+        "reply_markup": {"inline_keyboard": [[
+            {"text": "Hisoblash · Посчитать", "url": PRILOZHENIE_SSYLKA}
+        ]]},
+    })
+
+    if otvet and otvet.get("ok"):
+        print("[канал] опубликовано, вердикт", ocenka["verdikt"], flush=True)
+        hranilishche.sobytie(None, "post_v_kanal", {"verdikt": ocenka["verdikt"]})
+        return True
+
+    print("[канал] опубликовать не удалось", flush=True)
+    return False
 
 
 def svodka_dlya_svoih():
@@ -825,6 +948,7 @@ def chasovoy_uvedomleniy():
     """
     posledniy_den = None
     posledniaya_svodka = None
+    posledniy_post = None
     while True:
         try:
             teper = datetime.now(timezone.utc) + timedelta(hours=5)
@@ -837,6 +961,12 @@ def chasovoy_uvedomleniy():
             if teper.weekday() == 0 and teper.hour >= 10 and nedelya != posledniaya_svodka:
                 svodka_dlya_svoih()
                 posledniaya_svodka = nedelya
+
+            # Пост в канал — раз в сутки, утром. Курс люди смотрят с утра,
+            # до того как решить, отправлять сегодня или нет.
+            if teper.hour >= 9 and den != posledniy_post:
+                if opublikovat_v_kanale():
+                    posledniy_post = den
             if 10 <= teper.hour <= 20 and den != posledniy_den:
                 # Сначала личные цели, потом общая рассылка. Порядок важен:
                 # человек, дождавшийся своего курса, не должен получить
