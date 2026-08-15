@@ -184,6 +184,7 @@ function dozhdatsya() {
     'v.hint.good', 'v.hint.bad', 'v.hint.normal', 'v.range', 'v.days',
     'svc.markup', 'svc.fee_unknown', 'svc.official', 'svc.lost',
     'sub.t', 'sub.p', 'sub.btn', 'popup.go', 'err.net',
+    'svc.lost.t', 'br.t', 'br.cb', 'br.rate', 'br.fee', 'br.fee_unknown', 'br.total',
   ];
 
   const zabytye = [];
@@ -237,6 +238,9 @@ function dozhdatsya() {
     tekst(w, 'lossNum') + ' — без процента непонятно, много это или мало');
   proverka('процент похож на наценку сервиса',
     /4[,.]\d\s*%/.test(tekst(w, 'lossNum')), tekst(w, 'lossNum'));
+  proverka('подпись плашки соответствует числу',
+    /курс|kurs/i.test(tekst(w, 'lossT')) && !/между способами|usullar/i.test(tekst(w, 'lossT')),
+    tekst(w, 'lossT') + ' — здесь показана потеря на курсе, а не разница между способами');
 
   const polosy = w.document.querySelectorAll('#results .card .bar i');
   proverka('у каждой карточки есть полоса', polosy.length === kartochki.length,

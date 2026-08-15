@@ -449,8 +449,11 @@
   </div>
 
   <!-- ── Результат ────────────────────────────────────────── -->
+  <!-- Заголовок плашки подставляется кодом: под одним и тем же числом
+       здесь бывает разный смысл (разница между способами или потеря на
+       курсе), и подпись обязана меняться вместе с ним. -->
   <div id="loss" class="loss hidden">
-    <span class="t" data-i18n="loss.t"></span>
+    <span class="t" id="lossT"></span>
     <span class="n" id="lossNum">—</span>
     <span class="s" id="lossSub"></span>
   </div>
@@ -486,9 +489,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=19"></script>
-<script src="data.js?v=19"></script>
-<script src="calc.js?v=19"></script>
-<script src="app.js?v=19"></script>
+<script src="i18n.js?v=20"></script>
+<script src="data.js?v=20"></script>
+<script src="calc.js?v=20"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

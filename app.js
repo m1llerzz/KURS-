@@ -28,6 +28,7 @@
     schitat:    document.getElementById('schitat'),
     results:    document.getElementById('results'),
     loss:       document.getElementById('loss'),
+    lossT:      document.getElementById('lossT'),
     lossNum:    document.getElementById('lossNum'),
     lossSub:    document.getElementById('lossSub'),
     share:      document.getElementById('share'),
@@ -475,6 +476,7 @@
      */
     const luchshiy = raschet.results[0];
     if (raschet.hidden_loss_uzs > 0) {
+      if (el.lossT) el.lossT.textContent = t('loss.t');
       el.lossNum.textContent = sum(raschet.hidden_loss_uzs) + ' ' + t('unit.sum');
       el.lossSub.textContent = t('loss.sub', { sum: sum(el.summa.value) });
       el.loss.classList.remove('hidden');
@@ -488,6 +490,11 @@
           // не говорит ничего: много это или мало, человек не знает,
           // пока не соотнесёт с переводом. «4,1%» соотносит мгновенно.
           const dolya = (poteryano / poOficialnomu) * 100;
+          // Подпись меняется вместе со смыслом числа. Раньше здесь всегда
+          // стояло «Разница между способами», а показывалась потеря на
+          // курсе: число под чужой подписью в денежном продукте — это
+          // не мелочь, а повод не верить всему остальному.
+          if (el.lossT) el.lossT.textContent = t('svc.lost.t');
           el.lossNum.innerHTML = sum(poteryano) + ' ' + t('unit.sum') +
             '<small>' + dolya.toFixed(1).replace('.', ',') + '%</small>';
           el.lossSub.textContent = t('svc.official');
