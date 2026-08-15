@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="uz">
 <head>
 <meta charset="utf-8">
@@ -41,7 +41,24 @@
     font-size: 16px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    position: relative;
   }
+
+  /* Фон — свечение акцентом сверху, отдельным слоем под содержимым.
+     Сделан псевдоэлементом с прозрачностью, а не градиентом в background:
+     так он одинаково ложится и на светлую, и на тёмную тему Telegram,
+     подхватывая её цвет кнопки. Ничего не перехватывает по нажатиям. */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 260px;
+    background: linear-gradient(180deg, var(--accent), transparent);
+    opacity: .16;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap, .langs { position: relative; z-index: 1; }
 
   .wrap { display: flex; flex-direction: column; gap: 13px; max-width: 480px; margin: 0 auto; }
 
@@ -213,9 +230,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=3"></script>
-<script src="data.js?v=3"></script>
-<script src="calc.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="i18n.js?v=4"></script>
+<script src="data.js?v=4"></script>
+<script src="calc.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
