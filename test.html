@@ -28,13 +28,16 @@
   h2 { font-size:16px; margin:0 0 6px; }
   .tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
   code { background:var(--surface); padding:1px 5px; border-radius:4px; font-size:13px; }
+  .grp td { font-weight:800; background:var(--surface); font-size:12px;
+            letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div>
     <h1>Самопроверка расчёта</h1>
-    <p class="lead">Открывай этот файл каждый раз, когда поменял <code>data.js</code> или <code>calc.js</code>. Если хоть одна строка красная — в приложение эти данные не заливать.</p>
+    <p class="lead">Открывай этот файл каждый раз, когда поменял <code>calc.js</code>. Если хоть одна строка красная — заливать нельзя.</p>
+    <p class="lead" style="margin-top:8px">Проверка идёт на <b>собственных</b> числах, а не на тех, что в <code>data.js</code>. Так сделано намеренно: раньше файл был прибит к тестовым данным приложения, и стоило заменить их настоящими, как весь стенд рассыпался. Тест, который краснеет от нормальной работы, перестают открывать.</p>
   </div>
 
   <div id="itog" class="itog">Считаю…</div>
@@ -56,18 +59,47 @@
   </div>
 </div>
 
-<script src="data.js"></script>
 <script src="calc.js"></script>
 <script>
 (function () {
+  var C = window.CALC;
+
   // Курсы фиксированные — проверяем формулы, а не сеть.
   var kursy = { usd_uzs: 13000, rub_uzs: 143 };
-  var S = window.SERVICES, B = window.BANKS, C = window.CALC;
+
+  var chas = 3600000;
+  var svezho    = new Date().toISOString();
+  var vchera    = new Date(Date.now() - 30 * chas).toISOString();
+  var protuhlo  = new Date(Date.now() - 200 * chas).toISOString();
+
+  /* ── Фикстуры стенда ────────────────────────────────────────────
+     Эти числа НЕ едут людям и никогда не поедут: они живут только
+     здесь и подобраны так, чтобы задеть каждое правило расчёта. */
+  var S = [
+    { id:'servis-a', name:'Способ А', route:'A', corridors:['RU-UZ'],
+      fee_fixed:199, fee_percent:0, rate_rub_uzs:149.0,
+      limit_per_operation:150000, delivery_minutes:10, incoming_fee:0, checked_at:svezho },
+    { id:'servis-b', name:'Способ Б', route:'B', corridors:['RU-UZ'],
+      fee_fixed:0, fee_percent:1, rate_rub_uzs:null,
+      limit_per_operation:300000, delivery_minutes:60, incoming_fee:0, checked_at:svezho },
+    { id:'servis-c', name:'Способ В', route:'A', corridors:['RU-UZ'],
+      fee_fixed:29, fee_percent:0, rate_rub_uzs:141.2,
+      limit_per_operation:200000, delivery_minutes:1440, incoming_fee:0, checked_at:vchera },
+    { id:'servis-d', name:'Способ Г', route:'A', corridors:['RU-UZ'],
+      fee_fixed:0, fee_percent:0.5, rate_rub_uzs:152.0,
+      limit_per_operation:100000, delivery_minutes:15, incoming_fee:0, checked_at:protuhlo },
+  ];
+  var B = [
+    { id:'bank-1', name:'Банк 1', rate_usd_uzs:13250, incoming_fee:0, checked_at:svezho },
+    { id:'bank-2', name:'Банк 2', rate_usd_uzs:13100, incoming_fee:0, checked_at:svezho },
+    { id:'bank-3', name:'Банк 3', rate_usd_uzs:12850, incoming_fee:0, checked_at:svezho },
+  ];
+
   var schet = function (vvod) { return C.poschitat(vvod, S, B, kursy); };
 
-  var bezBanka = schet({ summa: 50000, bank_id: null,     corridor: 'RU-UZ' });
-  var bank1    = schet({ summa: 50000, bank_id: 'bank-1', corridor: 'RU-UZ' });
-  var bank3    = schet({ summa: 50000, bank_id: 'bank-3', corridor: 'RU-UZ' });
+  var bezBanka = schet({ summa: 50000,  bank_id: null,     corridor: 'RU-UZ' });
+  var bank1    = schet({ summa: 50000,  bank_id: 'bank-1', corridor: 'RU-UZ' });
+  var bank3    = schet({ summa: 50000,  bank_id: 'bank-3', corridor: 'RU-UZ' });
   var krupno   = schet({ summa: 250000, bank_id: 'bank-1', corridor: 'RU-UZ' });
 
   function nayti(r, id) { return r.results.filter(function (x) { return x.service_id === id; })[0]; }
@@ -79,6 +111,7 @@
   var etalonB1 = Math.floor(((50000 - 500) / kross) * 13250 / 1000) * 1000;
 
   var proverki = [
+    ['ГРУППА', 'Расчёт итога'],
     ['Протухший способ (старше 72 ч) не показан вовсе', !nayti(bezBanka, 'servis-d')],
     ['Вчерашние данные помечены', (nayti(bezBanka, 'servis-c') || {}).svezhest === 'ustarelo'],
     ['Без банка появляется вилка', bezBanka.results.some(function (x) { return !!x.vilka; })],
@@ -102,7 +135,6 @@
   ];
 
   // ── Найдено на ревью 15 августа. Каждая строка — дефект, который был. ──
-  var svezho = new Date().toISOString();
 
   var dorogoy = [{ id: 'x', name: 'Дорогой', route: 'A', corridors: ['RU-UZ'],
     fee_fixed: 2000, fee_percent: 0, rate_rub_uzs: 149, limit_per_operation: 500000,
@@ -139,6 +171,7 @@
   })();
 
   proverki.push(
+    ['ГРУППА', 'Дефекты, которые уже были'],
     ['Комиссия больше суммы — способ не показан, минуса нет',
       sedennyy.results.length === 0],
     ['Курс банка старше 72 ч не используется',
@@ -152,11 +185,65 @@
     ['Пустой список банков не роняет расчёт', bezBankov]
   );
 
+  /* ── Вердикт дня ────────────────────────────────────────────────
+     Главная функция продукта: за месяц курс прошёл 9,5%, а это больше
+     денег, чем выбор сервиса и банка вместе. Тот же расчёт повторён
+     у бота в sovet.py — совпадение двух реализаций проверяет
+     bot/test_parity.py, и без него они однажды разойдутся. */
+
+  function ryad(vals) {
+    return vals.map(function (v, i) {
+      return { date: '2026-08-' + String(i + 1).padStart(2, '0'), rub_uzs: v };
+    });
+  }
+
+  var rovno   = C.sovet(ryad([140, 140, 140, 140, 140, 140, 140, 140, 140, 140]));
+  var vysoko  = C.sovet(ryad([140, 140, 140, 140, 140, 140, 140, 140, 140, 150]));
+  var nizko   = C.sovet(ryad([150, 150, 150, 150, 150, 150, 150, 150, 150, 140]));
+  var malo    = C.sovet(ryad([140, 140, 140, 140, 140, 140]));
+
+  proverki.push(
+    ['ГРУППА', 'Вердикт дня: отправлять или подождать'],
+    ['Меньше недели данных — вердикта нет, а не догадка', malo === null],
+    ['Ровный курс — «обычно»', rovno.verdikt === 'obychno'],
+    ['Курс сильно выше обычного — «отлично»', vysoko.verdikt === 'otlichno'],
+    ['Курс сильно ниже обычного — «плохо»', nizko.verdikt === 'ploho'],
+    ['Лучший день месяца — позиция 100', vysoko.pozicia_percent === 100],
+    ['Худший день месяца — позиция 0', nizko.pozicia_percent === 0],
+    ['При ровном курсе позиция не делится на ноль', rovno.pozicia_percent === 50],
+    ['Растущий курс распознан', vysoko.trend === 'rastet'],
+    ['Падающий курс распознан', nizko.trend === 'padaet'],
+    ['Плохой курс показывает минус, а не молчит',
+      nizko.raznica_na_1000_rub < 0],
+    ['Выгода считается на сумму человека',
+      C.vygodaNaSumme(vysoko, 50000) > 0],
+    ['Выгода пропорциональна сумме',
+      Math.abs(C.vygodaNaSumme(vysoko, 100000) - 2 * C.vygodaNaSumme(vysoko, 50000)) <= 1],
+    ['Нулевая сумма даёт ноль, а не ошибку', C.vygodaNaSumme(vysoko, 0) === 0],
+    ['Без вердикта выгода равна нулю', C.vygodaNaSumme(null, 50000) === 0],
+    ['Старое за пределами окна не влияет на среднее',
+      Math.abs(C.sovet(ryad(new Array(10).fill(200)).concat(
+        (new Array(30).fill(140)).map(function (v, i) {
+          return { date: '2026-09-' + String(i + 1).padStart(2, '0'), rub_uzs: v };
+        }))).otklonenie_percent) < 0.01],
+    ['Ряд возвращается для графика', Array.isArray(vysoko.ryad) && vysoko.ryad.length === 10]
+  );
+
+  /* ── Вывод ──────────────────────────────────────────────────── */
+
   var telo = document.querySelector('#checks tbody');
-  var provaleno = 0;
+  var provaleno = 0, vsego = 0;
+
   proverki.forEach(function (p) {
-    if (!p[1]) provaleno++;
     var tr = document.createElement('tr');
+    if (p[0] === 'ГРУППА') {
+      tr.className = 'grp';
+      tr.innerHTML = '<td colspan="2">' + p[1] + '</td>';
+      telo.appendChild(tr);
+      return;
+    }
+    vsego++;
+    if (!p[1]) provaleno++;
     tr.innerHTML = '<td>' + p[0] + '</td><td class="st ' + (p[1] ? 'ok' : 'fail') + '">' +
                    (p[1] ? 'ОК' : 'ПРОВАЛ') + '</td>';
     telo.appendChild(tr);
@@ -165,10 +252,10 @@
   var itog = document.getElementById('itog');
   if (provaleno === 0) {
     itog.className = 'itog ok';
-    itog.textContent = 'Все ' + proverki.length + ' проверок пройдены. Данные можно заливать.';
+    itog.textContent = 'Все ' + vsego + ' проверок пройдены. Заливать можно.';
   } else {
     itog.className = 'itog fail';
-    itog.textContent = 'Провалено проверок: ' + provaleno + ' из ' + proverki.length + '. Заливать нельзя.';
+    itog.textContent = 'Провалено проверок: ' + provaleno + ' из ' + vsego + '. Заливать нельзя.';
   }
 
   var vyvod = document.querySelector('#vyvod tbody');

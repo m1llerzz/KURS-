@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="uz">
 <head>
 <meta charset="utf-8">
@@ -7,9 +7,9 @@
 
 <!-- Описание видно при пересылке ссылки в чат: это первое, что читает
      человек, которому переслали расчёт. Оба языка сразу, места хватает. -->
-<meta name="description" content="Qancha pul kartaga yetib boradi. Сколько денег реально дойдёт до карты в Узбекистане.">
+<meta name="description" content="Bugun yubormoqmi yoki kutmoqmi. Отправлять сегодня или подождать — и сколько реально дойдёт до карты.">
 <meta property="og:title" content="Qancha yetadi">
-<meta property="og:description" content="Kartaga qancha pul yetib boradi — komissiya, kurs va qabul qiluvchi bank hisobga olinadi. Сколько реально дойдёт до карты.">
+<meta property="og:description" content="Kurs bugun odatdagidan yaxshimi yoki yomonmi va kartaga qancha yetib boradi. Лучше ли курс сегодня обычного и сколько дойдёт до карты.">
 <meta property="og:type" content="website">
 
 <!-- Среда Telegram: тема, кнопки, отправка в чат. Без этой строки мини-апп не работает. -->
@@ -28,6 +28,11 @@
     --line:    color-mix(in srgb, var(--ink) 12%, transparent);
     --alert:   #c0392b;
     --alert-bg: color-mix(in srgb, var(--alert) 10%, transparent);
+    /* Осторожность, а не тревога. Красный в этом продукте занят ошибками
+       ввода — если красить им ещё и плохой курс, человек перестаёт
+       различать «ты ошибся» и «сегодня невыгодно». Янтарный читается
+       как «притормози» и не кричит. */
+    --warn:    #b8791f;
   }
 
   * { box-sizing: border-box; }
@@ -45,9 +50,8 @@
   }
 
   /* Фон — свечение акцентом сверху, отдельным слоем под содержимым.
-     Сделан псевдоэлементом с прозрачностью, а не градиентом в background:
-     так он одинаково ложится и на светлую, и на тёмную тему Telegram,
-     подхватывая её цвет кнопки. Ничего не перехватывает по нажатиям. */
+     Псевдоэлемент, а не background: так он одинаково ложится и на светлую,
+     и на тёмную тему Telegram. Ничего не перехватывает по нажатиям. */
   body::before {
     content: '';
     position: fixed;
@@ -77,7 +81,7 @@
     padding: 0; font-variant-numeric: tabular-nums;
   }
   /* Раскрытый список рисует система, и фон у него свой — почти всегда белый.
-     Цвет текста при этом наследуется от темы, поэтому в тёмной теме пункты
+     Цвет текста наследуется от темы, поэтому в тёмной теме пункты
      оказывались светлыми на белом. Задаём паре фон и текст явно. */
   .field select option { background: var(--bg); color: var(--ink); }
   .field select { font-size: 16px; font-weight: 600; }
@@ -85,24 +89,54 @@
   .field:focus-within { border-color: var(--accent); }
   .field .hint { font-size: 12px; color: var(--muted); }
 
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-
   button {
     font-family: inherit; font-size: 15px; font-weight: 700;
     border: none; border-radius: 12px; padding: 14px; width: 100%; cursor: pointer;
     background: var(--accent); color: var(--accent-ink);
   }
   /* Текст красим в --ink, а не в --accent: в тёмных темах Telegram цвет
-     кнопки бывает почти чёрным, и надпись на прозрачном фоне пропадает.
-     Акцент оставляем только на рамке — там он ничего не ломает. */
+     кнопки бывает почти чёрным, и надпись на прозрачном фоне пропадает. */
   button.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--accent); }
   button:disabled { opacity: .45; cursor: not-allowed; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  /* Главная плашка расчёта. Раньше была красной, и весь экран читался
-     как предупреждение о беде: человек приходил посчитать, а получал упрёк.
-     Красный оставлен только за настоящими ошибками ввода — там он к месту.
-     Здесь акцент темы: цифра та же, но она зовёт считать, а не пугает. */
+  /* ── Вердикт дня ────────────────────────────────────────────────
+     Первый экран продукта и его главная ценность. За месяц курс рубля
+     прошёл 9,5% — это больше денег, чем выбор сервиса и банка вместе.
+     Поэтому цифра дня стоит выше формы, а не под ней. */
+  .verdict {
+    border-radius: 14px; padding: 15px 16px 13px;
+    display: flex; flex-direction: column; gap: 9px;
+    background: color-mix(in srgb, var(--tone) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent);
+    --tone: var(--muted);
+  }
+  .verdict.good { --tone: var(--accent); }
+  .verdict.bad  { --tone: var(--warn); }
+
+  .verdict .vh { font-size: 16.5px; font-weight: 800; line-height: 1.3; letter-spacing: -.01em; }
+  .verdict .vnums { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+  .verdict .vrate {
+    font-size: 26px; font-weight: 800; color: var(--tone);
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .verdict .vavg { font-size: 12.5px; color: var(--muted); }
+  .verdict .vmeta { font-size: 12px; color: var(--muted); }
+  .verdict .vonsum {
+    font-size: 14.5px; font-weight: 700; line-height: 1.35;
+    padding-top: 2px;
+  }
+  .verdict .vhint { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+
+  /* График курса. Настоящий ряд ЦБ за 30 дней: одно движение глазом
+     объясняет больше, чем абзац текста про волатильность. */
+  .spark { width: 100%; height: 54px; display: block; overflow: visible; }
+  .spark .ln { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .spark .ar { fill: color-mix(in srgb, var(--tone) 15%, transparent); stroke: none; }
+  .spark .av { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+  .spark .dt { fill: var(--tone); }
+
+  /* ── Результат ──────────────────────────────────────────────────── */
   .loss {
     background: color-mix(in srgb, var(--accent) 13%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
@@ -116,8 +150,8 @@
   .loss .s { font-size: 12.5px; color: var(--muted); }
 
   .card {
-    /* color обязателен: .card — это button, а правило button выше красит текст
-       в var(--accent-ink), то есть белым по светлому фону карточки */
+    /* color обязателен: .card — это button, а правило button выше красит
+       текст в var(--accent-ink), то есть белым по светлому фону карточки */
     background: var(--surface); color: var(--ink);
     border: 1px solid var(--line); border-radius: 12px;
     padding: 12px 13px; display: flex; flex-direction: column; gap: 4px;
@@ -138,24 +172,23 @@
 
   .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
 
-  /* Экран до расчёта. Курс ЦБ вынесен крупно: это единственная честная
-     цифра, которую мы можем показать человеку сразу, и она же объясняет,
-     что приложение живое и данные настоящие. */
-  .idle { display: flex; flex-direction: column; gap: 14px; padding-top: 2px; }
-  .idle .rate {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;
-  }
-  .idle .rate .v {
-    font-size: 23px; font-weight: 800; letter-spacing: -.02em;
-    font-variant-numeric: tabular-nums;
-  }
-  .idle .rate .k { font-size: 12px; color: var(--muted); }
-  .idle .steps {
+  /* Три шага расчёта. Исчезают, как только появился результат. */
+  .steps {
     margin: 0; padding: 0 0 0 22px; display: flex; flex-direction: column; gap: 9px;
     font-size: 13.5px; color: var(--muted); line-height: 1.45;
   }
-  .idle .steps li::marker { color: var(--accent); font-weight: 800; }
+  .steps li::marker { color: var(--accent); font-weight: 800; }
+
+  /* Подписка. Показывается ПОСЛЕ расчёта, а не до: просить разрешение
+     писать у человека, который ещё ничего не получил, — верный отказ.
+     Сначала польза, потом просьба. */
+  .sub {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 15px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .sub .st { font-size: 14.5px; font-weight: 700; }
+  .sub .sp { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
 
   /* Сообщение о неверной сумме. Красное и прямо под полем: человек должен
      понять, что не так, не отводя глаз от того места, где он ошибся. */
@@ -173,11 +206,11 @@
   .langs .lang.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
   /* Служебный класс. !important здесь осознанно: любое правило вида
-     .something { display: flex } объявленное ниже перебило бы его по порядку,
-     и элемент бы не спрятался. Один раз наступили — оставляем защиту. */
+     .something { display: flex } объявленное ниже перебило бы его
+     по порядку, и элемент бы не спрятался. Один раз наступили. */
   .hidden { display: none !important; }
 
-  /* Первый запуск: объясняем, зачем это, одним экраном */
+  /* Первый запуск: объясняем, зачем это */
   .intro { display: flex; flex-direction: column; gap: 16px; padding: 22px 4px 0; }
   .intro h1 { font-size: 25px; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -.02em; }
   .intro p { margin: 0; font-size: 16px; color: var(--muted); line-height: 1.55; }
@@ -185,10 +218,6 @@
     background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
     padding: 16px 18px; display: flex; flex-direction: column; gap: 2px;
   }
-  /* Здесь стояла крупная цифра потери. Убрана 15 августа как непроверенная:
-     открытые курсы банков дали разброс 0,84%, а не заявленные 3–5%.
-     Осталось утверждение, и набирается оно мельче: фраза в тридцать
-     пунктов читается как крик, а цифра читалась как факт. */
   .intro .bignum .v {
     font-size: 18px; font-weight: 800; color: var(--accent);
     letter-spacing: -.01em; line-height: 1.3;
@@ -196,6 +225,11 @@
   .intro .bignum .k { font-size: 13px; color: var(--muted); line-height: 1.45; }
 
   #results { display: flex; flex-direction: column; gap: 9px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .verdict, .card, .loss { animation: poyavit .22s ease-out both; }
+    @keyframes poyavit { from { opacity: 0; transform: translateY(4px); } }
+  }
 </style>
 </head>
 
@@ -222,6 +256,22 @@
     <button id="introOk" class="ghost" data-i18n="intro.ok"></button>
   </div>
 
+  <!-- ── Вердикт дня ──────────────────────────────────────── -->
+  <!-- Стоит выше формы намеренно: это единственное, что человек может
+       узнать здесь и больше нигде, и это самая крупная сумма в расчёте. -->
+  <div id="verdict" class="verdict hidden">
+    <span class="vh" id="vHead"></span>
+    <span class="vnums">
+      <span class="vrate" id="vRate"></span>
+      <span class="vavg" id="vAvg"></span>
+    </span>
+    <svg class="spark" id="vSpark" viewBox="0 0 300 54" preserveAspectRatio="none"
+         role="img" aria-hidden="true"></svg>
+    <span class="vmeta" id="vMeta"></span>
+    <span class="vonsum" id="vOnSum"></span>
+    <span class="vhint" id="vHint"></span>
+  </div>
+
   <!-- ── Ввод ─────────────────────────────────────────────── -->
   <div id="calcUI" class="wrap" style="padding:0">
     <div>
@@ -234,7 +284,10 @@
       <p id="summaErr" class="err hidden"></p>
     </div>
 
-    <div>
+    <!-- Банк получателя. Прячется целиком, когда проверенных курсов
+         банков нет: пустой список в поле выбора — обещание данных,
+         которых у нас нет. См. data.js, window.BANKS. -->
+    <div id="bankBlock" class="hidden">
       <div class="lbl" data-i18n="lbl.bank"></div>
       <div class="field" style="margin-top:6px">
         <select id="bank"></select>
@@ -246,15 +299,7 @@
   </div>
 
   <!-- ── До расчёта ───────────────────────────────────────── -->
-  <!-- Пустой экран под кнопкой ничего не объяснял и выглядел поломкой.
-       Здесь стоит настоящий курс ЦБ — единственная неподдельная цифра,
-       которая у нас есть до данных Видадия, — и три шага расчёта.
-       Блок исчезает, как только появился результат. -->
-  <div id="idle" class="idle">
-    <div class="rate">
-      <span class="v" id="idleRate">—</span>
-      <span class="k" id="idleRateSub"></span>
-    </div>
+  <div id="idle">
     <ol class="steps">
       <li data-i18n="idle.s1"></li>
       <li data-i18n="idle.s2"></li>
@@ -273,6 +318,13 @@
 
   <button id="share" class="ghost hidden" data-i18n="btn.share"></button>
 
+  <!-- ── Подписка на оповещения ───────────────────────────── -->
+  <div id="subCta" class="sub hidden">
+    <span class="st" data-i18n="sub.t"></span>
+    <span class="sp" data-i18n="sub.p"></span>
+    <button id="subBtn" class="ghost" data-i18n="sub.btn"></button>
+  </div>
+
   <p id="disclaimer" class="note hidden"></p>
   <p id="kursDate" class="note"></p>
 
@@ -282,9 +334,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=14"></script>
-<script src="data.js?v=14"></script>
-<script src="calc.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="i18n.js?v=15"></script>
+<script src="data.js?v=15"></script>
+<script src="calc.js?v=15"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

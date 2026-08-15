@@ -220,6 +220,109 @@ window.CALC = (function () {
     };
   }
 
+  /* ── Вердикт дня: отправлять сегодня или подождать ──────────────────
+   *
+   * Почему это главная функция приложения, а не украшение. Замер 15.08.2026
+   * по курсам ЦБ за 30 дней:
+   *
+   *     размах курса рубля           9,49%   (155,22 → 141,76)
+   *     курс перевода против ЦБ      4,06%   (136 против 141,76)
+   *     разброс банков-получателей   0,84%
+   *
+   * День отправки решает больше денег, чем выбор сервиса и банка вместе.
+   * На 50 000 ₽ это 673 000 сум против 288 000 и 55 000.
+   *
+   * Считается здесь, а не берётся у бота, ровно по одной причине: вердикт
+   * обязан работать при мёртвой сети, по запасной истории из data.js.
+   * Терять главную ценность продукта из-за плохого интернета в метро нельзя.
+   *
+   * Тот же расчёт есть у бота в sovet.py — он нужен ему для оповещений.
+   * Две реализации проверяются одинаковыми наборами чисел, см. test.html
+   * и bot/test_sovet.py: разойдясь, они покажут человеку разные советы.
+   */
+
+  const PORAG_ZAMETNOSTI = 1.0;   // ниже — разница тонет в комиссии
+  const PORAG_SILNYY = 3.0;       // выше — стоит менять планы
+  const OKNO_DNEY = 30;
+
+  function srednee(chisla) {
+    if (!chisla.length) return null;
+    return chisla.reduce(function (a, b) { return a + b; }, 0) / chisla.length;
+  }
+
+  /**
+   * @param {Array<{date:string, rub_uzs:number}>} istoriya
+   * @returns {object|null} null — если данных меньше недели: на трёх днях
+   *          «среднее» это случайность, а совет человеку про его деньги
+   *          на случайности строить нельзя.
+   */
+  function sovet(istoriya) {
+    if (!istoriya || istoriya.length < 7) return null;
+
+    const ryad = istoriya.slice().sort(function (a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+    });
+    const kursy = ryad.map(function (x) { return x.rub_uzs; });
+    const segodnya = kursy[kursy.length - 1];
+
+    const okno = kursy.slice(-OKNO_DNEY);
+    const sred = srednee(okno);
+    const minimum = Math.min.apply(null, okno);
+    const maksimum = Math.max.apply(null, okno);
+
+    const otklonenie = ((segodnya - sred) / sred) * 100;
+
+    // Где сегодняшний курс внутри коридора месяца: 0 — худший день,
+    // 100 — лучший. Понятнее процентов: «лучше 80% дней месяца».
+    const pozicia = maksimum > minimum
+      ? ((segodnya - minimum) / (maksimum - minimum)) * 100
+      : 50;
+
+    // Куда движется: три последних дня против трёх предыдущих. Не «вчера
+    // против сегодня» — один день это шум, а человек по нему решает.
+    let trend = null;
+    if (kursy.length >= 6) {
+      const svezhie = srednee(kursy.slice(-3));
+      const proshlye = srednee(kursy.slice(-6, -3));
+      if (proshlye) {
+        const izm = ((svezhie - proshlye) / proshlye) * 100;
+        trend = izm > 0.3 ? 'rastet' : izm < -0.3 ? 'padaet' : 'stoit';
+      }
+    }
+
+    // Вердикт честен в обе стороны. Продукт, который всегда говорит
+    // «отправляй», — это реклама, а не советник, и это видно с первого раза.
+    let verdikt;
+    if (otklonenie >= PORAG_SILNYY) verdikt = 'otlichno';
+    else if (otklonenie >= PORAG_ZAMETNOSTI) verdikt = 'horosho';
+    else if (otklonenie <= -PORAG_SILNYY) verdikt = 'ploho';
+    else if (otklonenie <= -PORAG_ZAMETNOSTI) verdikt = 'nize_obychnogo';
+    else verdikt = 'obychno';
+
+    return {
+      verdikt: verdikt,
+      segodnya: Math.round(segodnya * 100) / 100,
+      srednee_30: Math.round(sred * 100) / 100,
+      min_30: Math.round(minimum * 100) / 100,
+      max_30: Math.round(maksimum * 100) / 100,
+      otklonenie_percent: Math.round(otklonenie * 100) / 100,
+      pozicia_percent: Math.round(pozicia),
+      trend: trend,
+      tochek: okno.length,
+      // Сколько человек выигрывает или теряет на каждую тысячу рублей
+      // против обычного курса. Умножить на свою сумму умеет каждый,
+      // а процент от абстрактного курса не чувствует никто.
+      raznica_na_1000_rub: Math.round((segodnya - sred) * 1000),
+      ryad: ryad.slice(-OKNO_DNEY),
+    };
+  }
+
+  /** Сколько сум даёт (или отнимает) сегодняшний курс против обычного. */
+  function vygodaNaSumme(ocenka, summaRub) {
+    if (!ocenka || !summaRub) return 0;
+    return Math.round((ocenka.segodnya - ocenka.srednee_30) * summaRub);
+  }
+
   return {
     poschitat: poschitat,
     marshrutA: marshrutA,
@@ -229,6 +332,8 @@ window.CALC = (function () {
     okruglitVniz: okruglitVniz,
     statusSvezhesti: statusSvezhesti,
     nacenkaPravdopodobna: nacenkaPravdopodobna,
+    sovet: sovet,
+    vygodaNaSumme: vygodaNaSumme,
   };
 
 })();

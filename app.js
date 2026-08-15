@@ -4,6 +4,14 @@
  * Читает поля, зовёт CALC, рисует результат, отправляет в чат.
  * Здесь НЕТ ни одной формулы. Если понадобилось что-то умножить —
  * значит логика попала не в тот файл, ей место в calc.js.
+ *
+ * Порядок экрана повторяет порядок денег, а не порядок разработки:
+ *
+ *     вердикт дня      до 9,5% на переводе   ← стоит первым
+ *     курс сервиса        около 4%
+ *     банк получателя     около 0,8%         ← скрыт, пока не измерен
+ *
+ * Раньше первым стоял ввод суммы, и человек уходил, не узнав главного.
  */
 
 (function () {
@@ -14,9 +22,9 @@
   const el = {
     intro:      document.getElementById('intro'),
     introOk:    document.getElementById('introOk'),
-    calcUI:     document.getElementById('calcUI'),
     summa:      document.getElementById('summa'),
     bank:       document.getElementById('bank'),
+    bankBlock:  document.getElementById('bankBlock'),
     schitat:    document.getElementById('schitat'),
     results:    document.getElementById('results'),
     loss:       document.getElementById('loss'),
@@ -27,8 +35,16 @@
     kursDate:   document.getElementById('kursDate'),
     summaErr:   document.getElementById('summaErr'),
     idle:       document.getElementById('idle'),
-    idleRate:   document.getElementById('idleRate'),
-    idleRateSub: document.getElementById('idleRateSub'),
+    verdict:    document.getElementById('verdict'),
+    vHead:      document.getElementById('vHead'),
+    vRate:      document.getElementById('vRate'),
+    vAvg:       document.getElementById('vAvg'),
+    vSpark:     document.getElementById('vSpark'),
+    vMeta:      document.getElementById('vMeta'),
+    vOnSum:     document.getElementById('vOnSum'),
+    vHint:      document.getElementById('vHint'),
+    subCta:     document.getElementById('subCta'),
+    subBtn:     document.getElementById('subBtn'),
   };
 
   // Telegram кеширует html и js порознь, и какое-то время после обновления
@@ -44,33 +60,47 @@
 
   /**
    * Границы суммы. Сверху — миллион: больше сервисы не проводят одной
-   * операцией, и считать такое значит показывать цифру, которой не бывает.
-   * Проверено на живом вводе: без верхней границы приложение спокойно
-   * считало пять квинтиллионов рублей и рисовало итог в двадцать знаков.
+   * операцией. Проверено на живом вводе: без верхней границы приложение
+   * спокойно считало пять квинтиллионов рублей.
    */
   const MIN_SUMMA = 1000;
   const MAX_SUMMA = 1000000;
 
   let posledniyRaschet = null;
   let posledniyKurs = null;
+  let ocenkaDnya = null;
+  let SERVISY = window.SERVICES || [];
+  let BANKI = window.BANKS || [];
+  let ISTORIYA = window.HISTORY_ZAPAS || [];
+  let dannyeUstareli = null;   // дата, если считаем по запасу
 
   const t = window.I18N.t;
 
-  /* ── Форматирование ──────────────────────────────────── */
+  /* ── Мелкая память ───────────────────────────────────────
+   * Сумма и банк запоминаются не ради удобства, а ради смысла: человек,
+   * который однажды ввёл свои 50 000, в следующий раз открывает приложение
+   * и сразу видит вердикт В СВОИХ СУМАХ, а не в процентах. Проценты
+   * не чувствует никто, свои деньги — все.
+   */
+  function pomnit(klyuch, znachenie) {
+    try {
+      if (znachenie === undefined) return localStorage.getItem(klyuch);
+      localStorage.setItem(klyuch, znachenie);
+    } catch (e) {}
+    return null;
+  }
+
+  /* ── Форматирование ──────────────────────────────────────── */
 
   /**
    * Число с пробелами по три знака.
    *
    * toString() у больших чисел переключается на запись вида 5e+28, и в
    * пересланном сообщении это выглядело набором символов из спама.
-   * Валидация суммы такого уже не допускает, но форматирование обязано
-   * быть устойчивым само по себе: оно попадает в чужие чаты.
    */
   function sum(n) {
     const chislo = Math.round(Number(n));
     if (!isFinite(chislo)) return '—';
-    // toFixed(0) спасает не до конца: выше 10²¹ он тоже переходит на 5e+28.
-    // BigInt печатает все знаки честно и без степеней.
     let stroka;
     try {
       stroka = BigInt(chislo).toString();
@@ -82,8 +112,7 @@
 
   /**
    * Срок доставки словами. Число подставляется внутрь строки языка,
-   * а не приклеивается к ней: по-узбекски время требует окончания
-   * («10 daqiqada»), и склейка вида «10 daq» читалась обрывком.
+   * а не приклеивается к ней: по-узбекски время требует окончания.
    */
   function srok(minut) {
     if (minut < 60) return t('time.min', { n: minut });
@@ -91,52 +120,192 @@
     return t('time.day', { n: Math.round(minut / 1440) });
   }
 
-  /* ── Курс ЦБ: сеть → кеш на сутки → запасные значения ── */
+  /* ── Данные: бот → кеш → файл ─────────────────────────────
+   *
+   * Раньше приложение ходило напрямую в ЦБ, а тарифы лежали в data.js
+   * и правились руками. Теперь всё собирает бот: он раз в час обходит
+   * ЦБ и bank.uz, считает наценку каждого сервиса к официальному курсу
+   * и отдаёт готовый набор. Приложению остаётся нарисовать.
+   *
+   * Три уровня отступления, и ни на одном мы не показываем цифру без даты:
+   *     1. живой ответ бота
+   *     2. кеш в браузере, если он моложе суток
+   *     3. запас в data.js — с честной пометкой, что данные не свежие
+   */
 
-  function kursIzKesha() {
+  function izKesha() {
     try {
-      const syroe = localStorage.getItem('kursy');
+      const syroe = localStorage.getItem('dannye');
       if (!syroe) return null;
-      const dannye = JSON.parse(syroe);
-      const chasov = (Date.now() - dannye.saved_at) / 36e5;
-      return chasov <= 24 ? dannye : null;
+      const d = JSON.parse(syroe);
+      const chasov = (Date.now() - d.saved_at) / 36e5;
+      return chasov <= 24 ? d : null;
     } catch (e) { return null; }
   }
 
-  function zagruzitKursy() {
-    const kesh = kursIzKesha();
-    if (kesh) return Promise.resolve(kesh);
+  function primenit(d) {
+    if (d.services && d.services.length) SERVISY = d.services;
+    if (d.banks) BANKI = d.banks;
+    if (d.history && d.history.length) ISTORIYA = d.history;
+    if (d.cbu) {
+      posledniyKurs = {
+        usd_uzs: d.cbu.usd_uzs,
+        rub_uzs: d.cbu.rub_uzs,
+        date: d.cbu.date,
+      };
+    }
+  }
 
-    return fetch('https://cbu.uz/ru/arkhiv-kursov-valyut/json/')
+  function zagruzitDannye() {
+    const kesh = izKesha();
+    if (kesh) { primenit(kesh); return Promise.resolve(kesh); }
+
+    if (!window.API_URL) return Promise.resolve(zapasnoy());
+
+    return fetch(window.API_URL, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
-      .then(function (spisok) {
-        function nayti(kod) {
-          const v = spisok.find(function (x) { return x.Ccy === kod; });
-          if (!v) return null;
-          return parseFloat(v.Rate) / (parseInt(v.Nominal, 10) || 1);
-        }
-        const kursy = {
-          usd_uzs: nayti('USD'),
-          rub_uzs: nayti('RUB'),
-          date: new Date().toLocaleDateString('ru-RU'),
-          saved_at: Date.now(),
-        };
-        if (!kursy.usd_uzs || !kursy.rub_uzs) throw new Error('ЦБ вернул неполные данные');
-        localStorage.setItem('kursy', JSON.stringify(kursy));
-        return kursy;
+      .then(function (d) {
+        if (!d || !d.cbu || !d.cbu.rub_uzs) throw new Error('неполный ответ');
+        d.saved_at = Date.now();
+        try { localStorage.setItem('dannye', JSON.stringify(d)); } catch (e) {}
+        primenit(d);
+        return d;
       })
       .catch(function () {
-        // Сеть недоступна — берём что есть и честно пишем дату.
-        const staryi = localStorage.getItem('kursy');
-        return staryi ? JSON.parse(staryi) : window.KURSY_ZAPAS;
+        // Бот спит или сети нет. Отдаём последнее, что знаем, и говорим
+        // об этом словами — цифра без даты хуже отсутствия цифры.
+        const staryi = localStorage.getItem('dannye');
+        if (staryi) {
+          try {
+            const d = JSON.parse(staryi);
+            primenit(d);
+            dannyeUstareli = (d.cbu && d.cbu.date) || null;
+            return d;
+          } catch (e) {}
+        }
+        return zapasnoy();
       });
   }
 
-  /* ── Отрисовка ───────────────────────────────────────── */
+  function zapasnoy() {
+    const d = {
+      cbu: window.KURSY_ZAPAS,
+      services: window.SERVICES || [],
+      banks: window.BANKS || [],
+      history: window.HISTORY_ZAPAS || [],
+      zapas: true,
+    };
+    primenit(d);
+    posledniyKurs = Object.assign({}, window.KURSY_ZAPAS);
+    dannyeUstareli = null;
+    return d;
+  }
+
+  /* ── Вердикт дня ─────────────────────────────────────────── */
+
+  /** Рисует настоящий ряд курсов ЦБ за месяц. */
+  function narisovatGrafik(ryad) {
+    if (!el.vSpark || !ryad || ryad.length < 2) return;
+
+    const W = 300, H = 54, otstup = 5;
+    const znacheniya = ryad.map(function (x) { return x.rub_uzs; });
+    const mn = Math.min.apply(null, znacheniya);
+    const mx = Math.max.apply(null, znacheniya);
+    // Ровный курс дал бы деление на ноль и линию за краем поля.
+    const razmah = (mx - mn) || 1;
+
+    function X(i) { return (i / (ryad.length - 1)) * W; }
+    function Y(v) { return H - otstup - ((v - mn) / razmah) * (H - otstup * 2); }
+
+    const tochki = znacheniya.map(function (v, i) {
+      return X(i).toFixed(1) + ',' + Y(v).toFixed(1);
+    });
+
+    const srednee = znacheniya.reduce(function (a, b) { return a + b; }, 0) / znacheniya.length;
+    const ySred = Y(srednee).toFixed(1);
+
+    const posledniy = znacheniya.length - 1;
+    el.vSpark.innerHTML =
+      '<polygon class="ar" points="0,' + H + ' ' + tochki.join(' ') + ' ' + W + ',' + H + '"/>' +
+      // Пунктир среднего — это якорь. Без него линия просто «какая-то»,
+      // с ним человек мгновенно видит, выше он сегодня обычного или ниже.
+      '<line class="av" x1="0" y1="' + ySred + '" x2="' + W + '" y2="' + ySred + '"/>' +
+      '<polyline class="ln" points="' + tochki.join(' ') + '"/>' +
+      '<circle class="dt" cx="' + X(posledniy).toFixed(1) + '" cy="' +
+        Y(znacheniya[posledniy]).toFixed(1) + '" r="3.2"/>';
+  }
+
+  function pokazatVerdikt() {
+    ocenkaDnya = window.CALC.sovet(ISTORIYA);
+
+    if (!ocenkaDnya) {
+      // Меньше недели данных — вердикта нет. Молчим, а не гадаем.
+      el.verdict.classList.add('hidden');
+      return;
+    }
+
+    const o = ocenkaDnya;
+    const horosho = o.verdikt === 'otlichno' || o.verdikt === 'horosho';
+    const ploho = o.verdikt === 'ploho' || o.verdikt === 'nize_obychnogo';
+
+    el.verdict.classList.remove('hidden', 'good', 'bad');
+    if (horosho) el.verdict.classList.add('good');
+    else if (ploho) el.verdict.classList.add('bad');
+
+    el.vHead.textContent = t('v.' + o.verdikt);
+    el.vRate.textContent = t('v.rate', { r: o.segodnya.toFixed(2) });
+    el.vAvg.textContent = t('v.avg', { r: o.srednee_30.toFixed(2) });
+
+    narisovatGrafik(o.ryad);
+
+    // Положение внутри месяца понятнее процента отклонения: «лучше 12%
+    // дней месяца» человек прикладывает к себе сразу.
+    const chasti = [];
+    if (o.pozicia_percent <= 2) chasti.push(t('v.pos.worst'));
+    else if (o.pozicia_percent >= 98) chasti.push(t('v.pos.best'));
+    else chasti.push(t('v.pos', { p: o.pozicia_percent }));
+    if (o.trend) chasti.push(t('v.trend.' + o.trend));
+    chasti.push(t('v.range', { mn: o.min_30.toFixed(2), mx: o.max_30.toFixed(2) }));
+    el.vMeta.textContent = chasti.join(' · ');
+
+    obnovitVygodu();
+
+    el.vHint.textContent = horosho ? t('v.hint.good')
+      : ploho ? t('v.hint.bad')
+      : t('v.hint.normal');
+  }
+
+  /**
+   * Разница в СУМАХ на сумму человека. Пересчитывается на каждое
+   * изменение поля: смысл в том, чтобы он увидел свои деньги, а не общий
+   * процент. Абстракция не убеждает, своя сумма убеждает.
+   */
+  function obnovitVygodu() {
+    if (!ocenkaDnya || !el.vOnSum) return;
+
+    const summa = parseFloat(el.summa.value);
+    if (!isFinite(summa) || summa < MIN_SUMMA || summa > MAX_SUMMA) {
+      el.vOnSum.textContent = '';
+      return;
+    }
+
+    const raznica = window.CALC.vygodaNaSumme(ocenkaDnya, summa);
+    // Меньше тысячи сум — это не деньги, а шум округления. Говорить о нём
+    // значит обещать выгоду, которой нет.
+    if (Math.abs(raznica) < 1000) {
+      el.vOnSum.textContent = t('v.onsum.zero');
+      return;
+    }
+
+    el.vOnSum.textContent = raznica > 0
+      ? t('v.onsum.plus',  { sum: sum(summa), n: sum(raznica) })
+      : t('v.onsum.minus', { sum: sum(summa), n: sum(-raznica) });
+  }
+
+  /* ── Отрисовка расчёта ───────────────────────────────────── */
 
   function narisovat(raschet, kursy) {
     el.results.innerHTML = '';
-    // Появился результат — объяснялка своё отработала и только мешает.
     if (el.idle) el.idle.classList.add('hidden');
 
     if (!raschet.results.length) {
@@ -159,11 +328,20 @@
 
       const detali = [];
       detali.push(srok(r.delivery_minutes));
+
+      // Наценка курса сервиса к официальному. Это второй по величине
+      // рычаг после дня отправки — около 4% — и его тоже не показывает
+      // ни один сервис. Считает бот, здесь только выводим.
+      const servis = SERVISY.filter(function (s) { return s.id === r.service_id; })[0];
+      if (servis && typeof servis.nacenka_percent === 'number'
+          && Math.abs(servis.nacenka_percent) >= 0.1) {
+        detali.push(t('svc.markup', { p: servis.nacenka_percent.toFixed(1) }));
+      }
+      // Комиссия не объявлена — говорим прямо, что итог это потолок.
+      // Молча выдать верхнюю границу за точную цифру нельзя.
+      if (servis && servis.fee_unknown) detali.push(t('svc.fee_unknown'));
+
       if (r.ocenochnyi) detali.push(t('detail.est'));
-      // Наценка бывает и отрицательной — тогда банк даёт лучше официального курса.
-      // Писать «хуже на −1,9%» нельзя, это читается как ошибка.
-      // И не показываем вовсе, если данные рассогласованы: курс банка и курс ЦБ
-      // от разных дат дают бессмысленную цифру, которая подрывает доверие.
       if (r.nacenka_percent !== null && r.dannye_soglasovany && Math.abs(r.nacenka_percent) >= 0.1) {
         detali.push(r.nacenka_percent > 0
           ? t('detail.worse',  { p: r.nacenka_percent.toFixed(1) })
@@ -186,26 +364,55 @@
       el.results.appendChild(kartochka);
     });
 
+    /**
+     * Плашка над списком. Когда способов несколько — разница между ними.
+     * Когда способ один (а сейчас курсы сервисов совпадают) — показываем
+     * то, что действительно есть: сколько съел курс против официального.
+     *
+     * Раньше при одинаковых курсах плашка просто исчезала, и главная
+     * потеря человека оставалась невидимой. Она никуда не делась —
+     * её просто не с чем было сравнивать внутри списка.
+     */
+    const luchshiy = raschet.results[0];
     if (raschet.hidden_loss_uzs > 0) {
       el.lossNum.textContent = sum(raschet.hidden_loss_uzs) + ' ' + t('unit.sum');
       el.lossSub.textContent = t('loss.sub', { sum: sum(el.summa.value) });
       el.loss.classList.remove('hidden');
+    } else if (kursy && kursy.rub_uzs && luchshiy) {
+      const servis = SERVISY.filter(function (s) { return s.id === luchshiy.service_id; })[0];
+      if (servis && servis.rate_rub_uzs) {
+        const poOficialnomu = parseFloat(el.summa.value) * kursy.rub_uzs;
+        const poteryano = Math.round(poOficialnomu - luchshiy.total_uzs);
+        if (poteryano > 0) {
+          el.lossNum.textContent = sum(poteryano) + ' ' + t('unit.sum');
+          el.lossSub.textContent = t('svc.official');
+          el.loss.classList.remove('hidden');
+        } else {
+          el.loss.classList.add('hidden');
+        }
+      } else {
+        el.loss.classList.add('hidden');
+      }
     } else {
       el.loss.classList.add('hidden');
     }
 
-    // disclaimer приходит из calc ключом, а не готовой фразой.
     let podpis = t(raschet.disclaimer);
     if (window.TEST_DATA) podpis = t('test') + podpis;
     el.disclaimer.textContent = podpis;
     el.disclaimer.classList.remove('hidden');
 
-    // Без свежего курса ЦБ расчёт становится ориентировочным — говорим об этом
-    // прямо, а не подсовываем цифру как ни в чём не бывало.
-    el.kursDate.textContent = kursy.zapas || !kursy.date
-      ? t('kurs.fail')
-      : t('kurs.date', { d: kursy.date });
+    el.kursDate.textContent = dannyeUstareli
+      ? t('err.net', { d: dannyeUstareli })
+      : (kursy.zapas || !kursy.date)
+        ? t('kurs.fail')
+        : t('kurs.date', { d: kursy.date });
+
     el.share.classList.remove('hidden');
+    // Просьбу о подписке показываем только теперь — после того, как
+    // человек получил цифру, ради которой пришёл. Это не приём, а порядок:
+    // сначала польза, потом просьба. Наоборот получаешь отказ.
+    if (el.subCta) el.subCta.classList.remove('hidden');
   }
 
   function pokazatRazbor(r) {
@@ -217,31 +424,36 @@
     else alert(text);
   }
 
-  /* ── Отправка в чат ──────────────────────────────────── */
+  /* ── Отправка в чат ──────────────────────────────────────── */
 
   /**
    * Пересылка — единственный канал, по которому про нас узнают бесплатно.
-   * Поэтому в сообщении обязаны быть три вещи: цифра ради которой смотрят,
-   * разница ради которой удивляются, и ссылка ради которой возвращаются.
-   * Раньше ссылки не было — расчёт гулял по чатам, а прийти к нам было некуда.
+   *
+   * Что в ней есть и почему. Раньше уходила разница между способами —
+   * но она бывает нулевой, и тогда сообщение пустело. Теперь первым идёт
+   * вердикт дня: он есть всегда, он меняется каждый день, и он полезен
+   * читателю независимо от того, какую сумму отправлял автор.
    */
-  /** Один языковой блок пересылки. */
   function blokPeresylki(lang, procent) {
-    let text = t('share.title', { sum: sum(el.summa.value) }, lang);
-    if (procent !== null) {
-      text += '\n' + t('share.diff', { p: procent }, lang);
+    const stroki = [];
+
+    if (ocenkaDnya) {
+      stroki.push(t('v.' + ocenkaDnya.verdikt, null, lang));
+      stroki.push(t('v.rate', { r: ocenkaDnya.segodnya.toFixed(2) }, lang)
+        + ' · ' + t('v.avg', { r: ocenkaDnya.srednee_30.toFixed(2) }, lang));
+    } else {
+      stroki.push(t('share.title', { sum: sum(el.summa.value) }, lang));
     }
-    // Последняя строка — прямое обращение к тому, кто читает пересылку.
-    // Без неё сообщение остаётся рассказом о себе, и человек не понимает,
-    // что от него хотят.
-    return text + '\n' + t('share.cta', null, lang);
+
+    if (procent !== null) stroki.push(t('share.diff', { p: procent }, lang));
+    stroki.push(t('share.cta', null, lang));
+    return stroki.join('\n');
   }
 
   function sobratTekst() {
-    // Никаких сумов в пересылке. Чужие итоги читателю ничего не говорят:
-    // у него другая сумма и другой банк, а длинные числа в чате читаются
-    // как спам. Процент переносится на любой перевод — потому он и остался
-    // единственной цифрой. Название и кнопка приходят карточкой приложения.
+    // Никаких чужих сумов: у читателя другая сумма и другой банк, а
+    // длинные числа в чате читаются как спам. Процент и курс переносятся
+    // на любой перевод — потому они и остались.
     const luchshiy = posledniyRaschet.results[0];
     const bazovyi = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
 
@@ -249,15 +461,12 @@
     const poterya = posledniyRaschet.hidden_loss_uzs;
     if (poterya > 0 && bazovyi > 0) {
       const dolya = (poterya / bazovyi) * 100;
-      // Меньше десятой доли процента — разницы по сути нет, и говорить
-      // о ней значит обещать несуществующую выгоду.
       if (dolya >= 0.1) procent = dolya.toFixed(1).replace('.', ',');
     }
 
-    // Оба языка сразу. Расчёт пересылают в общие чаты, где сидят и те, кто
-    // читает по-узбекски, и те, кто по-русски: сообщение на одном языке
-    // половина аудитории пролистывает, не разобравшись, о чём оно.
-    // Первым идёт язык отправителя — его прочтут те, кому он пишет чаще.
+    // Оба языка сразу. Расчёт пересылают в общие чаты, где сидят и те,
+    // кто читает по-узбекски, и те, кто по-русски. Первым идёт язык
+    // отправителя — его прочтут те, кому он пишет чаще.
     const svoy = window.I18N.get();
     const chuzhoy = svoy === 'ru' ? 'uz' : 'ru';
 
@@ -269,10 +478,6 @@
     const text = sobratTekst();
     const link = window.BOT_LINK || '';
 
-    // Штатный путь: экран выбора чата. Ссылку подставляет сам Telegram
-    // отдельным параметром, поэтому в тексте её дублировать не нужно.
-    // switchInlineQuery здесь не годится — он требует включённого inline-режима
-    // у бота, а его у нас нет и заводить ради одной кнопки незачем.
     const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) +
                      '&text=' + encodeURIComponent(text);
 
@@ -287,21 +492,34 @@
     }
   }
 
-  /* ── Запуск ──────────────────────────────────────────── */
+  /** Подписка живёт у бота: мини-апп сам писать человеку не может. */
+  function otkrytPodpisku() {
+    const ssylka = window.BOT_CHAT || 'https://t.me/QanchaYetadi_bot';
+    if (tg && tg.openTelegramLink) tg.openTelegramLink(ssylka);
+    else window.open(ssylka, '_blank');
+  }
+
+  /* ── Банки ───────────────────────────────────────────────── */
 
   function zapolnitBanki() {
-    // Выбранный банк надо сохранить: смена языка перерисовывает список,
-    // и без этого выбор человека молча слетал бы на «не знаю».
-    const bylo = el.bank.value;
+    // Проверенных курсов банков нет — поле прячем целиком. Пустой список
+    // в выпадашке это обещание данных, которых у нас нет.
+    if (!BANKI.length) {
+      if (el.bankBlock) el.bankBlock.classList.add('hidden');
+      return;
+    }
+    if (el.bankBlock) el.bankBlock.classList.remove('hidden');
+
+    const bylo = el.bank.value || pomnit('bank') || '';
     const opts = ['<option value="">' + t('bank.any') + '</option>'];
-    window.BANKS.forEach(function (b) {
+    BANKI.forEach(function (b) {
       opts.push('<option value="' + b.id + '">' + b.name + '</option>');
     });
     el.bank.innerHTML = opts.join('');
     if (bylo) el.bank.value = bylo;
   }
 
-  /* ── Язык ────────────────────────────────────────────── */
+  /* ── Язык ────────────────────────────────────────────────── */
 
   function primenitYazyk() {
     document.documentElement.lang = window.I18N.get();
@@ -309,8 +527,6 @@
     document.querySelectorAll('[data-i18n]').forEach(function (node) {
       node.textContent = t(node.getAttribute('data-i18n'));
     });
-    // Отдельный атрибут для строк с разметкой внутри: подставлять их
-    // через textContent нельзя, а гнать через innerHTML всё подряд не нужно.
     document.querySelectorAll('[data-i18n-html]').forEach(function (node) {
       node.innerHTML = t(node.getAttribute('data-i18n-html'));
     });
@@ -320,13 +536,13 @@
     });
 
     zapolnitBanki();
-    // Результат на экране тоже надо перевести, иначе половина страницы
-    // останется на прежнем языке до следующего нажатия «Посчитать».
+    // Вердикт и результат на экране тоже надо перевести, иначе половина
+    // страницы останется на прежнем языке до следующего нажатия.
+    pokazatVerdikt();
     if (posledniyRaschet) narisovat(posledniyRaschet, posledniyKurs);
-    else pokazatKurs(posledniyKurs);
   }
 
-  /* ── Проверка суммы ──────────────────────────────────── */
+  /* ── Проверка суммы ──────────────────────────────────────── */
 
   function pokazatOshibku(klyuch, podstanovki) {
     el.summaErr.textContent = klyuch ? t(klyuch, podstanovki) : '';
@@ -338,18 +554,12 @@
   /** @returns {number|null} сумма, если она пригодна для расчёта */
   function proveritSummu() {
     const syroe = String(el.summa.value).trim();
-    if (syroe === '') return pokazatOshibku('err.nan') ? null : null;
+    if (syroe === '') { pokazatOshibku('err.nan'); return null; }
 
     const summa = parseFloat(syroe);
     if (!isFinite(summa)) { pokazatOshibku('err.nan'); return null; }
-    if (summa < MIN_SUMMA) {
-      pokazatOshibku('err.min', { min: sum(MIN_SUMMA) });
-      return null;
-    }
-    if (summa > MAX_SUMMA) {
-      pokazatOshibku('err.max', { max: sum(MAX_SUMMA) });
-      return null;
-    }
+    if (summa < MIN_SUMMA) { pokazatOshibku('err.min', { min: sum(MIN_SUMMA) }); return null; }
+    if (summa > MAX_SUMMA) { pokazatOshibku('err.max', { max: sum(MAX_SUMMA) }); return null; }
     pokazatOshibku(null);
     return summa;
   }
@@ -364,47 +574,27 @@
     if (el.idle) el.idle.classList.remove('hidden');
   }
 
-  /* ── Экран до расчёта ────────────────────────────────── */
-
-  /**
-   * Курс ЦБ показываем до всякого расчёта. Это единственная настоящая
-   * цифра в приложении, пока данные сервисов тестовые, и она же говорит
-   * человеку: здесь считают по официальному курсу, а не по выдуманному.
-   */
-  function pokazatKurs(kursy) {
-    if (!el.idleRate || !kursy) return;
-    posledniyKurs = kursy;
-
-    const kurs = kursy.rub_uzs;
-    el.idleRate.textContent = t('idle.rate', {
-      r: kurs >= 100 ? kurs.toFixed(1) : kurs.toFixed(2),
-    });
-    el.idleRateSub.textContent = kursy.zapas || !kursy.date
-      ? t('idle.rate.old')
-      : t('idle.rate.sub', { d: kursy.date });
-  }
-
   function poschitat() {
     const summa = proveritSummu();
     if (summa === null) { ochistitRezultat(); return; }
 
-    zagruzitKursy().then(function (kursy) {
-      posledniyKurs = kursy;
-      posledniyRaschet = window.CALC.poschitat(
-        { summa: summa, bank_id: el.bank.value || null, corridor: 'RU-UZ' },
-        window.SERVICES, window.BANKS, kursy
-      );
-      narisovat(posledniyRaschet, kursy);
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-    });
+    pomnit('summa', String(summa));
+    if (el.bank && el.bank.value) pomnit('bank', el.bank.value);
+
+    const kursy = posledniyKurs || window.KURSY_ZAPAS;
+    posledniyRaschet = window.CALC.poschitat(
+      { summa: summa, bank_id: (el.bank && el.bank.value) || null, corridor: 'RU-UZ' },
+      SERVISY, BANKI, kursy
+    );
+    narisovat(posledniyRaschet, kursy);
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
   }
 
-  /* ── Первый запуск ───────────────────────────────────── */
+  /* ── Первый запуск ───────────────────────────────────────── */
 
-  // Человек, пришедший из чата, не знает, что это — объяснение нужно.
-  // Но экраном-заглушкой его давать нельзя: это лишний тап до цифры,
-  // ради которой человек и пришёл. Поэтому объяснение стоит НАД формой,
-  // а форма доступна сразу. Проверено прогоном: заглушка добавляла шаг.
+  // Человек, пришедший из чата, не знает, что это. Но экраном-заглушкой
+  // объяснение давать нельзя: это лишний тап до цифры, ради которой он
+  // пришёл. Поэтому объяснение стоит НАД формой, а форма доступна сразу.
   function pokazatIntro() {
     let videl = false;
     try { videl = localStorage.getItem('intro_pokazan') === '1'; } catch (e) {}
@@ -417,12 +607,28 @@
     try { localStorage.setItem('intro_pokazan', '1'); } catch (e) {}
   }
 
+  /* ── Запуск ──────────────────────────────────────────────── */
+
+  // Сумму человека возвращаем сразу: он открывает приложение и видит
+  // вердикт в своих деньгах, ничего не вводя.
+  const zapomnennaya = pomnit('summa');
+  if (zapomnennaya && isFinite(parseFloat(zapomnennaya))) {
+    el.summa.value = zapomnennaya;
+  }
+
   primenitYazyk();
   pokazatIntro();
 
-  // Курс тянем сразу при открытии, не дожидаясь нажатия: человек должен
-  // увидеть живую цифру в первую секунду, иначе экран выглядит пустым.
-  zagruzitKursy().then(pokazatKurs);
+  // Пока идёт запрос — рисуем по запасу, чтобы экран не был пустым
+  // ни одной секунды. Ответ придёт и перерисует.
+  zapasnoy();
+  pokazatVerdikt();
+
+  zagruzitDannye().then(function () {
+    zapolnitBanki();
+    pokazatVerdikt();
+    if (posledniyRaschet) poschitat();
+  });
 
   document.querySelectorAll('.lang').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -434,14 +640,16 @@
   el.introOk.addEventListener('click', zakrytIntro);
   el.schitat.addEventListener('click', poschitat);
   el.share.addEventListener('click', otpravitVChat);
+  if (el.subBtn) el.subBtn.addEventListener('click', otkrytPodpisku);
   el.summa.addEventListener('keydown', function (e) { if (e.key === 'Enter') poschitat(); });
 
-  // Пока человек правит сумму, ошибку показываем сразу, но результат
-  // не пересчитываем: дёргать экран на каждый набранный ноль незачем.
-  // Старый результат при этом убираем — он посчитан по другой сумме.
+  // Пока человек правит сумму, ошибку показываем сразу, но расчёт не
+  // пересчитываем: дёргать список на каждый набранный ноль незачем.
+  // А вот вердикт в сумах обновляем — он и есть причина смотреть сюда.
   el.summa.addEventListener('input', function () {
     if (posledniyRaschet) ochistitRezultat();
     proveritSummu();
+    obnovitVygodu();
   });
 
 })();

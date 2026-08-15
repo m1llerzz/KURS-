@@ -86,6 +86,45 @@ window.I18N = (function () {
       'razbor.in_currency': 'Valyutada ketdi',
       'razbor.rate_bank':   'Bank kursi → so’m',
 
+      // ── Verdikt: bugun yubormoqmi yoki kutmoqmi ──────────────────
+      // Mahsulotning asosiy ekrani. Oyda kurs 9,5% ga o‘zgardi — bu
+      // servis tanlashdan ham, bank tanlashdan ham ko‘proq pul.
+      'v.otlichno':       'Bugun kurs odatdagidan sezilarli yaxshi',
+      'v.horosho':        'Bugun kurs odatdagidan yaxshiroq',
+      'v.obychno':        'Bugun kurs odatdagidek',
+      'v.nize_obychnogo': 'Bugun kurs odatdagidan pastroq',
+      'v.ploho':          'Bugun kurs odatdagidan sezilarli yomon',
+
+      'v.rate':          '1 ₽ = {r} so’m',
+      'v.avg':           'oydagi o’rtacha {r}',
+      'v.pos':           'oyning {p}% kunidan yaxshi',
+      'v.pos.worst':     'oyning eng yomon kuni',
+      'v.pos.best':      'oyning eng yaxshi kuni',
+      'v.trend.rastet':  'kurs ko’tarilmoqda',
+      'v.trend.padaet':  'kurs tushmoqda',
+      'v.trend.stoit':   'kurs turibdi',
+      'v.onsum.plus':    '{sum} ₽ da bu odatdagidan +{n} so’m',
+      'v.onsum.minus':   '{sum} ₽ da bu odatdagidan {n} so’m kam',
+      'v.onsum.zero':    'Odatdagi kurs — shoshilishga sabab yo’q',
+      'v.hint.good':     'Yubormoqchi bo’lsangiz — bugun yaxshi kun.',
+      'v.hint.bad':      'Shoshilinch bo’lmasa — kutish mantiqan to’g’ri.',
+      'v.hint.normal':   'Kurs odatdagidek. Qaysi usul ko’proq beradi — quyida.',
+      'v.range':         'Oy koridori {mn} — {mx}',
+      'v.days':          'so’nggi 30 kun',
+
+      // ── Servis kursi rasmiy kursga nisbatan ──────────────────────
+      'svc.markup':      'kurs rasmiydan {p}% past',
+      'svc.fee_unknown': 'komissiya e’lon qilinmagan — bu yuqori chegara',
+      'svc.official':    'Markaziy bank kursi bo’yicha bo’lsa edi',
+      'svc.lost':        'Kurs farqi: {n} so’m',
+
+      // ── Xabarnomaga obuna ────────────────────────────────────────
+      'sub.t':           'Kurs yaxshilanganda aytaymi?',
+      'sub.p':           'Faqat kurs odatdagidan yaxshi bo’lganda yozaman — ya’ni jim turishim sizga pulga tushadigan paytda. Uch kunda bir martadan ko’p emas.',
+      'sub.btn':         'Ha, xabar bering',
+
+      'err.net':         'Yangi kurslarni olib bo’lmadi — {d} holatidagi ma’lumot bilan hisobladim',
+
       // Пересылка — главный способ, которым про нас узнают. Поэтому здесь
       // не только цифры: нужна строка, объясняющая чужому человеку, что он видит.
       'share.title':     '{sum} ₽ yuboryapman — qaysi usulda ko’proq yetib borishini tekshirdim.',
@@ -156,6 +195,45 @@ window.I18N = (function () {
       'razbor.rate_rubusd': 'Курс рубль → доллар',
       'razbor.in_currency': 'Ушло в валюте',
       'razbor.rate_bank':   'Курс банка → сум',
+
+      // ── Вердикт: отправлять сегодня или подождать ────────────────
+      // Главный экран продукта. За месяц курс прошёл 9,5% — это больше
+      // денег, чем выбор сервиса и выбор банка вместе взятые.
+      'v.otlichno':       'Сегодня курс заметно лучше обычного',
+      'v.horosho':        'Сегодня курс лучше обычного',
+      'v.obychno':        'Сегодня курс обычный',
+      'v.nize_obychnogo': 'Сегодня курс ниже обычного',
+      'v.ploho':          'Сегодня курс заметно хуже обычного',
+
+      'v.rate':          '1 ₽ = {r} сум',
+      'v.avg':           'в среднем за месяц {r}',
+      'v.pos':           'лучше {p}% дней месяца',
+      'v.pos.worst':     'худший день месяца',
+      'v.pos.best':      'лучший день месяца',
+      'v.trend.rastet':  'курс растёт',
+      'v.trend.padaet':  'курс падает',
+      'v.trend.stoit':   'курс стоит',
+      'v.onsum.plus':    'на {sum} ₽ это +{n} сум против обычного',
+      'v.onsum.minus':   'на {sum} ₽ это на {n} сум меньше обычного',
+      'v.onsum.zero':    'Курс обычный — спешить некуда',
+      'v.hint.good':     'Если собирались отправлять — сегодня хороший день.',
+      'v.hint.bad':      'Если не срочно — подождать имеет смысл.',
+      'v.hint.normal':   'Курс обычный. Какой способ даст больше — ниже.',
+      'v.range':         'Коридор месяца {mn} — {mx}',
+      'v.days':          'последние 30 дней',
+
+      // ── Курс сервиса против официального ─────────────────────────
+      'svc.markup':      'курс ниже официального на {p}%',
+      'svc.fee_unknown': 'комиссия не объявлена — это верхняя граница',
+      'svc.official':    'Если бы считали по курсу ЦБ',
+      'svc.lost':        'Разница на курсе: {n} сум',
+
+      // ── Подписка на оповещения ───────────────────────────────────
+      'sub.t':           'Написать, когда курс станет лучше?',
+      'sub.p':           'Пишу только когда курс выше обычного — то есть когда моё молчание стоило бы вам денег. Не чаще раза в трое суток.',
+      'sub.btn':         'Да, пишите',
+
+      'err.net':         'Свежие курсы не получены — считаю по данным на {d}',
 
       'share.title':     'Отправляю {sum} ₽ — проверил, каким способом дойдёт больше.',
       'share.diff':      'Разница вышла {p}%. Не из-за комиссии — из-за курса банка дома.',
