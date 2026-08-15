@@ -24,8 +24,11 @@ window.I18N = (function () {
 
       'intro.h1':        'Kartaga qancha pul yetib boradi',
       'intro.p1':        'Pul rubl yoki dollarda ketadi. Uni so’mga <b>qabul qiluvchi bank</b> aylantiradi — pul tushgan kundagi o’z kursi bo’yicha. Yuboruvchi bu kursni hech qayerda ko’rmaydi.',
-      'intro.big.v':     '400 000 so’mgacha',
-      'intro.big.k':     '50 000 ₽ o’tkazmada faqat usul tanlash tufayli yo’qoladi',
+      // Число потери убрано 15 августа: «3–5%» и «400 000 so'm» были взяты
+      // из аналитики и никем не проверены. Открытые курсы банков дали 0,84%.
+      // Пока разброс не измерен на живых переводах, цифры здесь не будет.
+      'intro.big.v':     'Kursni bank belgilaydi',
+      'intro.big.k':     'Xizmat emas, qabul qiluvchi bank — pul tushgan kuni. Qancha ekanini oldindan hech kim ko’rsatmaydi',
       'intro.p2':        'Biz komissiya, kurs va qabul qiluvchi bankni hisobga olib, kartaga tushadigan summani hisoblaymiz. Pul o’tkazmaymiz va qabul qilmaymiz — faqat raqamni ko’rsatamiz.',
       'intro.ok':        'Tushunarli, yopish',
 
@@ -95,8 +98,8 @@ window.I18N = (function () {
 
       'intro.h1':        'Сколько денег реально дойдёт до карты',
       'intro.p1':        'Перевод уходит в рублях или долларах. В сумы его превращает <b>банк получателя</b> — по своему курсу в день зачисления. Этого курса отправитель не видит нигде.',
-      'intro.big.v':     'до 400 000 сум',
-      'intro.big.k':     'теряется на переводе 50 000 ₽ только из-за выбора способа',
+      'intro.big.v':     'Курс ставит банк',
+      'intro.big.k':     'Не сервис, а банк получателя — в день зачисления. Сколько именно, заранее не показывает никто',
       'intro.p2':        'Мы считаем итог на карту с учётом комиссии, курса и банка получателя. Деньги не переводим и не принимаем — только показываем цифру.',
       'intro.ok':        'Понятно, скрыть',
 
