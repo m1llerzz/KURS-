@@ -237,9 +237,12 @@
 
     let text = t('share.title', { sum: sum(el.summa.value), best: itog });
     if (posledniyRaschet.hidden_loss_uzs > 0) {
-      text += '\n\n' + t('share.diff', { loss: sum(posledniyRaschet.hidden_loss_uzs) });
+      text += '\n' + t('share.diff', { loss: sum(posledniyRaschet.hidden_loss_uzs) });
     }
-    return text;
+    // Последняя строка — прямое обращение к тому, кто читает пересылку.
+    // Без неё сообщение остаётся рассказом о себе, и человек не понимает,
+    // что от него хотят.
+    return text + '\n\n' + t('share.cta');
   }
 
   function otpravitVChat() {
