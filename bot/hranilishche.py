@@ -108,10 +108,19 @@ def podnyat():
             bank_id        TEXT,
             uvedomlyat     BOOLEAN NOT NULL DEFAULT TRUE,
             posledniy_verdikt TEXT,
+            -- Курс, при котором человек просил его разбудить. Он ставит
+            -- его сам — и именно поэтому возвращается: это его решение,
+            -- а не наша рассылка.
+            cel_kurs       DOUBLE PRECISION,
             uvedomlen_v    TIMESTAMPTZ,
             sozdan_v       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             aktiven_v      TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )""")
+    # Таблица могла быть создана прошлой версией бота, без этого поля.
+    # CREATE TABLE IF NOT EXISTS её не тронет, и запись цели упадёт молча.
+    _vypolnit("ALTER TABLE podpischiki ADD COLUMN IF NOT EXISTS "
+              "cel_kurs DOUBLE PRECISION")
+
     _vypolnit("""
         CREATE TABLE IF NOT EXISTS sobytiya (
             id        BIGSERIAL PRIMARY KEY,
@@ -127,8 +136,16 @@ def zapisat_cheloveka(chat_id, **polya):
     """Создаёт или обновляет человека. Пустые поля не затирают старые."""
     chat_id = int(chat_id)
     razresheno = {"lang", "summa_rub", "bank_id", "uvedomlyat",
-                  "posledniy_verdikt", "uvedomlen_v"}
+                  "posledniy_verdikt", "uvedomlen_v", "cel_kurs"}
+    # Список полей — не удобство, а защита: имена колонок подставляются
+    # в SQL строкой, и без белого списка сюда однажды приедет что угодно.
+    # Значение при этом всегда идёт параметром, никогда не склейкой.
+    #
+    # Отдельно: None означает «не трогать», а сбросить цель надо уметь.
+    # Поэтому для сброса есть явная строка-пустышка, см. ниже.
     polya = {k: v for k, v in polya.items() if k in razresheno and v is not None}
+    if polya.get("cel_kurs") == "sbros":
+        polya["cel_kurs"] = None
 
     with _zamok:
         if na_postgres():
@@ -157,13 +174,15 @@ def chelovek(chat_id):
     chat_id = int(chat_id)
     if na_postgres():
         stroki = _vypolnit(
-            "SELECT chat_id, lang, summa_rub, bank_id, uvedomlyat, posledniy_verdikt "
+            "SELECT chat_id, lang, summa_rub, bank_id, uvedomlyat, "
+            "posledniy_verdikt, cel_kurs "
             "FROM podpischiki WHERE chat_id = %s", (chat_id,), vernut=True)
         if not stroki:
             return None
         s = stroki[0]
         return {"chat_id": s[0], "lang": s[1], "summa_rub": s[2],
-                "bank_id": s[3], "uvedomlyat": s[4], "posledniy_verdikt": s[5]}
+                "bank_id": s[3], "uvedomlyat": s[4], "posledniy_verdikt": s[5],
+                "cel_kurs": s[6]}
     return _chitat_fayl().get(str(chat_id))
 
 
@@ -171,13 +190,31 @@ def podpisannye():
     """Все, кто согласен получать оповещения."""
     if na_postgres():
         stroki = _vypolnit(
-            "SELECT chat_id, lang, summa_rub, posledniy_verdikt "
+            "SELECT chat_id, lang, summa_rub, posledniy_verdikt, cel_kurs "
             "FROM podpischiki WHERE uvedomlyat = TRUE", vernut=True)
         if not stroki:
             return []
         return [{"chat_id": s[0], "lang": s[1], "summa_rub": s[2],
-                 "posledniy_verdikt": s[3]} for s in stroki]
+                 "posledniy_verdikt": s[3], "cel_kurs": s[4]} for s in stroki]
     return [c for c in _chitat_fayl().values() if c.get("uvedomlyat")]
+
+
+def s_celyu():
+    """Те, кто назначил свой курс и ждёт его.
+
+    Отдельно от подписки намеренно: человек может не хотеть регулярных
+    сообщений, но хотеть один-единственный сигнал про свой курс. Это его
+    решение, и оно сильнее любой нашей рассылки.
+    """
+    if na_postgres():
+        stroki = _vypolnit(
+            "SELECT chat_id, lang, summa_rub, cel_kurs FROM podpischiki "
+            "WHERE cel_kurs IS NOT NULL", vernut=True)
+        if not stroki:
+            return []
+        return [{"chat_id": s[0], "lang": s[1], "summa_rub": s[2],
+                 "cel_kurs": s[3]} for s in stroki]
+    return [c for c in _chitat_fayl().values() if c.get("cel_kurs")]
 
 
 def skolko_vsego():

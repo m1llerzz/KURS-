@@ -166,10 +166,35 @@ TEKSTY = {
         "trend": {"rastet": "kurs ko‘tarilmoqda",
                   "padaet": "kurs tushmoqda",
                   "stoit": "kurs turibdi"},
+        "cel_sprosit": (
+            "Qaysi kursda sizga xabar berishim kerak?\n\n"
+            "Raqam yozing — masalan <b>148</b>. Rubl shu darajaga chiqqan "
+            "kuni bir marta yozaman va to‘xtayman.\n\n"
+            "Bugun: {kurs} · oydagi eng yuqori: {mx}"
+        ),
+        "cel_prinyata": (
+            "Yozib qo‘ydim: <b>{cel}</b> so‘m.\n\n"
+            "Kurs shu darajaga chiqqanda birinchi bo‘lib bilasiz. "
+            "Bekor qilish — /maqsad va 0 raqami."
+        ),
+        "cel_snyata": "Maqsad bekor qilindi.",
+        "cel_slishkom": (
+            "Ogohlantiraman: bu kurs oxirgi oyda bo‘lmagan (eng yuqori {mx}). "
+            "Kutish uzoq cho‘zilishi mumkin."
+        ),
+        "cel_ne_ponyal": "Kursni raqam bilan yozing, masalan: 148",
+        "cel_dostignuta": (
+            "<b>Siz kutgan kurs keldi.</b>\n\n"
+            "Rubl: {kurs} so‘m — siz so‘ragan {cel} dan yuqori.\n"
+            "{stroka_summy}\n\n"
+            "Maqsad o‘chirildi. Yangisini /maqsad orqali qo‘yasiz."
+        ),
+        "cel_knopka": "Kursni kutish",
         "pomoshch": (
             "<b>Men nima qila olaman</b>\n\n"
             "/kurs — bugungi kurs va u odatdagidan qanday farq qilishi\n"
             "/hisob — kartaga qancha tushishini hisoblash\n"
+            "/maqsad — kerakli kursni belgilash, kelganda aytaman\n"
             "/xabar — kurs haqida xabarlarni yoqish yoki o‘chirish\n"
             "/til — tilni almashtirish\n\n"
             "Pul o‘tkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz."
@@ -220,10 +245,34 @@ TEKSTY = {
         "trend": {"rastet": "курс растёт",
                   "padaet": "курс падает",
                   "stoit": "курс стоит"},
+        "cel_sprosit": (
+            "При каком курсе вам написать?\n\n"
+            "Напишите число — например <b>148</b>. В день, когда рубль "
+            "поднимется до него, напишу один раз и замолчу.\n\n"
+            "Сегодня: {kurs} · максимум за месяц: {mx}"
+        ),
+        "cel_prinyata": (
+            "Записал: <b>{cel}</b> сум.\n\n"
+            "Когда курс дойдёт — узнаете первым. Отменить: /cel и цифра 0."
+        ),
+        "cel_snyata": "Цель снята.",
+        "cel_slishkom": (
+            "Предупреждаю: такого курса за последний месяц не было "
+            "(максимум {mx}). Ждать, возможно, придётся долго."
+        ),
+        "cel_ne_ponyal": "Напишите курс числом, например: 148",
+        "cel_dostignuta": (
+            "<b>Курс, которого вы ждали.</b>\n\n"
+            "Рубль: {kurs} сум — выше вашей отметки {cel}.\n"
+            "{stroka_summy}\n\n"
+            "Цель снята. Новую поставить: /cel"
+        ),
+        "cel_knopka": "Ждать свой курс",
         "pomoshch": (
             "<b>Что я умею</b>\n\n"
             "/kurs — курс сегодня и чем он отличается от обычного\n"
             "/schet — посчитать, сколько дойдёт до карты\n"
+            "/cel — назначить нужный курс, скажу когда придёт\n"
             "/uved — включить или выключить сообщения о курсе\n"
             "/lang — сменить язык\n\n"
             "Деньги не переводим и не принимаем. Только считаем."
@@ -337,9 +386,13 @@ def pokazat_kurs(chat_id, lang):
     if stroka_summy:
         stroki += ["", stroka_summy]
 
-    poslat(chat_id, "\n".join(stroki), [[
-        {"text": t["knopka"], "web_app": {"url": PRILOZHENIE}}
-    ]])
+    # Кнопка цели стоит рядом с курсом не случайно: человек видит цифру,
+    # решает «мало» — и тут же может сказать, при какой напомнить.
+    # Спрятанная в меню, эта возможность не нашлась бы никогда.
+    poslat(chat_id, "\n".join(stroki), [
+        [{"text": t["knopka"], "web_app": {"url": PRILOZHENIE}}],
+        [{"text": t["cel_knopka"], "callback_data": "cel"}],
+    ])
     hranilishche.sobytie(chat_id, "kurs_prosmotr", {"verdikt": ocenka["verdikt"]})
 
 
@@ -348,12 +401,72 @@ def pokazat_kurs(chat_id, lang):
 # Кого мы ждём с суммой. Держим в памяти: потеря этого состояния при
 # перезапуске не страшна, человек просто напишет ещё раз.
 zhdyom_summu = set()
+zhdyom_cel = set()
 
 KOMANDY_KURS = ("/kurs", "/rate")
 KOMANDY_SCHET = ("/schet", "/hisob", "/calc")
 KOMANDY_UVED = ("/uved", "/xabar")
 KOMANDY_YAZYK = ("/lang", "/til", "/yazyk")
 KOMANDY_POMOSHCH = ("/help", "/pomoshch", "/yordam")
+KOMANDY_CEL = ("/cel", "/maqsad", "/target")
+
+# Курс рубля к суму живёт примерно в этих границах. Цель вне их — это
+# опечатка (148 набрали как 1480), а не желание; принять такое значит
+# пообещать сообщение, которое не придёт никогда.
+CEL_MIN, CEL_MAX = 80.0, 400.0
+
+
+def sprosit_cel(chat_id, lang):
+    d = svezhie_dannye()
+    ocenka = (d or {}).get("sovet")
+    if not ocenka:
+        poslat(chat_id, TEKSTY[lang]["kurs_net"], html=False)
+        return
+    zhdyom_cel.add(chat_id)
+    poslat(chat_id, TEKSTY[lang]["cel_sprosit"].format(
+        kurs=ocenka["segodnya"], mx=ocenka["max_30"]))
+
+
+def prinyat_cel(chat_id, lang, tekst):
+    """Разбирает присланное число. Возвращает True, если разобрал."""
+    ochishcheno = tekst.replace(",", ".").strip()
+    znaki = "".join(s for s in ochishcheno if s.isdigit() or s == ".")
+    try:
+        cel = float(znaki)
+    except ValueError:
+        poslat(chat_id, TEKSTY[lang]["cel_ne_ponyal"], html=False)
+        return False
+
+    # Ноль — договорённый способ отказаться. Отдельной команды для этого
+    # заводить не надо: человек уже в разговоре про цель.
+    if cel == 0:
+        hranilishche.zapisat_cheloveka(chat_id, cel_kurs="sbros")
+        zhdyom_cel.discard(chat_id)
+        poslat(chat_id, TEKSTY[lang]["cel_snyata"], html=False)
+        hranilishche.sobytie(chat_id, "cel_snyata")
+        return True
+
+    if not (CEL_MIN <= cel <= CEL_MAX):
+        poslat(chat_id, TEKSTY[lang]["cel_ne_ponyal"], html=False)
+        return False
+
+    zhdyom_cel.discard(chat_id)
+    hranilishche.zapisat_cheloveka(chat_id, cel_kurs=cel, uvedomlyat=True)
+
+    # Цель принимаем всегда — это его деньги и его ожидание. Но если такого
+    # курса за месяц не было ни разу, говорим об этом сразу, одним и тем же
+    # сообщением. Запрещать нельзя, промолчать тоже: человек будет ждать
+    # сигнала, который может не прийти.
+    ocenka = (svezhie_dannye() or {}).get("sovet") or {}
+    maksimum = ocenka.get("max_30")
+    otvet = TEKSTY[lang]["cel_prinyata"].format(cel=cel)
+    if maksimum and cel > maksimum:
+        otvet += "\n\n" + TEKSTY[lang]["cel_slishkom"].format(mx=maksimum)
+
+    poslat(chat_id, otvet)
+    hranilishche.sobytie(chat_id, "cel_zadana",
+                         {"cel": cel, "vyshe_maksimuma": bool(maksimum and cel > maksimum)})
+    return True
 
 
 def obrabotat_soobshchenie(soobshchenie):
@@ -366,6 +479,12 @@ def obrabotat_soobshchenie(soobshchenie):
 
     izvesten = hranilishche.chelovek(chat_id) is not None
     lang = yazyk(chat_id)
+
+    # Ждём цель по курсу — она перехватывает ввод раньше суммы: человек
+    # только что попросил её поставить, и число сейчас означает курс.
+    if chat_id in zhdyom_cel and not nizhniy.startswith("/"):
+        prinyat_cel(chat_id, lang, tekst)
+        return
 
     # Ждём сумму — принимаем её раньше любых команд, кроме явных.
     if chat_id in zhdyom_summu and not nizhniy.startswith("/"):
@@ -390,6 +509,15 @@ def obrabotat_soobshchenie(soobshchenie):
         poslat(chat_id, TEKSTY[lang]["privet"], [[
             {"text": TEKSTY[lang]["knopka"], "web_app": {"url": PRILOZHENIE}}
         ]])
+        return
+
+    if nizhniy.startswith(KOMANDY_CEL):
+        # Число могли прислать сразу командой: «/cel 148».
+        hvost = tekst.split(None, 1)[1] if len(tekst.split(None, 1)) > 1 else ""
+        if hvost.strip():
+            prinyat_cel(chat_id, lang, hvost)
+        else:
+            sprosit_cel(chat_id, lang)
         return
 
     if nizhniy.startswith(KOMANDY_UVED):
@@ -455,6 +583,10 @@ def obrabotat_nazhatie(nazhatie):
         pokazat_kurs(chat_id, lang)
         return
 
+    if dannye == "cel":
+        sprosit_cel(chat_id, lang)
+        return
+
     if dannye == "stop":
         hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=False)
         poslat(chat_id, TEKSTY[lang]["otpisan"], html=False)
@@ -463,6 +595,48 @@ def obrabotat_nazhatie(nazhatie):
 
 
 # ── Оповещения ───────────────────────────────────────────────────────
+
+def proverit_celi():
+    """Курс дошёл до отметки, которую человек назначил сам.
+
+    Это сильнее любой нашей рассылки: сообщение приходит по его решению,
+    а не по нашему расписанию. Поэтому цель снимается сразу после того,
+    как сработала, — ждать второго сигнала он не просил.
+    """
+    ocenka = (svezhie_dannye() or {}).get("sovet")
+    if not ocenka:
+        return
+
+    segodnya = ocenka["segodnya"]
+    srabotalo = 0
+
+    for c in hranilishche.s_celyu():
+        cel = c.get("cel_kurs")
+        if not cel or segodnya < cel:
+            continue
+
+        chat_id = c["chat_id"]
+        lang = c.get("lang") if c.get("lang") in TEKSTY else "uz"
+        otvet = poslat(chat_id, TEKSTY[lang]["cel_dostignuta"].format(
+            kurs=segodnya, cel=cel,
+            stroka_summy=_stroka_summy(lang, ocenka, c.get("summa_rub"))), [
+                [{"text": TEKSTY[lang]["knopka"], "web_app": {"url": PRILOZHENIE}}]
+            ])
+
+        # Заблокировал бота — цель тоже снимаем, иначе она будет висеть
+        # вечно и дёргать нас каждый день.
+        hranilishche.zapisat_cheloveka(chat_id, cel_kurs="sbros")
+        if otvet and otvet.get("error_code") in (400, 403):
+            hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=False)
+            continue
+
+        hranilishche.sobytie(chat_id, "cel_dostignuta", {"cel": cel, "kurs": segodnya})
+        srabotalo += 1
+        time.sleep(0.2)
+
+    if srabotalo:
+        print("[цели] сработало", srabotalo, flush=True)
+
 
 def razoslat_uvedomleniya():
     """Раз в сутки. Пишем только тем, кому это принесёт деньги."""
@@ -523,6 +697,11 @@ def chasovoy_uvedomleniy():
             teper = datetime.now(timezone.utc) + timedelta(hours=5)
             den = teper.date()
             if 10 <= teper.hour <= 20 and den != posledniy_den:
+                # Сначала личные цели, потом общая рассылка. Порядок важен:
+                # человек, дождавшийся своего курса, не должен получить
+                # сперва общее «сегодня хороший день» — это обесценивает
+                # то, ради чего он и ставил отметку.
+                proverit_celi()
                 razoslat_uvedomleniya()
                 posledniy_den = den
         except Exception as oshibka:
@@ -657,6 +836,7 @@ def main():
     vyzov("setMyCommands", {"commands": [
         {"command": "kurs", "description": "Курс сегодня · Bugungi kurs"},
         {"command": "schet", "description": "Посчитать · Hisoblash"},
+        {"command": "cel", "description": "Ждать свой курс · Kursni kutish"},
         {"command": "uved", "description": "Сообщения о курсе · Kurs xabarlari"},
         {"command": "lang", "description": "Язык · Til"},
         {"command": "help", "description": "Что я умею · Nima qila olaman"},

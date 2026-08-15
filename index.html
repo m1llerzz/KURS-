@@ -114,27 +114,68 @@
   .verdict.good { --tone: var(--accent); }
   .verdict.bad  { --tone: var(--warn); }
 
-  .verdict .vh { font-size: 16.5px; font-weight: 800; line-height: 1.3; letter-spacing: -.01em; }
+  /* Шапка вердикта: слева слова, справа значок состояния. Значок нужен
+     тем, кто листает быстро и текст не читает вовсе. */
+  .verdict .vtop { display: flex; align-items: flex-start; gap: 10px; }
+  .verdict .vh {
+    font-size: 16.5px; font-weight: 800; line-height: 1.3;
+    letter-spacing: -.01em; flex: 1;
+  }
+  .verdict .vbadge {
+    flex: none; font-size: 11px; font-weight: 800; letter-spacing: .04em;
+    padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+    background: color-mix(in srgb, var(--tone) 20%, transparent);
+    color: var(--tone); font-variant-numeric: tabular-nums;
+  }
+
   .verdict .vnums { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
   .verdict .vrate {
-    font-size: 26px; font-weight: 800; color: var(--tone);
-    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+    font-size: 32px; font-weight: 800; color: var(--tone);
+    font-variant-numeric: tabular-nums; letter-spacing: -.03em; line-height: 1.05;
   }
   .verdict .vavg { font-size: 12.5px; color: var(--muted); }
   .verdict .vmeta { font-size: 12px; color: var(--muted); }
   .verdict .vonsum {
-    font-size: 14.5px; font-weight: 700; line-height: 1.35;
-    padding-top: 2px;
+    font-size: 15px; font-weight: 700; line-height: 1.35; padding-top: 2px;
   }
   .verdict .vhint { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 
   /* График курса. Настоящий ряд ЦБ за 30 дней: одно движение глазом
      объясняет больше, чем абзац текста про волатильность. */
-  .spark { width: 100%; height: 54px; display: block; overflow: visible; }
+  .chart { display: flex; flex-direction: column; gap: 3px; }
+  /* color задаёт currentColor для градиента заливки: так она повторяет
+     цвет вердикта, и второго набора правил под каждое состояние не нужно. */
+  .spark { width: 100%; height: 58px; display: block; overflow: visible; color: var(--tone); }
   .spark .ln { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-  .spark .ar { fill: color-mix(in srgb, var(--tone) 15%, transparent); stroke: none; }
-  .spark .av { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+  .spark .ar { fill: url(#zaliv); stroke: none; }
+  .spark .av { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .65; }
   .spark .dt { fill: var(--tone); }
+  /* Ореол вокруг сегодняшней точки: на плотном ряду из тридцати значений
+     обычный кружок теряется в линии. */
+  .spark .dtg { fill: var(--tone); opacity: .22; }
+
+  /* Подписи под графиком: крайние значения месяца и период. Без них
+     линия красивая, но бессмысленная — не с чем сравнить. */
+  .chart .osi {
+    display: flex; justify-content: space-between; gap: 8px;
+    font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+
+  /* Шкала месяца: где сегодняшний курс между худшим и лучшим днём.
+     Самая понятная часть экрана — положение точки читается без чисел. */
+  .scale {
+    position: relative; height: 6px; border-radius: 999px; margin: 3px 0 1px;
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--warn) 45%, transparent),
+      color-mix(in srgb, var(--muted) 28%, transparent),
+      color-mix(in srgb, var(--accent) 55%, transparent));
+  }
+  .scale .tochka {
+    position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--tone); border: 2px solid var(--bg);
+    transform: translate(-50%, -50%);
+    transition: left .35s cubic-bezier(.2,.7,.3,1);
+  }
 
   /* ── Результат ──────────────────────────────────────────────────── */
   .loss {
@@ -171,6 +212,20 @@
   .card .brk { font-size: 11.5px; color: var(--muted); }
 
   .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+  /* Быстрый выбор суммы. Набирать «50000» на телефоне — пять точных
+     попаданий по цифрам и открытая клавиатура поверх половины экрана.
+     Одно нажатие вместо этого убирает главное трение перед цифрой,
+     ради которой человек пришёл. Поле при этом никуда не делось. */
+  .chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .chips .chip {
+    width: auto; flex: 1 1 0; min-width: 62px;
+    padding: 8px 6px; font-size: 13px; font-weight: 700; border-radius: 9px;
+    background: transparent; color: var(--muted);
+    border: 1.5px solid var(--line); font-variant-numeric: tabular-nums;
+    transition: border-color .15s, color .15s;
+  }
+  .chips .chip.on { border-color: var(--accent); color: var(--accent); }
 
   /* Три шага расчёта. Исчезают, как только появился результат. */
   .steps {
@@ -260,13 +315,30 @@
   <!-- Стоит выше формы намеренно: это единственное, что человек может
        узнать здесь и больше нигде, и это самая крупная сумма в расчёте. -->
   <div id="verdict" class="verdict hidden">
-    <span class="vh" id="vHead"></span>
+    <div class="vtop">
+      <span class="vh" id="vHead"></span>
+      <span class="vbadge" id="vBadge"></span>
+    </div>
     <span class="vnums">
       <span class="vrate" id="vRate"></span>
       <span class="vavg" id="vAvg"></span>
     </span>
-    <svg class="spark" id="vSpark" viewBox="0 0 300 54" preserveAspectRatio="none"
-         role="img" aria-hidden="true"></svg>
+
+    <div class="chart">
+      <svg class="spark" id="vSpark" viewBox="0 0 300 58" preserveAspectRatio="none"
+           role="img" aria-hidden="true"></svg>
+      <div class="osi">
+        <span id="vOsL"></span>
+        <span id="vOsR"></span>
+      </div>
+    </div>
+
+    <!-- Где сегодняшний курс между худшим и лучшим днём месяца.
+         Читается быстрее любых процентов. -->
+    <div class="scale" id="vScale" role="img" aria-hidden="true">
+      <span class="tochka" id="vDot" style="left:50%"></span>
+    </div>
+
     <span class="vmeta" id="vMeta"></span>
     <span class="vonsum" id="vOnSum"></span>
     <span class="vhint" id="vHint"></span>
@@ -280,6 +352,12 @@
         <input id="summa" type="number" inputmode="numeric" value="50000"
                min="1000" max="1000000" step="1000" maxlength="7">
         <span class="hint" data-i18n="hint.rub"></span>
+      </div>
+      <div class="chips" id="chips">
+        <button class="chip" type="button" data-sum="10000">10 000</button>
+        <button class="chip" type="button" data-sum="30000">30 000</button>
+        <button class="chip" type="button" data-sum="50000">50 000</button>
+        <button class="chip" type="button" data-sum="100000">100 000</button>
       </div>
       <p id="summaErr" class="err hidden"></p>
     </div>
@@ -334,9 +412,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=16"></script>
-<script src="data.js?v=16"></script>
-<script src="calc.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="i18n.js?v=17"></script>
+<script src="data.js?v=17"></script>
+<script src="calc.js?v=17"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

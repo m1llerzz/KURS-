@@ -40,6 +40,11 @@
     vRate:      document.getElementById('vRate'),
     vAvg:       document.getElementById('vAvg'),
     vSpark:     document.getElementById('vSpark'),
+    vBadge:     document.getElementById('vBadge'),
+    vOsL:       document.getElementById('vOsL'),
+    vOsR:       document.getElementById('vOsR'),
+    vDot:       document.getElementById('vDot'),
+    chips:      document.getElementById('chips'),
     vMeta:      document.getElementById('vMeta'),
     vOnSum:     document.getElementById('vOnSum'),
     vHint:      document.getElementById('vHint'),
@@ -275,14 +280,23 @@
     const ySred = Y(srednee).toFixed(1);
 
     const posledniy = znacheniya.length - 1;
+    const cx = X(posledniy).toFixed(1);
+    const cy = Y(znacheniya[posledniy]).toFixed(1);
+
     el.vSpark.innerHTML =
+      // Заливка градиентом, а не плоским цветом: плоская заливка под
+      // линией спорит с ней за внимание, растворяющаяся — не спорит.
+      '<defs><linearGradient id="zaliv" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="currentColor" stop-opacity=".28"/>' +
+      '<stop offset="100%" stop-color="currentColor" stop-opacity="0"/>' +
+      '</linearGradient></defs>' +
       '<polygon class="ar" points="0,' + H + ' ' + tochki.join(' ') + ' ' + W + ',' + H + '"/>' +
       // Пунктир среднего — это якорь. Без него линия просто «какая-то»,
       // с ним человек мгновенно видит, выше он сегодня обычного или ниже.
       '<line class="av" x1="0" y1="' + ySred + '" x2="' + W + '" y2="' + ySred + '"/>' +
       '<polyline class="ln" points="' + tochki.join(' ') + '"/>' +
-      '<circle class="dt" cx="' + X(posledniy).toFixed(1) + '" cy="' +
-        Y(znacheniya[posledniy]).toFixed(1) + '" r="3.2"/>';
+      '<circle class="dtg" cx="' + cx + '" cy="' + cy + '" r="7"/>' +
+      '<circle class="dt" cx="' + cx + '" cy="' + cy + '" r="3.4"/>';
   }
 
   function pokazatVerdikt() {
@@ -306,7 +320,32 @@
     el.vRate.textContent = t('v.rate', { r: o.segodnya.toFixed(2) });
     el.vAvg.textContent = t('v.avg', { r: o.srednee_30.toFixed(2) });
 
+    // Значок с отклонением — для тех, кто листает быстро и текст не читает.
+    // Знак обязателен: «5,4%» без него можно прочесть в любую сторону.
+    if (el.vBadge) {
+      const otkl = o.otklonenie_percent;
+      el.vBadge.textContent = (otkl > 0 ? '+' : otkl < 0 ? '−' : '')
+        + Math.abs(otkl).toFixed(1).replace('.', ',') + '%';
+    }
+
     narisovatGrafik(o.ryad);
+
+    // Подписи под графиком: крайние значения месяца и период. Без них
+    // линия красивая, но сравнить её не с чем.
+    if (el.vOsL) el.vOsL.textContent = o.min_30.toFixed(2);
+    if (el.vOsR) el.vOsR.textContent = o.max_30.toFixed(2) + ' · ' + t('v.days');
+
+    // Точка на шкале месяца. Ставим в следующем кадре, чтобы переход был
+    // виден: заданное в тот же кадр значение браузер не анимирует.
+    // requestAnimationFrame есть не во всяком окружении — в старых
+    // webview его может не быть вовсе, и обращение к нему в лоб роняло
+    // весь вердикт. Без него просто ставим сразу, без плавности.
+    if (el.vDot) {
+      const kuda = Math.max(2, Math.min(98, o.pozicia_percent));
+      const postavit = function () { el.vDot.style.left = kuda + '%'; };
+      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(postavit);
+      else postavit();
+    }
 
     // Положение внутри месяца понятнее процента отклонения: «лучше 12%
     // дней месяца» человек прикладывает к себе сразу.
@@ -736,6 +775,32 @@
     });
   });
 
+  /* ── Быстрый выбор суммы ─────────────────────────────────
+   * Набрать «50000» на телефоне — это пять точных попаданий и клавиатура
+   * поверх половины экрана. Одно нажатие вместо этого убирает главное
+   * трение перед цифрой, ради которой человек и пришёл.
+   */
+  function podsvetitFishki() {
+    if (!el.chips) return;
+    const tekushchaya = String(parseFloat(el.summa.value) || '');
+    el.chips.querySelectorAll('.chip').forEach(function (c) {
+      c.classList.toggle('on', c.getAttribute('data-sum') === tekushchaya);
+    });
+  }
+
+  if (el.chips) {
+    el.chips.addEventListener('click', function (e) {
+      const knopka = e.target.closest ? e.target.closest('.chip') : null;
+      if (!knopka) return;
+      el.summa.value = knopka.getAttribute('data-sum');
+      // Нажатие на готовую сумму — это уже намерение посчитать.
+      // Заставлять после него жать вторую кнопку незачем.
+      podsvetitFishki();
+      poschitat();
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    });
+  }
+
   el.introOk.addEventListener('click', zakrytIntro);
   el.schitat.addEventListener('click', poschitat);
   el.share.addEventListener('click', otpravitVChat);
@@ -749,6 +814,9 @@
     if (posledniyRaschet) ochistitRezultat();
     proveritSummu();
     obnovitVygodu();
+    podsvetitFishki();
   });
+
+  podsvetitFishki();
 
 })();

@@ -171,6 +171,136 @@ except Exception as oshibka:
     proverka("живой HTTP", False, repr(oshibka)[:200])
 
 
+# ── Цель по курсу: сквозной прогон ───────────────────────────────────
+#
+# Проверяем не куски, а весь путь: человек просит цель, присылает число,
+# курс до неё доходит, приходит сообщение, цель снимается. Отправку
+# в Telegram подменяем — всё остальное настоящее, включая хранилище.
+
+import hranilishche  # noqa: E402
+
+otpravleno = []
+nastoyashchiy_poslat = bot.poslat
+
+
+def perehvat(chat_id, text, knopki=None, html=True):
+    otpravleno.append({"chat_id": chat_id, "text": text, "knopki": knopki})
+    return {"ok": True}
+
+
+bot.poslat = perehvat
+
+# Курс, который бот считает сегодняшним. Ставим свой, чтобы прогон
+# не зависел от того, что там сегодня у ЦБ.
+istoriya = [{"date": "2026-08-%02d" % (i + 1), "rub_uzs": 140.0} for i in range(20)]
+
+
+def podmenit_kurs(segodnyashniy):
+    ryad = istoriya + [{"date": "2026-09-01", "rub_uzs": segodnyashniy}]
+    import sovet as _s
+    with bot._zamok:
+        bot._dannye["snimok"] = {"ok": True, "cbu": {"rub_uzs": segodnyashniy,
+                                 "usd_uzs": 12000, "date": "01.09.2026"},
+                                 "services": [], "banks": [], "history": ryad,
+                                 "sovet": _s.analiz(ryad)}
+        bot._dannye["obnovleno"] = __import__("time").time()
+
+
+TESTOVYY = -777001
+podmenit_kurs(140.0)
+
+try:
+    hranilishche.zapisat_cheloveka(TESTOVYY, lang="ru", summa_rub=50000)
+
+    otpravleno.clear()
+    bot.sprosit_cel(TESTOVYY, "ru")
+    proverka("бот спросил про цель", len(otpravleno) == 1 and
+             "курс" in otpravleno[0]["text"].lower(), str(otpravleno[:1]))
+    proverka("бот ждёт число", TESTOVYY in bot.zhdyom_cel)
+
+    otpravleno.clear()
+    bot.prinyat_cel(TESTOVYY, "ru", "148")
+    proverka("цель записана",
+             (hranilishche.chelovek(TESTOVYY) or {}).get("cel_kurs") == 148.0,
+             str((hranilishche.chelovek(TESTOVYY) or {}).get("cel_kurs")))
+    proverka("бот больше не ждёт число", TESTOVYY not in bot.zhdyom_cel)
+    proverka("подтверждение отправлено", len(otpravleno) == 1)
+
+    proverka("человек с целью виден в списке",
+             any(c["chat_id"] == TESTOVYY for c in hranilishche.s_celyu()))
+
+    # Курс ещё не дошёл — молчим.
+    otpravleno.clear()
+    bot.proverit_celi()
+    proverka("до цели молчим", len(otpravleno) == 0,
+             "курс 140 против цели 148 — сообщать не о чем")
+    proverka("цель не снята раньше времени",
+             (hranilishche.chelovek(TESTOVYY) or {}).get("cel_kurs") == 148.0)
+
+    # Курс дошёл — пишем один раз.
+    podmenit_kurs(149.0)
+    otpravleno.clear()
+    bot.proverit_celi()
+    proverka("при достижении цели пришло сообщение", len(otpravleno) == 1,
+             "отправлено: " + str(len(otpravleno)))
+    proverka("в сообщении есть курс и цель",
+             len(otpravleno) == 1 and "149" in otpravleno[0]["text"]
+             and "148" in otpravleno[0]["text"],
+             otpravleno[0]["text"][:120] if otpravleno else "")
+    proverka("в сообщении есть его сумма",
+             len(otpravleno) == 1 and "50 000" in otpravleno[0]["text"],
+             "цель без своей суммы — это процент, который не чувствуют")
+    proverka("цель снята после срабатывания",
+             not (hranilishche.chelovek(TESTOVYY) or {}).get("cel_kurs"),
+             "иначе человек получал бы это сообщение каждый день")
+
+    # Второй обход — тишина.
+    otpravleno.clear()
+    bot.proverit_celi()
+    proverka("повторно не пишем", len(otpravleno) == 0,
+             "второе сообщение про ту же цель — верный способ быть отключённым")
+
+    # Ноль снимает цель.
+    otpravleno.clear()
+    bot.prinyat_cel(TESTOVYY, "ru", "150")
+    bot.prinyat_cel(TESTOVYY, "ru", "0")
+    proverka("ноль снимает цель",
+             not (hranilishche.chelovek(TESTOVYY) or {}).get("cel_kurs"))
+
+    # Мусор не принимается.
+    otpravleno.clear()
+    proverka("буквы вместо числа не принимаются",
+             bot.prinyat_cel(TESTOVYY, "ru", "скоро") is False)
+    proverka("нелепый курс не принимается",
+             bot.prinyat_cel(TESTOVYY, "ru", "1480") is False,
+             "1480 — это опечатка в 148, а не желание")
+    proverka("после отказа цель не появилась",
+             not (hranilishche.chelovek(TESTOVYY) or {}).get("cel_kurs"))
+
+    # Цель выше месячного максимума принимается, но с предупреждением.
+    otpravleno.clear()
+    bot.prinyat_cel(TESTOVYY, "ru", "200")
+    proverka("недостижимая цель всё равно принимается",
+             (hranilishche.chelovek(TESTOVYY) or {}).get("cel_kurs") == 200.0)
+    proverka("но человека предупредили",
+             len(otpravleno) == 1 and "редупреж" in otpravleno[0]["text"],
+             otpravleno[0]["text"][:160] if otpravleno else "")
+
+finally:
+    bot.poslat = nastoyashchiy_poslat
+    # Прибираем за собой: тестовый человек не должен остаться в хранилище.
+    try:
+        if hranilishche.na_postgres():
+            hranilishche._vypolnit("DELETE FROM podpischiki WHERE chat_id = %s",
+                                   (TESTOVYY,))
+        else:
+            vse = hranilishche._chitat_fayl()
+            vse.pop(str(TESTOVYY), None)
+            hranilishche._pisat_fayl(vse)
+    except Exception:
+        pass
+
+
 # ── Итог ─────────────────────────────────────────────────────────────
 
 print("Пройдено:", len(provereno))

@@ -124,6 +124,53 @@ function dozhdatsya() {
   proverka('банк спрятан, пока курсов банков нет', !vidno(w, 'bankBlock'),
     'пустой список в выпадашке обещает данные, которых нет');
 
+  /* ── 1b. Элементы интерфейса вердикта ──────────────────────────── */
+
+  proverka('значок отклонения показан', /%/.test(tekst(w, 'vBadge')), tekst(w, 'vBadge'));
+  proverka('у отклонения есть знак',
+    /^[+−]/.test(tekst(w, 'vBadge')), tekst(w, 'vBadge') + ' — без знака читается в любую сторону');
+  proverka('значок при плохом курсе показывает минус',
+    tekst(w, 'vBadge').charAt(0) === '−', tekst(w, 'vBadge'));
+
+  proverka('подписана нижняя граница месяца', /1\d\d[.,]\d\d/.test(tekst(w, 'vOsL')), tekst(w, 'vOsL'));
+  proverka('подписана верхняя граница месяца', /1\d\d[.,]\d\d/.test(tekst(w, 'vOsR')), tekst(w, 'vOsR'));
+  proverka('указан период графика', /30/.test(tekst(w, 'vOsR')), tekst(w, 'vOsR'));
+
+  proverka('в графике есть градиентная заливка',
+    !!w.document.getElementById('vSpark').querySelector('linearGradient'));
+  proverka('сегодняшняя точка выделена ореолом',
+    !!w.document.getElementById('vSpark').querySelector('circle.dtg'),
+    'на ряду из тридцати значений простой кружок теряется');
+
+  const tochka = w.document.getElementById('vDot');
+  proverka('точка на шкале месяца стоит', !!tochka && !!tochka.style.left,
+    tochka ? tochka.style.left : 'нет');
+
+  /* ── 1c. Быстрый выбор суммы ───────────────────────────────────── */
+
+  const fishki = w.document.querySelectorAll('#chips .chip');
+  proverka('быстрые суммы есть', fishki.length === 4, 'штук: ' + fishki.length);
+  proverka('текущая сумма подсвечена',
+    Array.prototype.some.call(fishki, function (c) { return c.classList.contains('on'); }),
+    'человек должен видеть, что выбрано');
+
+  fishki[0].click();          // 10 000
+  await dozhdatsya();
+  proverka('нажатие подставляет сумму',
+    w.document.getElementById('summa').value === '10000',
+    w.document.getElementById('summa').value);
+  proverka('нажатие сразу считает, без второй кнопки',
+    w.document.querySelectorAll('#results .card').length > 0,
+    'сумма выбрана — намерение уже понятно');
+  proverka('подсветка переехала на нажатую',
+    fishki[0].classList.contains('on') && !fishki[2].classList.contains('on'));
+
+  // Возвращаем 50 000 — дальше проверки рассчитаны на неё.
+  fishki[2].click();
+  await dozhdatsya();
+  proverka('возврат к 50 000 работает',
+    w.document.getElementById('summa').value === '50000');
+
   /* ── 1a. Словари двух языков ───────────────────────────────────── */
 
   // Ключи правятся руками в двух местах файла, и забытый перевод виден
