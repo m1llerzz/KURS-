@@ -685,6 +685,51 @@ def razoslat_uvedomleniya():
     print("[оповещения] отправлено", otpravleno, "пропущено", propushcheno, flush=True)
 
 
+def svodka_dlya_svoih():
+    """Еженедельная сводка тому, кто ведёт проект.
+
+    Зачем. Метрики лежат по адресу /api/stats, и открывать его надо
+    помнить. Того, что надо помнить, не делают. Раз в неделю цифры
+    приходят сами — и тогда видно, живой продукт или нет, без усилия.
+
+    Адрес берётся из ADMIN_CHAT_ID. Нет переменной — молчим и не мешаем.
+    """
+    admin = os.environ.get("ADMIN_CHAT_ID", "").strip()
+    if not admin:
+        return
+
+    vsego, podpisano = hranilishche.skolko_vsego()
+    sobytiya = hranilishche.svodka_sobytiy(7)
+    ocenka = (svezhie_dannye() or {}).get("sovet") or {}
+
+    stroki = ["<b>Qancha yetadi — неделя</b>", ""]
+    stroki.append("Людей всего: %d" % vsego)
+    stroki.append("С оповещениями: %d" % podpisano)
+
+    if sobytiya:
+        stroki.append("")
+        stroki.append("<b>За 7 дней</b>")
+        for s in sobytiya:
+            stroki.append("%s: %d" % (s["tip"], s["skolko"]))
+    else:
+        stroki.append("")
+        stroki.append("Событий за неделю нет.")
+        if not hranilishche.na_postgres():
+            # Без базы события никуда не пишутся — и «нет событий» значит
+            # не «никто не приходил», а «мы не считаем». Разница
+            # принципиальная, и молчать о ней нельзя.
+            stroki.append("ВНИМАНИЕ: нет DATABASE_URL, события не сохраняются.")
+
+    if ocenka:
+        stroki.append("")
+        stroki.append("Курс сегодня: %s (среднее %s), вердикт %s"
+                      % (ocenka.get("segodnya"), ocenka.get("srednee_30"),
+                         ocenka.get("verdikt")))
+
+    poslat(admin, "\n".join(stroki))
+    print("[сводка] отправлена", flush=True)
+
+
 def chasovoy_uvedomleniy():
     """Проверяем раз в час, шлём не чаще раза в сутки и только днём.
 
@@ -692,10 +737,19 @@ def chasovoy_uvedomleniy():
     способ быть отключённым, каким бы полезным ни было сообщение.
     """
     posledniy_den = None
+    posledniaya_svodka = None
     while True:
         try:
             teper = datetime.now(timezone.utc) + timedelta(hours=5)
             den = teper.date()
+
+            # Сводка по понедельникам, одна за неделю. Ключ — номер недели,
+            # а не дата: иначе при перезапуске в тот же понедельник она
+            # ушла бы второй раз.
+            nedelya = teper.isocalendar()[:2]
+            if teper.weekday() == 0 and teper.hour >= 10 and nedelya != posledniaya_svodka:
+                svodka_dlya_svoih()
+                posledniaya_svodka = nedelya
             if 10 <= teper.hour <= 20 and den != posledniy_den:
                 # Сначала личные цели, потом общая рассылка. Порядок важен:
                 # человек, дождавшийся своего курса, не должен получить

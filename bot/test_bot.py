@@ -286,6 +286,31 @@ try:
              len(otpravleno) == 1 and "редупреж" in otpravleno[0]["text"],
              otpravleno[0]["text"][:160] if otpravleno else "")
 
+    # ── Еженедельная сводка ─────────────────────────────────────────
+
+    otpravleno.clear()
+    os.environ.pop("ADMIN_CHAT_ID", None)
+    bot.svodka_dlya_svoih()
+    proverka("без ADMIN_CHAT_ID сводка молчит", len(otpravleno) == 0,
+             "не задано — значит не мешаем")
+
+    os.environ["ADMIN_CHAT_ID"] = "424242"
+    otpravleno.clear()
+    bot.svodka_dlya_svoih()
+    proverka("сводка отправлена", len(otpravleno) == 1)
+    proverka("сводка ушла именно админу",
+             len(otpravleno) == 1 and otpravleno[0]["chat_id"] == "424242")
+    proverka("в сводке есть число людей",
+             len(otpravleno) == 1 and "Людей всего" in otpravleno[0]["text"],
+             otpravleno[0]["text"][:100] if otpravleno else "")
+    proverka("в сводке есть курс и вердикт",
+             len(otpravleno) == 1 and "вердикт" in otpravleno[0]["text"])
+    proverka("без базы сводка предупреждает о потере событий",
+             hranilishche.na_postgres()
+             or "DATABASE_URL" in otpravleno[0]["text"],
+             "«нет событий» без базы значит «мы не считаем», а не «никто не приходил»")
+    os.environ.pop("ADMIN_CHAT_ID", None)
+
 finally:
     bot.poslat = nastoyashchiy_poslat
     # Прибираем за собой: тестовый человек не должен остаться в хранилище.
