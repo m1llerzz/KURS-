@@ -101,6 +101,57 @@
       marshrutB(bank1).dannye_soglasovany === C.nacenkaPravdopodobna(marshrutB(bank1).nacenka_percent)],
   ];
 
+  // ── Найдено на ревью 15 августа. Каждая строка — дефект, который был. ──
+  var svezho = new Date().toISOString();
+
+  var dorogoy = [{ id: 'x', name: 'Дорогой', route: 'A', corridors: ['RU-UZ'],
+    fee_fixed: 2000, fee_percent: 0, rate_rub_uzs: 149, limit_per_operation: 500000,
+    delivery_minutes: 10, incoming_fee: 0, checked_at: svezho }];
+  var sedennyy = C.poschitat({ summa: 1000, bank_id: null, corridor: 'RU-UZ' },
+    dorogoy, B, kursy);
+
+  var cherezBank = [{ id: 'y', name: 'Через банк', route: 'B', corridors: ['RU-UZ'],
+    fee_fixed: 0, fee_percent: 1, rate_rub_uzs: null, limit_per_operation: 500000,
+    delivery_minutes: 60, incoming_fee: 0, checked_at: svezho }];
+  var poStaromu = C.poschitat({ summa: 50000, bank_id: 'sb', corridor: 'RU-UZ' },
+    cherezBank,
+    [{ id: 'sb', name: 'Позапрошлогодний', rate_usd_uzs: 11000, incoming_fee: 0,
+       checked_at: '2024-01-01T00:00:00Z' }], kursy);
+
+  var poLimitam = C.poschitat({ summa: 100000, bank_id: null, corridor: 'RU-UZ' }, [
+    { id: 'vl', name: 'В лимите', route: 'A', corridors: ['RU-UZ'], fee_fixed: 0,
+      fee_percent: 1, rate_rub_uzs: 140, limit_per_operation: 500000,
+      delivery_minutes: 10, incoming_fee: 0, checked_at: svezho },
+    { id: 'nl', name: 'Выше лимита', route: 'A', corridors: ['RU-UZ'], fee_fixed: 0,
+      fee_percent: 0, rate_rub_uzs: 155, limit_per_operation: 10000,
+      delivery_minutes: 10, incoming_fee: 0, checked_at: svezho },
+  ], B, kursy);
+
+  var poCB = C.poschitat({ summa: 50000, bank_id: 'rovno', corridor: 'RU-UZ' },
+    cherezBank, [{ id: 'rovno', name: 'Ровно по ЦБ', rate_usd_uzs: 13000,
+      incoming_fee: 0, checked_at: svezho }], kursy);
+
+  var bezBankov = (function () {
+    try {
+      return C.poschitat({ summa: 50000, bank_id: null, corridor: 'RU-UZ' },
+        cherezBank, [], kursy).results.length === 0;
+    } catch (e) { return false; }
+  })();
+
+  proverki.push(
+    ['Комиссия больше суммы — способ не показан, минуса нет',
+      sedennyy.results.length === 0],
+    ['Курс банка старше 72 ч не используется',
+      poStaromu.results.length === 0],
+    ['Сверху способ, которым можно воспользоваться',
+      poLimitam.results[0].vyshe_limita === false],
+    ['Разница не надувается недоступным способом',
+      poLimitam.hidden_loss_uzs === 0],
+    ['Нулевая наценка не превращается в «нет данных»',
+      poCB.results[0].nacenka_percent === 0],
+    ['Пустой список банков не роняет расчёт', bezBankov]
+  );
+
   var telo = document.querySelector('#checks tbody');
   var provaleno = 0;
   proverki.forEach(function (p) {

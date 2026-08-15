@@ -124,7 +124,20 @@ window.CALC = (function () {
    * @param {{usd_uzs:number, rub_uzs:number}} kursy
    */
   function poschitat(vvod, servisy, banki, kursy) {
-    const bank = vvod.bank_id ? banki.find(function (b) { return b.id === vvod.bank_id; }) : null;
+    // Курс банка недельной давности — такая же ложь, как устаревший тариф
+    // сервиса, и цена ошибки здесь выше: на курсе банка построен весь продукт.
+    // Раньше свежесть проверялась только у сервисов, и расчёт спокойно шёл
+    // по курсу двухлетней давности.
+    const svezhieBanki = (banki || []).filter(function (b) {
+      return !b.checked_at || statusSvezhesti(b.checked_at) !== 'skryt';
+    });
+
+    const vybranniy = vvod.bank_id
+      ? svezhieBanki.find(function (b) { return b.id === vvod.bank_id; })
+      : null;
+    // Если выбранный банк протух, ведём себя как при невыбранном: показываем
+    // вилку по свежим. Молча считать по старому курсу нельзя.
+    const bank = vybranniy || null;
     const rezultaty = [];
 
     servisy.forEach(function (servis) {
@@ -143,12 +156,23 @@ window.CALC = (function () {
         // Банк не выбран — считаем по всем известным и показываем вилку.
         // За основу берём ХУДШИЙ банк, а не лучший: обещать больше, чем придёт,
         // нельзя. Тот же принцип, что и округление вниз.
-        const vse = banki.map(function (b) { return marshrutB(vvod.summa, servis, b, kursy); });
+        //
+        // Пустой список ронял весь расчёт: reduce без начального значения
+        // на пустом массиве бросает TypeError, и приложение молча переставало
+        // считать. Способ, который не по чему посчитать, просто не показываем.
+        if (!svezhieBanki.length) return;
+
+        const vse = svezhieBanki.map(function (b) { return marshrutB(vvod.summa, servis, b, kursy); });
         const hudshiy = vse.reduce(function (a, b) { return a.total_uzs < b.total_uzs ? a : b; });
         const luchshiy = vse.reduce(function (a, b) { return a.total_uzs > b.total_uzs ? a : b; });
         itog = hudshiy;
         if (vse.length > 1) vilka = { ot: hudshiy.total_uzs, do: luchshiy.total_uzs };
       }
+
+      // Комиссия съела перевод целиком. Показывать минус на экране нельзя:
+      // человек читает это как «я должен банку». Проверено запуском —
+      // отправка 1 000 ₽ при комиссии 2 000 ₽ рисовала −149 000 сум.
+      if (itog.total_uzs <= 0) return;
 
       rezultaty.push({
         service_id: servis.id,
@@ -160,7 +184,10 @@ window.CALC = (function () {
         vilka: vilka,
         total_uzs: itog.total_uzs,
         ocenochnyi: itog.ocenochnyi,
-        nacenka_percent: itog.nacenka_percent || null,
+        // Именно !== undefined, а не «|| null»: наценка ровно ноль означает,
+        // что банк даёт точно по курсу ЦБ — это правда, которую надо показать,
+        // а короткая запись превращала её в «данных нет».
+        nacenka_percent: itog.nacenka_percent === undefined ? null : itog.nacenka_percent,
         dannye_soglasovany: itog.nacenka_percent === undefined
           ? true
           : nacenkaPravdopodobna(itog.nacenka_percent),
@@ -168,10 +195,20 @@ window.CALC = (function () {
       });
     });
 
-    rezultaty.sort(function (a, b) { return b.total_uzs - a.total_uzs; });
+    // Сначала те, которыми человек может воспользоваться прямо сейчас.
+    // Раньше сверху с меткой «больше всего» вставал способ, помеченный
+    // «выше лимита»: он показывал сумму, которую по нему не отправить.
+    rezultaty.sort(function (a, b) {
+      if (a.vyshe_limita !== b.vyshe_limita) return a.vyshe_limita ? 1 : -1;
+      return b.total_uzs - a.total_uzs;
+    });
 
-    const skrytaya_poterya = rezultaty.length > 1
-      ? rezultaty[0].total_uzs - rezultaty[rezultaty.length - 1].total_uzs
+    // Разницу считаем только среди доступных способов. Иначе она надувается
+    // за счёт варианта, которым всё равно нельзя воспользоваться, и обещает
+    // выгоду, которой у человека нет.
+    const dostupnye = rezultaty.filter(function (r) { return !r.vyshe_limita; });
+    const skrytaya_poterya = dostupnye.length > 1
+      ? dostupnye[0].total_uzs - dostupnye[dostupnye.length - 1].total_uzs
       : 0;
 
     return {
