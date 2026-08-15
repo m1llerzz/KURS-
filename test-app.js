@@ -233,6 +233,24 @@ function dozhdatsya() {
   proverka('плашка потери показана', vidno(w, 'loss'),
     'курсы сервисов совпали, но потеря к официальному курсу осталась');
   proverka('в плашке есть число', /\d{3}/.test(tekst(w, 'lossNum')), tekst(w, 'lossNum'));
+  proverka('рядом с суммой стоит процент', /%/.test(tekst(w, 'lossNum')),
+    tekst(w, 'lossNum') + ' — без процента непонятно, много это или мало');
+  proverka('процент похож на наценку сервиса',
+    /4[,.]\d\s*%/.test(tekst(w, 'lossNum')), tekst(w, 'lossNum'));
+
+  const polosy = w.document.querySelectorAll('#results .card .bar i');
+  proverka('у каждой карточки есть полоса', polosy.length === kartochki.length,
+    'полос: ' + polosy.length + ' карточек: ' + kartochki.length);
+  proverka('полосы имеют ширину',
+    Array.prototype.every.call(polosy, function (p) { return /%$/.test(p.style.width); }),
+    Array.prototype.map.call(polosy, function (p) { return p.style.width; }).join(', '));
+  proverka('одинаковый итог даёт одинаковые полосы',
+    polosy.length === 2 && polosy[0].style.width === polosy[1].style.width,
+    'курс у сервисов совпадает — и это тоже правда, которую видно');
+
+  proverka('результат объявляется голосом',
+    w.document.getElementById('results').getAttribute('aria-live') === 'polite',
+    'иначе незрячий нажимает «Посчитать» и не узнаёт, что что-то изменилось');
 
   /* ── 3. Проверка ввода ─────────────────────────────────────────── */
 

@@ -211,6 +211,31 @@
   }
   .card .brk { font-size: 11.5px; color: var(--muted); }
 
+  /* Полоса под суммой: длина пропорциональна тому, сколько дойдёт.
+     Два способа с одинаковым итогом дают одинаковые полосы — и это
+     тоже правда, которую видно с одного взгляда, без чтения цифр.
+     Начало шкалы не ноль, а 92% от лучшего: иначе полосы отличались бы
+     на волосок и не говорили ничего. */
+  .card .bar {
+    height: 4px; border-radius: 999px; margin-top: 2px;
+    background: color-mix(in srgb, var(--ink) 9%, transparent);
+    overflow: hidden;
+  }
+  .card .bar i {
+    display: block; height: 100%; border-radius: 999px;
+    background: color-mix(in srgb, var(--muted) 55%, transparent);
+    transition: width .35s cubic-bezier(.2,.7,.3,1);
+  }
+  .card.best .bar i { background: var(--accent); }
+
+  /* Плашка потери. Раньше здесь стояла только разница между способами,
+     а она бывает нулевой — и тогда главная потеря человека исчезала
+     с экрана вовсе. Теперь показываем то, что есть всегда. */
+  .loss .n small {
+    font-size: 15px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0; margin-left: 6px;
+  }
+
   .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
 
   /* Быстрый выбор суммы. Набирать «50000» на телефоне — пять точных
@@ -392,7 +417,11 @@
     <span class="s" id="lossSub"></span>
   </div>
 
-  <div id="results"></div>
+  <!-- aria-live: экранный диктор должен объявить результат сам, иначе
+       незрячий человек нажимает «Посчитать» и не узнаёт, что что-то
+       изменилось. Polite, а не assertive: перебивать его на полуслове
+       незачем, цифра подождёт полсекунды. -->
+  <div id="results" aria-live="polite" aria-atomic="false"></div>
 
   <button id="share" class="ghost hidden" data-i18n="btn.share"></button>
 
@@ -412,9 +441,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=17"></script>
-<script src="data.js?v=17"></script>
-<script src="calc.js?v=17"></script>
-<script src="app.js?v=17"></script>
+<script src="i18n.js?v=18"></script>
+<script src="data.js?v=18"></script>
+<script src="calc.js?v=18"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

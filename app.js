@@ -444,9 +444,17 @@
         ? sum(r.vilka.ot) + ' – ' + sum(r.vilka.do)
         : sum(r.total_uzs);
 
+      // Полоса, пропорциональная итогу. Шкала начинается не с нуля, а с
+      // 92% от лучшего: разница между способами обычно единицы процентов,
+      // и от нуля все полосы выглядели бы одинаково полными.
+      const luchshee = raschet.results[0].total_uzs || 1;
+      const dolya = Math.max(4, Math.min(100,
+        ((r.total_uzs / luchshee) - 0.92) / 0.08 * 100));
+
       kartochka.innerHTML =
         '<span class="top"><span class="svc">' + r.name + '</span>' + metki.join('') + '</span>' +
         '<span class="sum">' + summa + ' ' + t('unit.sum') + '</span>' +
+        '<span class="bar"><i style="width:' + dolya.toFixed(0) + '%"></i></span>' +
         '<span class="brk">' + detali.join(' · ') + '</span>';
 
       kartochka.addEventListener('click', function () { pokazatRazbor(r); });
@@ -473,7 +481,12 @@
         const poOficialnomu = parseFloat(el.summa.value) * kursy.rub_uzs;
         const poteryano = Math.round(poOficialnomu - luchshiy.total_uzs);
         if (poteryano > 0) {
-          el.lossNum.textContent = sum(poteryano) + ' ' + t('unit.sum');
+          // Процент рядом с суммой обязателен. Само по себе «288 000 сум»
+          // не говорит ничего: много это или мало, человек не знает,
+          // пока не соотнесёт с переводом. «4,1%» соотносит мгновенно.
+          const dolya = (poteryano / poOficialnomu) * 100;
+          el.lossNum.innerHTML = sum(poteryano) + ' ' + t('unit.sum') +
+            '<small>' + dolya.toFixed(1).replace('.', ',') + '%</small>';
           el.lossSub.textContent = t('svc.official');
           el.loss.classList.remove('hidden');
         } else {
