@@ -133,6 +133,25 @@
 
   .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
 
+  /* Экран до расчёта. Курс ЦБ вынесен крупно: это единственная честная
+     цифра, которую мы можем показать человеку сразу, и она же объясняет,
+     что приложение живое и данные настоящие. */
+  .idle { display: flex; flex-direction: column; gap: 14px; padding-top: 2px; }
+  .idle .rate {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .idle .rate .v {
+    font-size: 23px; font-weight: 800; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .idle .rate .k { font-size: 12px; color: var(--muted); }
+  .idle .steps {
+    margin: 0; padding: 0 0 0 22px; display: flex; flex-direction: column; gap: 9px;
+    font-size: 13.5px; color: var(--muted); line-height: 1.45;
+  }
+  .idle .steps li::marker { color: var(--accent); font-weight: 800; }
+
   /* Сообщение о неверной сумме. Красное и прямо под полем: человек должен
      понять, что не так, не отводя глаз от того места, где он ошибся. */
   .err { margin: 6px 2px 0; font-size: 12.5px; color: var(--alert); font-weight: 600; }
@@ -217,6 +236,23 @@
     <button id="schitat" data-i18n="btn.calc"></button>
   </div>
 
+  <!-- ── До расчёта ───────────────────────────────────────── -->
+  <!-- Пустой экран под кнопкой ничего не объяснял и выглядел поломкой.
+       Здесь стоит настоящий курс ЦБ — единственная неподдельная цифра,
+       которая у нас есть до данных Видадия, — и три шага расчёта.
+       Блок исчезает, как только появился результат. -->
+  <div id="idle" class="idle">
+    <div class="rate">
+      <span class="v" id="idleRate">—</span>
+      <span class="k" id="idleRateSub"></span>
+    </div>
+    <ol class="steps">
+      <li data-i18n="idle.s1"></li>
+      <li data-i18n="idle.s2"></li>
+      <li data-i18n="idle.s3"></li>
+    </ol>
+  </div>
+
   <!-- ── Результат ────────────────────────────────────────── -->
   <div id="loss" class="loss hidden">
     <span class="t" data-i18n="loss.t"></span>
@@ -237,9 +273,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=5"></script>
-<script src="data.js?v=5"></script>
-<script src="calc.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="i18n.js?v=6"></script>
+<script src="data.js?v=6"></script>
+<script src="calc.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

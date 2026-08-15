@@ -26,7 +26,21 @@
     disclaimer: document.getElementById('disclaimer'),
     kursDate:   document.getElementById('kursDate'),
     summaErr:   document.getElementById('summaErr'),
+    idle:       document.getElementById('idle'),
+    idleRate:   document.getElementById('idleRate'),
+    idleRateSub: document.getElementById('idleRateSub'),
   };
+
+  // Telegram кеширует html и js порознь, и какое-то время после обновления
+  // новый скрипт работает со старой разметкой. Место под сообщение об ошибке
+  // в таком случае создаём сами — иначе валидация молча падает на null.
+  if (!el.summaErr) {
+    el.summaErr = document.createElement('p');
+    el.summaErr.id = 'summaErr';
+    el.summaErr.className = 'err hidden';
+    el.summaErr.style.cssText = 'margin:6px 2px 0;font-size:12.5px;color:#c0392b;font-weight:600';
+    el.summa.parentNode.parentNode.insertBefore(el.summaErr, el.summa.parentNode.nextSibling);
+  }
 
   /**
    * Границы суммы. Сверху — миллион: больше сервисы не проводят одной
@@ -99,6 +113,8 @@
 
   function narisovat(raschet, kursy) {
     el.results.innerHTML = '';
+    // Появился результат — объяснялка своё отработала и только мешает.
+    if (el.idle) el.idle.classList.add('hidden');
 
     if (!raschet.results.length) {
       const pusto = document.createElement('p');
@@ -255,6 +271,7 @@
     // Результат на экране тоже надо перевести, иначе половина страницы
     // останется на прежнем языке до следующего нажатия «Посчитать».
     if (posledniyRaschet) narisovat(posledniyRaschet, posledniyKurs);
+    else pokazatKurs(posledniyKurs);
   }
 
   /* ── Проверка суммы ──────────────────────────────────── */
@@ -292,6 +309,27 @@
     el.share.classList.add('hidden');
     el.disclaimer.classList.add('hidden');
     posledniyRaschet = null;
+    if (el.idle) el.idle.classList.remove('hidden');
+  }
+
+  /* ── Экран до расчёта ────────────────────────────────── */
+
+  /**
+   * Курс ЦБ показываем до всякого расчёта. Это единственная настоящая
+   * цифра в приложении, пока данные сервисов тестовые, и она же говорит
+   * человеку: здесь считают по официальному курсу, а не по выдуманному.
+   */
+  function pokazatKurs(kursy) {
+    if (!el.idleRate || !kursy) return;
+    posledniyKurs = kursy;
+
+    const kurs = kursy.rub_uzs;
+    el.idleRate.textContent = t('idle.rate', {
+      r: kurs >= 100 ? kurs.toFixed(1) : kurs.toFixed(2),
+    });
+    el.idleRateSub.textContent = kursy.zapas || !kursy.date
+      ? t('idle.rate.old')
+      : t('idle.rate.sub', { d: kursy.date });
   }
 
   function poschitat() {
@@ -329,6 +367,10 @@
 
   primenitYazyk();
   pokazatIntro();
+
+  // Курс тянем сразу при открытии, не дожидаясь нажатия: человек должен
+  // увидеть живую цифру в первую секунду, иначе экран выглядит пустым.
+  zagruzitKursy().then(pokazatKurs);
 
   document.querySelectorAll('.lang').forEach(function (b) {
     b.addEventListener('click', function () {

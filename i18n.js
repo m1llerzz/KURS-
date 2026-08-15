@@ -37,6 +37,13 @@ window.I18N = (function () {
       'btn.calc':        'Hisoblash',
       'btn.share':       'Chatga yuborish',
 
+      'idle.rate':       '1 ₽ = {r} so’m',
+      'idle.rate.sub':   'Markaziy bank kursi, {d} — hisob shundan boshlanadi',
+      'idle.rate.old':   'Markaziy bank kursi yangilanmadi — raqamlar taxminiy',
+      'idle.s1':         'Xizmat komissiyasi summadan ayiriladi',
+      'idle.s2':         'Qolgan pulni so’mga qabul qiluvchi bank aylantiradi — o’z kursi bo’yicha',
+      'idle.s3':         'Biz kartaga tushadigan yakuniy summani va usullar farqini ko’rsatamiz',
+
       'err.min':         'Eng kami {min} ₽ — kichikroq summani hech kim yubormaydi',
       'err.max':         'Eng ko’pi {max} ₽ — bundan katta o’tkazmani xizmatlar bir amalda qabul qilmaydi',
       'err.nan':         'Summani raqam bilan kiriting',
@@ -100,6 +107,13 @@ window.I18N = (function () {
       'bank.any':        'Не знаю',
       'btn.calc':        'Посчитать',
       'btn.share':       'Отправить в чат',
+
+      'idle.rate':       '1 ₽ = {r} сум',
+      'idle.rate.sub':   'Курс ЦБ, {d} — с него начинается расчёт',
+      'idle.rate.old':   'Курс ЦБ обновить не удалось — цифры ориентировочные',
+      'idle.s1':         'Комиссия сервиса вычитается из суммы',
+      'idle.s2':         'Остаток превращает в сумы банк получателя — по своему курсу',
+      'idle.s3':         'Мы показываем итог на карту и разницу между способами',
 
       'err.min':         'Минимум {min} ₽ — меньше никто не отправляет',
       'err.max':         'Максимум {max} ₽ — больше сервисы не проводят одной операцией',
