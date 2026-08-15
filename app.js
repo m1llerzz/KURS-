@@ -226,19 +226,27 @@
    * Раньше ссылки не было — расчёт гулял по чатам, а прийти к нам было некуда.
    */
   function sobratTekst() {
-    // Две строки, не список. Пересылку читают в чужом чате мельком: список
-    // из трёх способов со ссылкой сверху выглядит спамом и его пролистывают.
-    // Работает личное утверждение и одна цифра — разница, которой человек
-    // не ожидал. Название и кнопка приходят карточкой приложения сами.
+    // Никаких сумов в пересылке. Чужие итоги читателю ничего не говорят:
+    // у него другая сумма и другой банк, а длинные числа в чате читаются
+    // как спам. Процент переносится на любой перевод — потому он и остался
+    // единственной цифрой. Название и кнопка приходят карточкой приложения.
     const luchshiy = posledniyRaschet.results[0];
-    const itog = luchshiy.vilka
-      ? sum(luchshiy.vilka.ot) + '–' + sum(luchshiy.vilka.do)
-      : sum(luchshiy.total_uzs);
+    const bazovyi = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
 
-    let text = t('share.title', { sum: sum(el.summa.value), best: itog });
-    if (posledniyRaschet.hidden_loss_uzs > 0) {
-      text += '\n' + t('share.diff', { loss: sum(posledniyRaschet.hidden_loss_uzs) });
+    let text = t('share.title', { sum: sum(el.summa.value) });
+
+    const poterya = posledniyRaschet.hidden_loss_uzs;
+    if (poterya > 0 && bazovyi > 0) {
+      const procent = (poterya / bazovyi) * 100;
+      // Меньше десятой доли процента — разницы по сути нет, и говорить
+      // о ней значит обещать несуществующую выгоду.
+      if (procent >= 0.1) {
+        text += '\n' + t('share.diff', {
+          p: procent.toFixed(1).replace('.', ','),
+        });
+      }
     }
+
     // Последняя строка — прямое обращение к тому, кто читает пересылку.
     // Без неё сообщение остаётся рассказом о себе, и человек не понимает,
     // что от него хотят.

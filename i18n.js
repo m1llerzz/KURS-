@@ -85,8 +85,8 @@ window.I18N = (function () {
 
       // Пересылка — главный способ, которым про нас узнают. Поэтому здесь
       // не только цифры: нужна строка, объясняющая чужому человеку, что он видит.
-      'share.title':     '{sum} ₽ yuboryapman — {best} so’m tushadi.',
-      'share.diff':      'Boshqa usulda {loss} so’m kam bo’lardi. Farq faqat bank tufayli.',
+      'share.title':     '{sum} ₽ yuboryapman — qaysi usulda ko’proq yetib borishini tekshirdim.',
+      'share.diff':      'Farq {p}% chiqdi. Komissiya emas — uydagi bank kursi tufayli.',
       'share.cta':       'Yuborishdan oldin o’zingiznikini hisoblang.',
     },
 
@@ -154,8 +154,8 @@ window.I18N = (function () {
       'razbor.in_currency': 'Ушло в валюте',
       'razbor.rate_bank':   'Курс банка → сум',
 
-      'share.title':     'Отправляю {sum} ₽ — дойдёт {best} сум.',
-      'share.diff':      'Другим способом было бы на {loss} сум меньше. Разница только из-за банка.',
+      'share.title':     'Отправляю {sum} ₽ — проверил, каким способом дойдёт больше.',
+      'share.diff':      'Разница вышла {p}%. Не из-за комиссии — из-за курса банка дома.',
       'share.cta':       'Посчитай свой, пока не отправил.',
     },
 
