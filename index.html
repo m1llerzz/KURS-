@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Сколько дойдёт</title>
+
+<!-- Среда Telegram: тема, кнопки, отправка в чат. Без этой строки мини-апп не работает. -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+  /* Цвета берём из темы Telegram. Значения после запятой — запасные,
+     на случай если страницу открыли в обычном браузере. */
+  :root {
+    --bg:      var(--tg-theme-bg-color, #ffffff);
+    --surface: var(--tg-theme-secondary-bg-color, #f4f7fa);
+    --ink:     var(--tg-theme-text-color, #101820);
+    --muted:   var(--tg-theme-hint-color, #6b7a8a);
+    --accent:  var(--tg-theme-button-color, #0f6a8b);
+    --accent-ink: var(--tg-theme-button-text-color, #ffffff);
+    --line:    color-mix(in srgb, var(--ink) 12%, transparent);
+    --alert:   #c0392b;
+    --alert-bg: color-mix(in srgb, var(--alert) 10%, transparent);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 14px 14px 32px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { display: flex; flex-direction: column; gap: 13px; max-width: 480px; margin: 0 auto; }
+
+  .lbl {
+    font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+  }
+
+  .field {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 13px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .field input, .field select {
+    background: transparent; border: none; color: var(--ink);
+    font-family: inherit; font-size: 21px; font-weight: 700; width: 100%;
+    padding: 0; font-variant-numeric: tabular-nums;
+  }
+  .field select { font-size: 16px; font-weight: 600; }
+  .field input:focus, .field select:focus { outline: none; }
+  .field:focus-within { border-color: var(--accent); }
+  .field .hint { font-size: 12px; color: var(--muted); }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+
+  button {
+    font-family: inherit; font-size: 15px; font-weight: 700;
+    border: none; border-radius: 12px; padding: 14px; width: 100%; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink);
+  }
+  button.ghost { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .loss {
+    background: var(--alert-bg); border: 1px solid color-mix(in srgb, var(--alert) 30%, transparent);
+    border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .loss .t { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .loss .n {
+    font-size: 25px; font-weight: 800; color: var(--alert);
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .loss .s { font-size: 12.5px; color: var(--muted); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 13px; display: flex; flex-direction: column; gap: 4px;
+    text-align: left; width: 100%; cursor: pointer;
+  }
+  .card.best { border-color: var(--accent); }
+  .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .card .svc { font-size: 13.5px; font-weight: 700; }
+  .card .tag {
+    font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+    font-weight: 800; color: var(--muted);
+  }
+  .card .tag.best { color: var(--accent); }
+  .card .sum {
+    font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .card .brk { font-size: 11.5px; color: var(--muted); }
+
+  .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+  /* Служебный класс. !important здесь осознанно: любое правило вида
+     .something { display: flex } объявленное ниже перебило бы его по порядку,
+     и элемент бы не спрятался. Один раз наступили — оставляем защиту. */
+  .hidden { display: none !important; }
+
+  /* Первый запуск: объясняем, зачем это, одним экраном */
+  .intro { display: flex; flex-direction: column; gap: 16px; padding: 22px 4px 0; }
+  .intro h1 { font-size: 25px; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -.02em; }
+  .intro p { margin: 0; font-size: 16px; color: var(--muted); line-height: 1.55; }
+  .intro .bignum {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .intro .bignum .v {
+    font-size: 30px; font-weight: 800; color: var(--alert);
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  }
+  .intro .bignum .k { font-size: 13px; color: var(--muted); }
+
+  #results { display: flex; flex-direction: column; gap: 9px; }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <!-- ── Первый запуск ────────────────────────────────────── -->
+  <div id="intro" class="intro hidden">
+    <h1>Сколько денег реально дойдёт до карты</h1>
+    <p>Перевод уходит в рублях или долларах. В сумы его превращает <b>банк получателя</b> — по своему курсу в день зачисления. Этого курса отправитель не видит нигде.</p>
+    <div class="bignum">
+      <span class="v">до 400 000 сум</span>
+      <span class="k">теряется на переводе 50 000 ₽ только из-за выбора способа</span>
+    </div>
+    <p>Мы считаем итог на карту с учётом комиссии, курса и банка получателя. Деньги не переводим и не принимаем — только показываем цифру.</p>
+    <button id="introOk" class="ghost">Понятно, скрыть</button>
+  </div>
+
+  <!-- ── Ввод ─────────────────────────────────────────────── -->
+  <div id="calcUI" class="wrap" style="padding:0">
+    <div>
+      <div class="lbl">Отправляю</div>
+      <div class="field" style="margin-top:6px">
+        <input id="summa" type="number" inputmode="numeric" value="50000" min="1000" step="1000">
+        <span class="hint">рублей из России</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Банк получателя</div>
+      <div class="field" style="margin-top:6px">
+        <select id="bank"></select>
+        <span class="hint">без него покажем вилку</span>
+      </div>
+    </div>
+
+    <button id="schitat">Посчитать</button>
+  </div>
+
+  <!-- ── Результат ────────────────────────────────────────── -->
+  <div id="loss" class="loss hidden">
+    <span class="t">Разница между лучшим и худшим</span>
+    <span class="n" id="lossNum">—</span>
+    <span class="s" id="lossSub"></span>
+  </div>
+
+  <div id="results"></div>
+
+  <button id="share" class="ghost hidden">Отправить в чат</button>
+
+  <p id="disclaimer" class="note hidden"></p>
+  <p id="kursDate" class="note"></p>
+
+</div>
+
+<!-- Порядок важен: данные → формулы → экран -->
+<script src="data.js"></script>
+<script src="calc.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
