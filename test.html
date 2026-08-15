@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Самопроверка расчёта</title>
+<style>
+  :root { --bg:#ffffff; --ink:#101820; --muted:#6b7a8a; --line:#e1e8ef;
+          --ok:#1b6b45; --fail:#c0392b; --surface:#f4f7fa; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#12191f; --ink:#e8eef4; --muted:#8b9bab;
+      --line:#28333d; --ok:#4fb484; --fail:#e08585; --surface:#1a232c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 18px 60px; background:var(--bg); color:var(--ink);
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; line-height:1.55; }
+  .wrap { max-width:760px; margin:0 auto; display:flex; flex-direction:column; gap:22px; }
+  h1 { font-size:24px; margin:0; font-weight:700; }
+  p.lead { margin:0; color:var(--muted); max-width:62ch; }
+  .itog { font-size:18px; font-weight:800; padding:14px 16px; border-radius:10px; background:var(--surface); border:1px solid var(--line); }
+  .itog.ok { color:var(--ok); } .itog.fail { color:var(--fail); }
+  table { border-collapse:collapse; width:100%; font-size:14.5px; }
+  th,td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); }
+  th { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  td.st { font-weight:800; white-space:nowrap; }
+  td.st.ok { color:var(--ok); } td.st.fail { color:var(--fail); }
+  td.num { font-variant-numeric:tabular-nums; text-align:right; }
+  h2 { font-size:16px; margin:0 0 6px; }
+  .tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+  code { background:var(--surface); padding:1px 5px; border-radius:4px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>Самопроверка расчёта</h1>
+    <p class="lead">Открывай этот файл каждый раз, когда поменял <code>data.js</code> или <code>calc.js</code>. Если хоть одна строка красная — в приложение эти данные не заливать.</p>
+  </div>
+
+  <div id="itog" class="itog">Считаю…</div>
+
+  <div>
+    <h2>Проверки</h2>
+    <div class="tablewrap"><table id="checks">
+      <thead><tr><th>Что проверяем</th><th>Итог</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div>
+    <h2>Что выдал расчёт</h2>
+    <div class="tablewrap"><table id="vyvod">
+      <thead><tr><th>Случай</th><th>Способ</th><th>Итог, сум</th><th>Свежесть</th><th>Примечание</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="calc.js"></script>
+<script>
+(function () {
+  // Курсы фиксированные — проверяем формулы, а не сеть.
+  var kursy = { usd_uzs: 13000, rub_uzs: 143 };
+  var S = window.SERVICES, B = window.BANKS, C = window.CALC;
+  var schet = function (vvod) { return C.poschitat(vvod, S, B, kursy); };
+
+  var bezBanka = schet({ summa: 50000, bank_id: null,     corridor: 'RU-UZ' });
+  var bank1    = schet({ summa: 50000, bank_id: 'bank-1', corridor: 'RU-UZ' });
+  var bank3    = schet({ summa: 50000, bank_id: 'bank-3', corridor: 'RU-UZ' });
+  var krupno   = schet({ summa: 250000, bank_id: 'bank-1', corridor: 'RU-UZ' });
+
+  function nayti(r, id) { return r.results.filter(function (x) { return x.service_id === id; })[0]; }
+  function marshrutB(r) { return r.results.filter(function (x) { return x.route === 'B'; })[0]; }
+
+  // Ручные эталоны — считаны отдельно от кода, специально.
+  var etalonA = Math.floor((50000 - 199) * 149 / 1000) * 1000;
+  var kross = 13000 / 143;
+  var etalonB1 = Math.floor(((50000 - 500) / kross) * 13250 / 1000) * 1000;
+
+  var proverki = [
+    ['Протухший способ (старше 72 ч) не показан вовсе', !nayti(bezBanka, 'servis-d')],
+    ['Вчерашние данные помечены', (nayti(bezBanka, 'servis-c') || {}).svezhest === 'ustarelo'],
+    ['Без банка появляется вилка', bezBanka.results.some(function (x) { return !!x.vilka; })],
+    ['С выбранным банком вилки нет', bank1.results.every(function (x) { return !x.vilka; })],
+    ['Без банка считаем по худшему, не по лучшему',
+      marshrutB(bezBanka).total_uzs === marshrutB(bank3).total_uzs],
+    ['Итог всегда округлён вниз до тысяч',
+      bezBanka.results.every(function (x) { return x.total_uzs % 1000 === 0; })],
+    ['Список отсортирован по убыванию',
+      bezBanka.results.every(function (x, i, a) { return i === 0 || a[i - 1].total_uzs >= x.total_uzs; })],
+    ['Сумма выше лимита помечена', krupno.results.some(function (x) { return x.vyshe_limita; })],
+    ['Банк с лучшим курсом даёт больше', marshrutB(bank1).total_uzs > marshrutB(bank3).total_uzs],
+    ['Маршрут B помечен оценочным', marshrutB(bank1).ocenochnyi === true],
+    ['Дисклеймер на месте', !!bezBanka.disclaimer],
+    ['Маршрут A сходится с ручным расчётом', nayti(bank1, 'servis-a').total_uzs === etalonA],
+    ['Маршрут B сходится с ручным расчётом', marshrutB(bank1).total_uzs === etalonB1],
+    ['Наценка 3% принимается как правдоподобная', C.nacenkaPravdopodobna(3) === true],
+    ['Наценка 8% отбраковывается — данные за разные дни', C.nacenkaPravdopodobna(8) === false],
+    ['Рассогласованные данные помечаются флагом',
+      marshrutB(bank1).dannye_soglasovany === C.nacenkaPravdopodobna(marshrutB(bank1).nacenka_percent)],
+  ];
+
+  var telo = document.querySelector('#checks tbody');
+  var provaleno = 0;
+  proverki.forEach(function (p) {
+    if (!p[1]) provaleno++;
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + p[0] + '</td><td class="st ' + (p[1] ? 'ok' : 'fail') + '">' +
+                   (p[1] ? 'ОК' : 'ПРОВАЛ') + '</td>';
+    telo.appendChild(tr);
+  });
+
+  var itog = document.getElementById('itog');
+  if (provaleno === 0) {
+    itog.className = 'itog ok';
+    itog.textContent = 'Все ' + proverki.length + ' проверок пройдены. Данные можно заливать.';
+  } else {
+    itog.className = 'itog fail';
+    itog.textContent = 'Провалено проверок: ' + provaleno + ' из ' + proverki.length + '. Заливать нельзя.';
+  }
+
+  var vyvod = document.querySelector('#vyvod tbody');
+  [['50 000, банк не выбран', bezBanka], ['50 000, Банк 1', bank1],
+   ['50 000, Банк 3', bank3], ['250 000, Банк 1', krupno]].forEach(function (para) {
+    para[1].results.forEach(function (r, i) {
+      var prim = [];
+      if (r.vilka) prim.push('вилка ' + r.vilka.ot.toLocaleString('ru') + '–' + r.vilka.do.toLocaleString('ru'));
+      if (r.nacenka_percent !== null && r.nacenka_percent !== undefined)
+        prim.push('против ЦБ ' + r.nacenka_percent.toFixed(2) + '%');
+      if (r.vyshe_limita) prim.push('выше лимита');
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (i === 0 ? para[0] : '') + '</td><td>' + r.name + '</td>' +
+                     '<td class="num">' + r.total_uzs.toLocaleString('ru') + '</td>' +
+                     '<td>' + r.svezhest + '</td><td>' + prim.join(' · ') + '</td>';
+      vyvod.appendChild(tr);
+    });
+  });
+})();
+</script>
+</body>
+</html>
