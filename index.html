@@ -138,7 +138,16 @@
   .verdict .vonsum {
     font-size: 15px; font-weight: 700; line-height: 1.35; padding-top: 2px;
   }
-  .verdict .vhint { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  .verdict .vspread {
+    font-size: 12.5px; color: var(--muted); line-height: 1.4;
+    padding-top: 1px;
+  }
+  .verdict .vspread b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .verdict .vhint {
+    font-size: 12.5px; color: var(--ink); line-height: 1.4; font-weight: 600;
+    border-top: 1px solid color-mix(in srgb, var(--tone) 25%, transparent);
+    padding-top: 9px; margin-top: 2px;
+  }
 
   /* График курса. Настоящий ряд ЦБ за 30 дней: одно движение глазом
      объясняет больше, чем абзац текста про волатильность. */
@@ -415,6 +424,9 @@
 
     <span class="vmeta" id="vMeta"></span>
     <span class="vonsum" id="vOnSum"></span>
+    <!-- Что стоит выбор дня, в его деньгах. Абстрактные 9,5% не
+         чувствует никто, а 673 000 сум чувствуют все. -->
+    <span class="vspread" id="vSpread"></span>
     <span class="vhint" id="vHint"></span>
   </div>
 
@@ -514,9 +526,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=23"></script>
-<script src="data.js?v=23"></script>
-<script src="calc.js?v=23"></script>
-<script src="app.js?v=23"></script>
+<script src="i18n.js?v=24"></script>
+<script src="data.js?v=24"></script>
+<script src="calc.js?v=24"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>

@@ -48,6 +48,7 @@
     chips:      document.getElementById('chips'),
     vMeta:      document.getElementById('vMeta'),
     vOnSum:     document.getElementById('vOnSum'),
+    vSpread:    document.getElementById('vSpread'),
     vHint:      document.getElementById('vHint'),
     subCta:     document.getElementById('subCta'),
     subBtn:     document.getElementById('subBtn'),
@@ -405,8 +406,15 @@
     const summa = parseFloat(el.summa.value);
     if (!isFinite(summa) || summa < MIN_SUMMA || summa > MAX_SUMMA) {
       el.vOnSum.textContent = '';
+      // Размах тоже гасим: он считается от суммы, а суммы сейчас нет.
+      // Оставленная строка показывала бы цифру от прошлого ввода.
+      if (el.vSpread) el.vSpread.textContent = '';
       return;
     }
+
+    // Размах считаем всегда, когда сумма годная, — он не зависит от того,
+    // насколько сегодняшний курс отличается от среднего.
+    obnovitRazmah(summa);
 
     const raznica = window.CALC.vygodaNaSumme(ocenkaDnya, summa);
     // Меньше тысячи сум — это не деньги, а шум округления. Говорить о нём
@@ -419,6 +427,26 @@
     el.vOnSum.textContent = raznica > 0
       ? t('v.onsum.plus',  { sum: sum(summa), n: sum(raznica) })
       : t('v.onsum.minus', { sum: sum(summa), n: sum(-raznica) });
+  }
+
+  /**
+   * Что стоит выбор дня — в его деньгах.
+   *
+   * Это самая убедительная цифра продукта. «Курс ходит на 9,5%» не говорит
+   * человеку ничего: проценты от курса, которого он не держал в руках,
+   * не чувствует никто. «673 000 сум на вашей сумме» чувствуют все.
+   */
+  function obnovitRazmah(summa) {
+    if (!el.vSpread || !ocenkaDnya) return;
+
+    const razmah = Math.round((ocenkaDnya.max_30 - ocenkaDnya.min_30) * summa);
+    // Курс месяц простоял ровно — говорить не о чем, и выдумывать повод
+    // для тревоги мы не будем.
+    if (razmah < 1000) {
+      el.vSpread.textContent = '';
+      return;
+    }
+    el.vSpread.innerHTML = t('v.spread', { n: '<b>' + sum(razmah) + '</b>' });
   }
 
   /* ── Отрисовка расчёта ───────────────────────────────────── */

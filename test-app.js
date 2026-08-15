@@ -131,6 +131,12 @@ function dozhdatsya() {
   // Направление без величины ни к чему не обязывает.
   proverka('показан сдвиг за неделю', /неделю|haftada/i.test(tekst(w, 'vMeta')),
     tekst(w, 'vMeta'));
+
+  // Самая убедительная цифра продукта: что стоит выбор дня, в его деньгах.
+  proverka('показан размах месяца в его деньгах',
+    /\d{3}\s\d{3}/.test(tekst(w, 'vSpread')), tekst(w, 'vSpread'));
+  proverka('размах около 670 тысяч на 50 000 ₽',
+    /6[0-9]\d\s?\d{3}/.test(tekst(w, 'vSpread')), tekst(w, 'vSpread'));
   proverka('числа на экране через запятую',
     !/\d\.\d/.test(tekst(w, 'vRate') + tekst(w, 'vAvg') + tekst(w, 'vOsL') + tekst(w, 'vOsR')),
     'по-русски и по-узбекски дробная часть отделяется запятой');
@@ -220,7 +226,7 @@ function dozhdatsya() {
     'v.trend.rastet', 'v.trend.padaet', 'v.trend.stoit',
     'v.onsum.plus', 'v.onsum.minus', 'v.onsum.zero',
     'v.do.otpravlyat', 'v.do.mozhno_zhdat', 'v.do.ne_zhdat', 'v.do.obychno',
-    'v.range', 'v.days', 'v.week.up', 'v.week.down',
+    'v.range', 'v.days', 'v.week.up', 'v.week.down', 'v.spread',
     'src.t', 'src.cb', 'src.svc', 'src.upd', 'src.no',
     'svc.markup', 'svc.fee_unknown', 'svc.official', 'svc.lost',
     'sub.t', 'sub.p', 'sub.btn', 'popup.go', 'err.net',
@@ -355,6 +361,8 @@ function dozhdatsya() {
   proverka('пустое поле — ошибка', vidno(w, 'summaErr'));
   proverka('при ошибке разница в сумах не показывается', tekst(w, 'vOnSum') === '',
     'считать выгоду от несуществующей суммы нельзя');
+  proverka('при ошибке размах тоже гаснет', tekst(w, 'vSpread') === '',
+    'оставленная строка показывала бы цифру от прошлого ввода');
 
   vvesti(100000);
   proverka('верная сумма — ошибки нет', !vidno(w, 'summaErr'), tekst(w, 'summaErr'));

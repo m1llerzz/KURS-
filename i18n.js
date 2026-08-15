@@ -115,6 +115,7 @@ window.I18N = (function () {
       'v.days':          '30 kun',
       'v.week.up':       'haftada +{p}%',
       'v.week.down':     'haftada −{p}%',
+      'v.spread':        'Oyning eng yaxshi va eng yomon kuni orasida — sizning summangizda {n} so’m',
 
       // ── Raqamlar qayerdan ────────────────────────────────────────
       'src.t':           'Raqamlar qayerdan',
@@ -248,6 +249,9 @@ window.I18N = (function () {
       'v.days':          '30 дней',
       'v.week.up':       'за неделю +{p}%',
       'v.week.down':     'за неделю −{p}%',
+      // Самая убедительная цифра продукта: что стоит выбор дня, в его
+      // деньгах. Абстрактные 9,5% не чувствует никто.
+      'v.spread':        'Между лучшим и худшим днём месяца — {n} сум на вашей сумме',
 
       // ── Откуда цифры ─────────────────────────────────────────────
       // В денежном продукте это не мелкий шрифт внизу, а причина верить
