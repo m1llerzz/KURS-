@@ -163,6 +163,8 @@ TEKSTY = {
         "kurs_segodnya": "Bugun: <b>{kurs}</b> so‘m",
         "kurs_srednee": "Oydagi o‘rtacha: {srednee} so‘m",
         "kurs_koridor": "Oy koridori: {mn} — {mx}",
+        "kurs_nedelya_up": "Haftada: +{p}%",
+        "kurs_nedelya_down": "Haftada: −{p}%",
         "kurs_na_summe": "Sizning {summa} rublingizda bu odatdagiga nisbatan {znak}{raznica} so‘m",
         "kurs_net": "Hozircha kurs ma’lumotlari yig‘ilmoqda. Bir necha daqiqadan keyin urinib ko‘ring.",
         "uvedomlenie": (
@@ -242,6 +244,8 @@ TEKSTY = {
         "kurs_segodnya": "Сегодня: <b>{kurs}</b> сум",
         "kurs_srednee": "Среднее за месяц: {srednee} сум",
         "kurs_koridor": "Коридор месяца: {mn} — {mx}",
+        "kurs_nedelya_up": "За неделю: +{p}%",
+        "kurs_nedelya_down": "За неделю: −{p}%",
         "kurs_na_summe": "На ваших {summa} ₽ это {znak}{raznica} сум против обычного",
         "kurs_net": "Курсы ещё собираются. Попробуйте через пару минут.",
         "uvedomlenie": (
@@ -450,7 +454,13 @@ def pokazat_kurs(chat_id, lang):
         t["kurs_srednee"].format(srednee=chislo(ocenka["srednee_30"])),
         t["kurs_koridor"].format(mn=chislo(ocenka["min_30"]), mx=chislo(ocenka["max_30"])),
     ]
-    if ocenka.get("trend"):
+    # Сдвиг за неделю в процентах, а если его нет — хотя бы направление.
+    # «Падает» без величины ни к чему не обязывает.
+    nedelya = ocenka.get("nedelya_percent")
+    if nedelya is not None and abs(nedelya) >= 0.1:
+        kluch = "kurs_nedelya_up" if nedelya > 0 else "kurs_nedelya_down"
+        stroki.append(t[kluch].format(p=chislo(abs(nedelya), 1)))
+    elif ocenka.get("trend"):
         stroki.append(t["trend"][ocenka["trend"]])
     stroka_summy = _stroka_summy(lang, ocenka, summa)
     if stroka_summy:

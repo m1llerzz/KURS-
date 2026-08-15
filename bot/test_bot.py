@@ -49,6 +49,14 @@ for lang in ("uz", "ru"):
 # оповещение упадёт на KeyError у живого человека.
 VSE_VERDIKTY = {"otlichno", "horosho", "obychno", "nize_obychnogo", "ploho"}
 for lang in ("uz", "ru"):
+    proverka("совет покрыт на " + lang,
+             set(bot.DEYSTVIYA[lang]) == {"otpravlyat", "mozhno_zhdat",
+                                          "ne_zhdat", "obychno"},
+             "не хватает: " + str({"otpravlyat", "mozhno_zhdat", "ne_zhdat",
+                                   "obychno"} - set(bot.DEYSTVIYA[lang])))
+    proverka("сдвиг за неделю есть на " + lang,
+             "kurs_nedelya_up" in bot.TEKSTY[lang]
+             and "kurs_nedelya_down" in bot.TEKSTY[lang])
     proverka("вердикты покрыты на " + lang,
              set(bot.VERDIKTY[lang]) == VSE_VERDIKTY,
              "не хватает: " + str(VSE_VERDIKTY - set(bot.VERDIKTY[lang])))
