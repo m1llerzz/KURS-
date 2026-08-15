@@ -124,6 +124,38 @@ function dozhdatsya() {
   proverka('банк спрятан, пока курсов банков нет', !vidno(w, 'bankBlock'),
     'пустой список в выпадашке обещает данные, которых нет');
 
+  /* ── 1a. Словари двух языков ───────────────────────────────────── */
+
+  // Ключи правятся руками в двух местах файла, и забытый перевод виден
+  // не сразу: t() тихо подставляет русскую строку. Для узбека, который
+  // и есть основная аудитория, это выглядит поломкой.
+  const KLYUCHI = [
+    'v.otlichno', 'v.horosho', 'v.obychno', 'v.nize_obychnogo', 'v.ploho',
+    'v.rate', 'v.avg', 'v.pos', 'v.pos.worst', 'v.pos.best',
+    'v.trend.rastet', 'v.trend.padaet', 'v.trend.stoit',
+    'v.onsum.plus', 'v.onsum.minus', 'v.onsum.zero',
+    'v.hint.good', 'v.hint.bad', 'v.hint.normal', 'v.range', 'v.days',
+    'svc.markup', 'svc.fee_unknown', 'svc.official', 'svc.lost',
+    'sub.t', 'sub.p', 'sub.btn', 'popup.go', 'err.net',
+  ];
+
+  const zabytye = [];
+  const odinakovye = [];
+  KLYUCHI.forEach(function (k) {
+    const u = w.I18N.t(k, null, 'uz');
+    const r = w.I18N.t(k, null, 'ru');
+    // t() возвращает сам ключ, если строки нет вовсе.
+    if (u === k || r === k) zabytye.push(k);
+    // Одинаковый текст на двух языках почти всегда значит, что узбекский
+    // забыли и подставился русский. Для основной аудитории это поломка.
+    else if (u === r) odinakovye.push(k);
+  });
+
+  proverka('ни один ключ не забыт в словарях', zabytye.length === 0,
+    'нет строк: ' + zabytye.join(', '));
+  proverka('узбекский не подменён русским', odinakovye.length === 0,
+    'совпали: ' + odinakovye.join(', '));
+
   /* ── 2. Расчёт ─────────────────────────────────────────────────── */
 
   w.document.getElementById('schitat').click();
@@ -231,6 +263,37 @@ function dozhdatsya() {
   proverka('в пересылке нет чужих сумов',
     !!ushlo && !/\d{1,2}\s\d{3}\s\d{3}\s*(сум|so)/i.test(ushlo),
     'у читателя другая сумма, чужой итог ему бесполезен');
+
+  /* ── 5a. Учёт ──────────────────────────────────────────────────── */
+
+  // Учёт — это то, ради чего партнёрская программа вообще станет
+  // возможной: без доказанного потока разговаривать не о чем.
+  const sobytiya = [];
+  const w4 = podnyat(null, { intro_pokazan: '1' });
+  w4.navigator.sendBeacon = function (adres, telo) {
+    sobytiya.push({ adres: adres, telo: String(telo && telo._buffer || telo) });
+    return true;
+  };
+  // Blob в jsdom не отдаёт содержимое синхронно, поэтому подменяем его
+  // на прозрачную обёртку — нам важен факт и адрес, а не байты.
+  w4.Blob = function (chasti) { return { toString: function () { return chasti.join(''); } }; };
+  await dozhdatsya();
+
+  w4.document.getElementById('schitat').click();
+  await dozhdatsya();
+
+  proverka('события уходят на бота', sobytiya.length > 0,
+    'отправлено: ' + sobytiya.length);
+  proverka('события идут на /api/event',
+    sobytiya.every(function (s) { return /\/api\/event$/.test(s.adres); }),
+    sobytiya.length ? sobytiya[0].adres : 'нет');
+  proverka('расчёт учтён',
+    sobytiya.some(function (s) { return s.telo.indexOf('raschet') !== -1; }),
+    sobytiya.map(function (s) { return s.telo.slice(0, 60); }).join(' | '));
+  proverka('точная сумма человека наружу не уходит',
+    sobytiya.every(function (s) { return s.telo.indexOf('"summa":100000') === -1
+                                     && s.telo.indexOf('"summa":50000') === -1; }),
+    'отправляем только порядок суммы, не саму сумму');
 
   /* ── 6. Живой ответ бота перекрывает запас ─────────────────────── */
 

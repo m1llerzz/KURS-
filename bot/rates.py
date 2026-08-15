@@ -243,6 +243,17 @@ def _id_iz_imeni(imya):
     return re.sub(r"[^a-z0-9]+", "-", imya.lower()).strip("-")
 
 
+# Адреса сервисов. Только проверенные: угаданный адрес уводит человека
+# в никуда, и это хуже, чем отсутствие кнопки.
+#
+# Партнёрские ссылки кладутся сюда же, в поле partner_url, КОГДА появятся
+# программы. На порядок в списке они не влияют никогда — сверху всегда тот
+# способ, где человеку придёт больше. Это правило проекта, не настройка.
+_SAYTY = {
+    "avosend": {"url": "https://avosend.com/"},
+}
+
+
 def snimok(s_istoriey=True):
     """Полный набор данных для приложения.
 
@@ -258,8 +269,9 @@ def snimok(s_istoriey=True):
     if cb:
         for s in perevody_bankuz():
             nacenka = (cb["rub_uzs"] - s["rate_rub_uzs"]) / cb["rub_uzs"] * 100
-            servisy.append({
-                "id": _id_iz_imeni(s["name"]),
+            imya_id = _id_iz_imeni(s["name"])
+            servisy.append(dict(_SAYTY.get(imya_id, {}), **{
+                "id": imya_id,
                 "name": s["name"],
                 "route": "A",              # сервис объявляет курс сам
                 "corridors": ["RU-UZ"],
@@ -277,7 +289,7 @@ def snimok(s_istoriey=True):
                 # итог по такому способу — потолок, а не точная цифра.
                 "fee_unknown": True,
                 "nacenka_percent": round(nacenka, 2),
-            })
+            }))
 
     # Ручные данные последним словом: они с чеков, а чек сильнее сайта.
     r = ruchnye()

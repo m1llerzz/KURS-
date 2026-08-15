@@ -90,6 +90,56 @@
     return null;
   }
 
+  /* ── Учёт ────────────────────────────────────────────────
+   *
+   * Считаем ровно четыре вещи: открыл, посчитал, переслал, пошёл в сервис.
+   * Этого хватает, чтобы понимать продукт, и не хватает, чтобы навредить
+   * человеку: ни имени, ни телефона, ни суммы конкретного перевода мы
+   * никуда не отправляем — только её порядок.
+   *
+   * Зачем вообще. Партнёрскую программу не дают под обещание: просят
+   * показать поток. Пока никто не считает, сколько людей доходит до
+   * выбора способа, разговаривать с Remitly или Wise не о чем.
+   *
+   * Учёт свой: ни одного внешнего скрипта в приложении, ноль рублей,
+   * ноль слежки за человеком по другим сайтам.
+   */
+  function sobytie(tip, dannye) {
+    if (!window.API_URL) return;
+    const adres = window.API_URL.replace(/\/api\/rates$/, '/api/event');
+
+    let chatId = null;
+    try {
+      const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+      if (u && u.id) chatId = u.id;
+    } catch (e) {}
+
+    const telo = JSON.stringify({ tip: tip, chat_id: chatId, dannye: dannye || null });
+
+    try {
+      // sendBeacon переживает закрытие приложения — обычный fetch на
+      // выходе браузер отменяет, и половина событий терялась бы молча.
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(adres, new Blob([telo], { type: 'application/json' }));
+        return;
+      }
+      fetch(adres, {
+        method: 'POST', body: telo, keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(function () {});
+    } catch (e) {}   // учёт никогда не мешает работе приложения
+  }
+
+  /** Порядок суммы вместо самой суммы: 50 000 → «50k». */
+  function poryadok(n) {
+    const v = Math.abs(Number(n) || 0);
+    if (v < 10000) return 'до10k';
+    if (v < 50000) return '10-50k';
+    if (v < 150000) return '50-150k';
+    if (v < 500000) return '150-500k';
+    return 'от500k';
+  }
+
   /* ── Форматирование ──────────────────────────────────────── */
 
   /**
@@ -420,8 +470,33 @@
     const hvost = r.ocenochnyi ? '\n\n' + t('popup.est') : '';
     const text = r.name + '\n\n' + stroki + '\n\n'
       + t('popup.total') + ': ' + sum(r.total_uzs) + ' ' + t('unit.sum') + hvost;
-    if (tg && tg.showPopup) tg.showPopup({ title: r.name, message: text });
-    else alert(text);
+
+    const servis = SERVISY.filter(function (s) { return s.id === r.service_id; })[0];
+    // Партнёрская ссылка, если она есть, иначе обычный адрес сервиса.
+    // Порядок в списке от этого не зависит НИКОГДА: сверху всегда тот,
+    // где человеку придёт больше. Это правило проекта, а не настройка.
+    const ssylka = servis && (servis.partner_url || servis.url);
+
+    if (tg && tg.showPopup) {
+      const knopki = [{ id: 'ok', type: 'close' }];
+      if (ssylka) knopki.unshift({ id: 'go', type: 'default', text: t('popup.go') });
+      tg.showPopup({ title: r.name, message: text, buttons: knopki }, function (nazhal) {
+        if (nazhal === 'go' && ssylka) pereyti(r, ssylka);
+      });
+      return;
+    }
+
+    alert(text);
+    if (ssylka && window.confirm(t('popup.go'))) pereyti(r, ssylka);
+  }
+
+  /** Переход в сервис. Единственное место, где мы уводим человека наружу. */
+  function pereyti(r, ssylka) {
+    sobytie('perehod', { servis: r.service_id, partner: !!(
+      SERVISY.filter(function (s) { return s.id === r.service_id; })[0] || {}
+    ).partner_url });
+    if (tg && tg.openLink) tg.openLink(ssylka);
+    else window.open(ssylka, '_blank');
   }
 
   /* ── Отправка в чат ──────────────────────────────────────── */
@@ -478,6 +553,10 @@
     const text = sobratTekst();
     const link = window.BOT_LINK || '';
 
+    // Пересылка — единственный бесплатный канал роста, поэтому считаем
+    // её отдельно: доля пересылок это метрика номер два после возврата.
+    sobytie('share', { verdikt: ocenkaDnya ? ocenkaDnya.verdikt : null });
+
     const shareUrl = 'https://t.me/share/url?url=' + encodeURIComponent(link) +
                      '&text=' + encodeURIComponent(text);
 
@@ -494,6 +573,7 @@
 
   /** Подписка живёт у бота: мини-апп сам писать человеку не может. */
   function otkrytPodpisku() {
+    sobytie('podpiska_klik');
     const ssylka = window.BOT_CHAT || 'https://t.me/QanchaYetadi_bot';
     if (tg && tg.openTelegramLink) tg.openTelegramLink(ssylka);
     else window.open(ssylka, '_blank');
@@ -588,6 +668,12 @@
     );
     narisovat(posledniyRaschet, kursy);
     if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
+    sobytie('raschet', {
+      summa: poryadok(summa),
+      verdikt: ocenkaDnya ? ocenkaDnya.verdikt : null,
+      sposobov: posledniyRaschet.results.length,
+    });
   }
 
   /* ── Первый запуск ───────────────────────────────────────── */
@@ -628,6 +714,19 @@
     zapolnitBanki();
     pokazatVerdikt();
     if (posledniyRaschet) poschitat();
+
+    // Учитываем открытие только после того, как узнали вердикт: иначе
+    // в цифрах не будет видно, с каким курсом человек к нам пришёл,
+    // а это и есть главный вопрос к продукту.
+    sobytie('otkryt', {
+      verdikt: ocenkaDnya ? ocenkaDnya.verdikt : null,
+      // Пришёл ли человек по чужой пересылке. Без этой отметки нельзя
+      // посчитать, сколько людей приводит один расчёт, — а это
+      // единственный бесплатный источник роста.
+      iz_peresylki: /startapp=share|tgWebAppStartParam=share/.test(
+        String(window.location.href)) ||
+        !!(tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param === 'share'),
+    });
   });
 
   document.querySelectorAll('.lang').forEach(function (b) {

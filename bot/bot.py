@@ -574,6 +574,46 @@ class Stranica(BaseHTTPRequestHandler):
 
         self.wfile.write(self._otvetit("QanchaYetadi bot: живой".encode("utf-8")))
 
+    def do_POST(self):
+        """Учёт событий из приложения.
+
+        Зачем это нужно раньше денег. Партнёрскую программу не дают под
+        обещание — просят показать поток. Пока мы не считаем, сколько людей
+        доходит до выбора способа, разговаривать с Remitly или Wise не о чем.
+        Значит считать надо с первого дня, а не с того, когда понадобится.
+
+        Учёт свой и бесплатный: ни одного внешнего сервиса, ни одной копейки,
+        ни одного стороннего скрипта в приложении. См. METRICS.md.
+
+        Личных данных не собираем. Никаких: ни имени, ни телефона, ни номера
+        карты. Только «кто-то посчитал 50 000» — этого достаточно, чтобы
+        понимать продукт, и мало, чтобы навредить человеку.
+        """
+        if self.path.split("?")[0].rstrip("/") != "/api/event":
+            self.wfile.write(self._otvetit("нет такого адреса".encode("utf-8"), kod=404))
+            return
+
+        try:
+            dlina = int(self.headers.get("Content-Length") or 0)
+            # Ограничение на размер обязательно: без него один запрос
+            # с гигабайтом тела кладёт бесплатный тариф целиком.
+            if dlina > 4096:
+                raise ValueError("слишком большое тело")
+            telo = json.loads(self.rfile.read(dlina).decode("utf-8")) if dlina else {}
+
+            tip = str(telo.get("tip") or "")[:40]
+            if tip:
+                chat_id = telo.get("chat_id")
+                hranilishche.sobytie(
+                    int(chat_id) if str(chat_id or "").lstrip("-").isdigit() else None,
+                    tip, telo.get("dannye"))
+        except Exception as oshibka:
+            print("[событие] не разобрано:", repr(oshibka)[:120], flush=True)
+
+        # Отвечаем «принято» в любом случае. Приложение не должно ни падать,
+        # ни ждать из-за нашей аналитики: она нужна нам, а не человеку.
+        self.wfile.write(self._otvetit(b"{}", "application/json", kod=200))
+
     def do_HEAD(self):
         # UptimeRobot проверяет живость методом HEAD. Без обработчика
         # BaseHTTPRequestHandler отвечает 501, монитор считает сервис
@@ -583,7 +623,8 @@ class Stranica(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def log_message(self, *args):

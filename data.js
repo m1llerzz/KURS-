@@ -52,12 +52,13 @@ window.SERVICES = [
     "limit_per_operation": 1000000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-15T18:42:04+00:00",
+    "checked_at": "2026-08-15T18:57:48+00:00",
     "verified_by_receipt": false,
     "fee_unknown": true,
     "nacenka_percent": 4.06
   },
   {
+    "url": "https://avosend.com/",
     "id": "avosend",
     "name": "Avosend",
     "route": "A",
@@ -70,7 +71,7 @@ window.SERVICES = [
     "limit_per_operation": 1000000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-15T18:42:04+00:00",
+    "checked_at": "2026-08-15T18:57:48+00:00",
     "verified_by_receipt": false,
     "fee_unknown": true,
     "nacenka_percent": 4.06

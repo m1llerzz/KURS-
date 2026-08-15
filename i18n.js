@@ -77,6 +77,7 @@ window.I18N = (function () {
 
       'popup.total':     'Kartaga tushadi',
       'popup.est':       'Qabul qiluvchi bank kursi taxminiy — bank uni pul tushgan kuni belgilaydi.',
+      'popup.go':        'Xizmatga o’tish',
 
       'razbor.sent':        'Yuborildi',
       'razbor.fee':         'Xizmat komissiyasi',
@@ -187,6 +188,7 @@ window.I18N = (function () {
 
       'popup.total':     'Придёт на карту',
       'popup.est':       'Курс банка получателя оценочный — банк ставит его в день зачисления.',
+      'popup.go':        'Перейти в сервис',
 
       'razbor.sent':        'Отправлено',
       'razbor.fee':         'Комиссия сервиса',

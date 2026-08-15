@@ -8,6 +8,7 @@
 import json
 import os
 import threading
+import urllib.error
 import urllib.request
 
 os.environ.setdefault("BOT_TOKEN", "0:proverka")
@@ -124,6 +125,47 @@ try:
     with urllib.request.urlopen(zapros, timeout=10) as r:
         proverka("HEAD отвечает 200", r.status == 200,
                  "UptimeRobot ходит именно HEAD")
+
+    # ── Учёт событий ────────────────────────────────────────────────
+
+    def poslat_sobytie(telo, syroe=None):
+        dannye = syroe if syroe is not None else json.dumps(telo).encode("utf-8")
+        z = urllib.request.Request(
+            "http://127.0.0.1:18081/api/event", data=dannye,
+            headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(z, timeout=10) as r:
+            return r.status
+
+    proverka("событие принимается",
+             poslat_sobytie({"tip": "raschet", "chat_id": 1,
+                             "dannye": {"summa": "50-150k"}}) == 200)
+    proverka("событие без chat_id принимается",
+             poslat_sobytie({"tip": "otkryt"}) == 200,
+             "человек мог открыть приложение вне Telegram")
+    proverka("битое тело не роняет бота",
+             poslat_sobytie(None, syroe="{ это не json".encode("utf-8")) == 200,
+             "аналитика не должна ломать разговор с людьми")
+    proverka("пустое событие принимается", poslat_sobytie({}) == 200)
+
+    # Гигантское тело обязано отлетать: бесплатный тариф кладётся одним
+    # запросом, если читать сколько прислали.
+    proverka("огромное тело не читается целиком",
+             poslat_sobytie(None, syroe=b'{"tip":"x","d":"' + b"a" * 9000 + b'"}') == 200)
+
+    z = urllib.request.Request("http://127.0.0.1:18081/api/event",
+                               method="OPTIONS")
+    with urllib.request.urlopen(z, timeout=10) as r:
+        proverka("OPTIONS разрешает POST",
+                 "POST" in (r.headers.get("Access-Control-Allow-Methods") or ""),
+                 "браузер спрашивает разрешение перед POST на чужой адрес")
+
+    try:
+        urllib.request.urlopen(urllib.request.Request(
+            "http://127.0.0.1:18081/api/net-takogo", data=b"{}", method="POST"),
+            timeout=10)
+        proverka("неизвестный адрес отвечает 404", False, "ответил 200")
+    except urllib.error.HTTPError as e:
+        proverka("неизвестный адрес отвечает 404", e.code == 404, str(e.code))
 
 except Exception as oshibka:
     proverka("живой HTTP", False, repr(oshibka)[:200])
