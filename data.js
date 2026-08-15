@@ -21,7 +21,7 @@ window.TEST_DATA = true;
  * startapp=share помечает переходы, пришедшие из чужой пересылки: на третьей
  * неделе по нему станет видно, сколько людей приводит один расчёт.
  */
-window.BOT_LINK = 'https://t.me/qancha_yetadi_bot/calc?startapp=share';
+window.BOT_LINK = 'https://t.me/QanchaYetadi_bot/calc?startapp=share';
 
 window.SERVICES = [
   {
