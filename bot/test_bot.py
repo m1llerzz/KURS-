@@ -74,7 +74,8 @@ for lang in ("uz", "ru"):
         gotovo = bot.TEKSTY[lang]["uvedomlenie"].format(
             verdikt=bot.VERDIKTY[lang][ocenka["verdikt"]],
             kurs=ocenka["segodnya"], srednee=ocenka["srednee_30"],
-            stroka_summy=bot._stroka_summy(lang, ocenka, 50000))
+            stroka_summy=bot._stroka_summy(lang, ocenka, 50000),
+            sovet=bot.DEYSTVIYA[lang][ocenka["deystvie"]])
         proverka("оповещение собирается на " + lang, bool(gotovo))
         proverka("в оповещении на %s есть сумма" % lang, "50 000" in gotovo,
                  gotovo[:120])

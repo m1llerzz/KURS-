@@ -171,7 +171,7 @@ TEKSTY = {
             "<b>{verdikt}</b>\n\n"
             "Rubl: {kurs} so‘m (oydagi o‘rtacha {srednee})\n"
             "{stroka_summy}\n\n"
-            "Agar jo‘natmoqchi bo‘lsangiz — bugun yaxshi kun."
+            "{sovet}"
         ),
         "stop_knopka": "Boshqa yozmang",
         "trend": {"rastet": "kurs ko‘tarilmoqda",
@@ -252,7 +252,7 @@ TEKSTY = {
             "<b>{verdikt}</b>\n\n"
             "Рубль: {kurs} сум (среднее за месяц {srednee})\n"
             "{stroka_summy}\n\n"
-            "Если собирались отправлять — сегодня хороший день."
+            "{sovet}"
         ),
         "stop_knopka": "Больше не писать",
         "trend": {"rastet": "курс растёт",
@@ -785,6 +785,9 @@ def razoslat_uvedomleniya():
             kurs=chislo(ocenka["segodnya"]),
             srednee=chislo(ocenka["srednee_30"]),
             stroka_summy=_stroka_summy(lang, ocenka, c.get("summa_rub")),
+            # Совет берём из общей таблицы, а не пишем в шаблоне: иначе
+            # оповещение однажды скажет одно, а приложение другое.
+            sovet=DEYSTVIYA[lang][ocenka.get("deystvie") or "obychno"],
         )
         otvet = poslat(chat_id, tekst, [
             [{"text": t["knopka"], "web_app": {"url": PRILOZHENIE}}],
