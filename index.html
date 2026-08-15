@@ -133,6 +133,11 @@
 
   .note { font-size: 12px; color: var(--muted); line-height: 1.45; }
 
+  /* Сообщение о неверной сумме. Красное и прямо под полем: человек должен
+     понять, что не так, не отводя глаз от того места, где он ошибся. */
+  .err { margin: 6px 2px 0; font-size: 12.5px; color: var(--alert); font-weight: 600; }
+  .field.bad { border-color: var(--alert); }
+
   /* Переключатель языка. Кнопки узкие, поэтому width:100% от общего
      правила button здесь надо перебить, иначе они растянутся на экран. */
   .langs { display: flex; gap: 6px; justify-content: flex-end; }
@@ -194,9 +199,11 @@
     <div>
       <div class="lbl" data-i18n="lbl.send"></div>
       <div class="field" style="margin-top:6px">
-        <input id="summa" type="number" inputmode="numeric" value="50000" min="1000" step="1000">
+        <input id="summa" type="number" inputmode="numeric" value="50000"
+               min="1000" max="1000000" step="1000" maxlength="7">
         <span class="hint" data-i18n="hint.rub"></span>
       </div>
+      <p id="summaErr" class="err hidden"></p>
     </div>
 
     <div>
@@ -230,9 +237,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=4"></script>
-<script src="data.js?v=4"></script>
-<script src="calc.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="i18n.js?v=5"></script>
+<script src="data.js?v=5"></script>
+<script src="calc.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

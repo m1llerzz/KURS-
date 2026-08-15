@@ -25,7 +25,17 @@
     share:      document.getElementById('share'),
     disclaimer: document.getElementById('disclaimer'),
     kursDate:   document.getElementById('kursDate'),
+    summaErr:   document.getElementById('summaErr'),
   };
+
+  /**
+   * Границы суммы. Сверху — миллион: больше сервисы не проводят одной
+   * операцией, и считать такое значит показывать цифру, которой не бывает.
+   * Проверено на живом вводе: без верхней границы приложение спокойно
+   * считало пять квинтиллионов рублей и рисовало итог в двадцать знаков.
+   */
+  const MIN_SUMMA = 1000;
+  const MAX_SUMMA = 1000000;
 
   let posledniyRaschet = null;
   let posledniyKurs = null;
@@ -247,9 +257,46 @@
     if (posledniyRaschet) narisovat(posledniyRaschet, posledniyKurs);
   }
 
+  /* ── Проверка суммы ──────────────────────────────────── */
+
+  function pokazatOshibku(klyuch, podstanovki) {
+    el.summaErr.textContent = klyuch ? t(klyuch, podstanovki) : '';
+    el.summaErr.classList.toggle('hidden', !klyuch);
+    el.summa.parentNode.classList.toggle('bad', !!klyuch);
+    return !klyuch;
+  }
+
+  /** @returns {number|null} сумма, если она пригодна для расчёта */
+  function proveritSummu() {
+    const syroe = String(el.summa.value).trim();
+    if (syroe === '') return pokazatOshibku('err.nan') ? null : null;
+
+    const summa = parseFloat(syroe);
+    if (!isFinite(summa)) { pokazatOshibku('err.nan'); return null; }
+    if (summa < MIN_SUMMA) {
+      pokazatOshibku('err.min', { min: sum(MIN_SUMMA) });
+      return null;
+    }
+    if (summa > MAX_SUMMA) {
+      pokazatOshibku('err.max', { max: sum(MAX_SUMMA) });
+      return null;
+    }
+    pokazatOshibku(null);
+    return summa;
+  }
+
+  /** Прячем прошлый результат: он посчитан по другой сумме и уже врёт. */
+  function ochistitRezultat() {
+    el.results.innerHTML = '';
+    el.loss.classList.add('hidden');
+    el.share.classList.add('hidden');
+    el.disclaimer.classList.add('hidden');
+    posledniyRaschet = null;
+  }
+
   function poschitat() {
-    const summa = parseFloat(el.summa.value);
-    if (!summa || summa < 1000) return;
+    const summa = proveritSummu();
+    if (summa === null) { ochistitRezultat(); return; }
 
     zagruzitKursy().then(function (kursy) {
       posledniyKurs = kursy;
@@ -294,5 +341,13 @@
   el.schitat.addEventListener('click', poschitat);
   el.share.addEventListener('click', otpravitVChat);
   el.summa.addEventListener('keydown', function (e) { if (e.key === 'Enter') poschitat(); });
+
+  // Пока человек правит сумму, ошибку показываем сразу, но результат
+  // не пересчитываем: дёргать экран на каждый набранный ноль незачем.
+  // Старый результат при этом убираем — он посчитан по другой сумме.
+  el.summa.addEventListener('input', function () {
+    if (posledniyRaschet) ochistitRezultat();
+    proveritSummu();
+  });
 
 })();

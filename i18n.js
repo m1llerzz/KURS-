@@ -37,6 +37,10 @@ window.I18N = (function () {
       'btn.calc':        'Hisoblash',
       'btn.share':       'Chatga yuborish',
 
+      'err.min':         'Eng kami {min} ₽ — kichikroq summani hech kim yubormaydi',
+      'err.max':         'Eng ko’pi {max} ₽ — bundan katta o’tkazmani xizmatlar bir amalda qabul qilmaydi',
+      'err.nan':         'Summani raqam bilan kiriting',
+
       'loss.t':          'Eng yaxshi va eng yomon usul farqi',
       'loss.sub':        '{sum} ₽ dan · usul tanlashda shuncha yo’qoladi',
 
@@ -96,6 +100,10 @@ window.I18N = (function () {
       'bank.any':        'Не знаю',
       'btn.calc':        'Посчитать',
       'btn.share':       'Отправить в чат',
+
+      'err.min':         'Минимум {min} ₽ — меньше никто не отправляет',
+      'err.max':         'Максимум {max} ₽ — больше сервисы не проводят одной операцией',
+      'err.nan':         'Введите сумму цифрами',
 
       'loss.t':          'Разница между лучшим и худшим',
       'loss.sub':        'на {sum} ₽ · столько теряется на выборе способа',
