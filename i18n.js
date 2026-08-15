@@ -22,14 +22,14 @@ window.I18N = (function () {
     uz: {
       'app.name':        'Qancha yetadi',
 
-      'intro.h1':        'Kartaga qancha pul yetib boradi',
-      'intro.p1':        'Pul rubl yoki dollarda ketadi. Uni so’mga <b>qabul qiluvchi bank</b> aylantiradi — pul tushgan kundagi o’z kursi bo’yicha. Yuboruvchi bu kursni hech qayerda ko’rmaydi.',
-      // Число потери убрано 15 августа: «3–5%» и «400 000 so'm» были взяты
-      // из аналитики и никем не проверены. Открытые курсы банков дали 0,84%.
-      // Пока разброс не измерен на живых переводах, цифры здесь не будет.
-      'intro.big.v':     'Kursni bank belgilaydi',
-      'intro.big.k':     'Xizmat emas, qabul qiluvchi bank — pul tushgan kuni. Qancha ekanini oldindan hech kim ko’rsatmaydi',
-      'intro.p2':        'Biz komissiya, kurs va qabul qiluvchi bankni hisobga olib, kartaga tushadigan summani hisoblaymiz. Pul o’tkazmaymiz va qabul qilmaymiz — faqat raqamni ko’rsatamiz.',
+      // Вступление переписано 16 августа. Прежнее рассказывало про курс
+      // банка получателя — гипотезу, которая на замере не подтвердилась
+      // (0,84%). Первое, что читает человек, обязано быть правдой.
+      'intro.h1':        'Bugun yuborishmi yoki kutishmi',
+      'intro.p1':        'Oy ichida rubl kursi <b>155 dan 141 gacha</b> tushdi. Bu 9,5% — 50 000 rublda 670 ming so’m. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
+      'intro.big.v':     'Kun servisdan ko’ra ko’proq hal qiladi',
+      'intro.big.k':     'Servislar buni aytmaydi: ular aylanmadan ishlaydi va ularga «hozir yuboring» kerak',
+      'intro.p2':        'Biz bugungi kursni oyning o’rtachasi bilan solishtiramiz va kartaga qancha yetib borishini hisoblaymiz. Kelajakni bashorat qilmaymiz — faqat faktni ko’rsatamiz. Pul o’tkazmaymiz va qabul qilmaymiz.',
       'intro.ok':        'Tushunarli, yopish',
 
       'lbl.send':        'Yuboraman',
@@ -43,9 +43,9 @@ window.I18N = (function () {
       'idle.rate':       '1 ₽ = {r} so’m',
       'idle.rate.sub':   'Markaziy bank kursi, {d} — hisob shundan boshlanadi',
       'idle.rate.old':   'Markaziy bank kursi yangilanmadi — raqamlar taxminiy',
-      'idle.s1':         'Xizmat komissiyani darrov summangizdan ushlab qoladi',
-      'idle.s2':         'Qolganini O’zbekistondagi bank so’mga almashtiradi. Kursni bank o’zi, pul tushgan kuni belgilaydi',
-      'idle.s3':         'Biz kartaga oxirida qancha tushishini va usullar qanchaga farq qilishini hisoblaymiz',
+      'idle.s1':         'Eng ko’pini kun kursi hal qiladi — oyda 9,5% gacha',
+      'idle.s2':         'Servis kursi rasmiydan yana 4% ga past',
+      'idle.s3':         'Hammasini birga hisoblab, kartaga qancha tushishini ko’rsatamiz',
 
       'err.min':         'Eng kami {min} ₽ — kichikroq summani hech kim yubormaydi',
       'err.max':         'Eng ko’pi {max} ₽ — bundan katta o’tkazmani xizmatlar bir amalda qabul qilmaydi',
@@ -147,19 +147,19 @@ window.I18N = (function () {
 
       // Пересылка — главный способ, которым про нас узнают. Поэтому здесь
       // не только цифры: нужна строка, объясняющая чужому человеку, что он видит.
-      'share.title':     '{sum} ₽ yuboryapman — qaysi usulda ko’proq yetib borishini tekshirdim.',
-      'share.diff':      'Farq {p}% chiqdi. Komissiya emas — uydagi bank kursi tufayli.',
-      'share.cta':       'Yuborishdan oldin o’zingiznikini hisoblang.',
+      'share.title':     '{sum} ₽ yuboryapman — avval kursni tekshirdim.',
+      'share.diff':      'Usullar orasidagi farq {p}% chiqdi.',
+      'share.cta':       'Yuborishdan oldin kursga qarang.',
     },
 
     ru: {
       'app.name':        'Сколько дойдёт',
 
-      'intro.h1':        'Сколько денег реально дойдёт до карты',
-      'intro.p1':        'Перевод уходит в рублях или долларах. В сумы его превращает <b>банк получателя</b> — по своему курсу в день зачисления. Этого курса отправитель не видит нигде.',
-      'intro.big.v':     'Курс ставит банк',
-      'intro.big.k':     'Не сервис, а банк получателя — в день зачисления. Сколько именно, заранее не показывает никто',
-      'intro.p2':        'Мы считаем итог на карту с учётом комиссии, курса и банка получателя. Деньги не переводим и не принимаем — только показываем цифру.',
+      'intro.h1':        'Отправлять сегодня или подождать',
+      'intro.p1':        'За месяц курс рубля прошёл путь <b>от 155 до 141</b>. Это 9,5% — на 50 000 ₽ это 670 тысяч сум. Не какой сервис, а какой <b>день</b> — вот где основные деньги.',
+      'intro.big.v':     'День решает больше, чем сервис',
+      'intro.big.k':     'Сервисы об этом молчат: они зарабатывают на объёме, и им нужно «отправьте сейчас»',
+      'intro.p2':        'Мы сравниваем сегодняшний курс со средним за месяц и считаем, сколько дойдёт до карты. Будущее не предсказываем — показываем факт. Деньги не переводим и не принимаем.',
       'intro.ok':        'Понятно, скрыть',
 
       'lbl.send':        'Отправляю',
@@ -173,9 +173,9 @@ window.I18N = (function () {
       'idle.rate':       '1 ₽ = {r} сум',
       'idle.rate.sub':   'Курс ЦБ, {d} — с него начинается расчёт',
       'idle.rate.old':   'Курс ЦБ обновить не удалось — цифры ориентировочные',
-      'idle.s1':         'Сервис снимает комиссию — сразу, с вашей суммы',
-      'idle.s2':         'Остаток меняет на сумы банк в Узбекистане. Курс он ставит сам, в день зачисления',
-      'idle.s3':         'Мы считаем, сколько в итоге ляжет на карту и насколько расходятся способы',
+      'idle.s1':         'Курс дня решает больше всего — до 9,5% за месяц',
+      'idle.s2':         'Курс сервиса ниже официального ещё примерно на 4%',
+      'idle.s3':         'Считаем всё вместе и показываем, сколько ляжет на карту',
 
       'err.min':         'Минимум {min} ₽ — меньше никто не отправляет',
       'err.max':         'Максимум {max} ₽ — больше сервисы не проводят одной операцией',
@@ -280,9 +280,9 @@ window.I18N = (function () {
 
       'err.net':         'Свежие курсы не получены — считаю по данным на {d}',
 
-      'share.title':     'Отправляю {sum} ₽ — проверил, каким способом дойдёт больше.',
-      'share.diff':      'Разница вышла {p}%. Не из-за комиссии — из-за курса банка дома.',
-      'share.cta':       'Посчитай свой, пока не отправил.',
+      'share.title':     'Отправляю {sum} ₽ — сначала проверил курс.',
+      'share.diff':      'Разница между способами вышла {p}%.',
+      'share.cta':       'Посмотри курс, прежде чем отправлять.',
     },
 
   };

@@ -136,6 +136,19 @@ function dozhdatsya() {
     'по-русски и по-узбекски дробная часть отделяется запятой');
 
   // Источники — причина верить всему остальному.
+  // Вступление — первое, что читает новый человек. Оно рассказывало
+  // историю про курс банка получателя, которая на замере не подтвердилась
+  // (0,84%). Первое впечатление обязано быть правдой.
+  const intro = w.document.getElementById('intro');
+  proverka('во вступлении новая история, про день',
+    /день|kun/i.test(intro.textContent) && /9,5|155|141/.test(intro.textContent),
+    intro.textContent.slice(0, 120));
+  proverka('во вступлении нет опровергнутой истории про банк получателя',
+    !/банк получателя|qabul qiluvchi bank/i.test(intro.textContent),
+    'разброс банков 0,84% — это не то, чем открывают продукт');
+  proverka('во вступлении сказано, что мы не предсказываем',
+    /не предсказыва|bashorat qilmaymiz/i.test(intro.textContent));
+
   const src = w.document.querySelector('details.src');
   proverka('блок источников есть', !!src);
   proverka('названы оба источника поимённо',
