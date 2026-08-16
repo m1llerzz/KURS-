@@ -67,6 +67,10 @@ window.I18N = (function () {
       'detail.better':   'bank kursi rasmiydan {p}% yuqori',
       'detail.stale':    'bank kursi aniqlanmoqda',
       'detail.limit':    'limitdan yuqori - hujjat tekshiruvi kerak',
+      // Pastki chegara ham bor: Yubor 100 dollardan kam o‘tkazmani
+      // qabul qilmaydi. Buni aytmasak, odam buni servisning o‘zidan
+      // bilib oladi — biz hisoblab bergandan keyin.
+      'detail.min':      'bu summa uchun juda kam - servis qabul qilmaydi',
 
       'empty':           'Ma’lumotlar yangilanmoqda. Bir soatdan keyin kiring — noto’g’ri raqam ko’rsatmaymiz.',
       'test':            'TEST MA’LUMOT, raqamlar o’ylab topilgan. ',
@@ -227,6 +231,10 @@ window.I18N = (function () {
       'detail.better':   'курс банка выше официального на {p}%',
       'detail.stale':    'курс банка уточняется',
       'detail.limit':    'выше лимита - нужна проверка документов',
+      // Нижняя граница тоже бывает: Yubor не принимает переводы меньше
+      // ста долларов. Не сказать значит дать человеку посчитать и
+      // отправить его получать отказ в самом сервисе.
+      'detail.min':      'меньше минимума - сервис не примет',
 
       'empty':           'Данные обновляются. Загляните через час — показывать неверные цифры мы не будем.',
       'test':            'ТЕСТОВЫЕ ДАННЫЕ, цифры выдуманы. ',

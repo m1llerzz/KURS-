@@ -193,6 +193,11 @@ window.CALC = (function () {
         delivery_minutes: servis.delivery_minutes,
         svezhest: svezhest,
         vyshe_limita: vvod.summa > servis.limit_per_operation,
+        /* У сервисов бывает и нижняя граница: Yubor не принимает
+         * переводы меньше ста долларов. Без этой проверки человек с
+         * десятью тысячами рублей видел бы способ, которым не может
+         * воспользоваться, — и узнал бы об этом уже в самом сервисе. */
+        nizhe_minimuma: !!servis.limit_min && vvod.summa < servis.limit_min,
         vilka: vilka,
         total_uzs: itog.total_uzs,
         ocenochnyi: itog.ocenochnyi,
@@ -211,14 +216,18 @@ window.CALC = (function () {
     // Раньше сверху с меткой «больше всего» вставал способ, помеченный
     // «выше лимита»: он показывал сумму, которую по нему не отправить.
     rezultaty.sort(function (a, b) {
-      if (a.vyshe_limita !== b.vyshe_limita) return a.vyshe_limita ? 1 : -1;
+      const aNedostupen = a.vyshe_limita || a.nizhe_minimuma;
+      const bNedostupen = b.vyshe_limita || b.nizhe_minimuma;
+      if (aNedostupen !== bNedostupen) return aNedostupen ? 1 : -1;
       return b.total_uzs - a.total_uzs;
     });
 
     // Разницу считаем только среди доступных способов. Иначе она надувается
     // за счёт варианта, которым всё равно нельзя воспользоваться, и обещает
     // выгоду, которой у человека нет.
-    const dostupnye = rezultaty.filter(function (r) { return !r.vyshe_limita; });
+    const dostupnye = rezultaty.filter(function (r) {
+      return !r.vyshe_limita && !r.nizhe_minimuma;
+    });
     const skrytaya_poterya = dostupnye.length > 1
       ? dostupnye[0].total_uzs - dostupnye[dostupnye.length - 1].total_uzs
       : 0;

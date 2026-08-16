@@ -699,6 +699,7 @@
         detali.push(t('detail.stale'));
       }
       if (r.vyshe_limita) detali.push(t('detail.limit'));
+      if (r.nizhe_minimuma) detali.push(t('detail.min'));
 
       const summa = r.vilka
         ? sum(r.vilka.ot) + ' – ' + sum(r.vilka.do)

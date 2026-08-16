@@ -805,6 +805,57 @@ function dozhdatsya() {
     Object.keys(sPartnerskim.results[0]).join(', ') +
       ' — пока поля нет, отсортировать по нему невозможно');
 
+  /* ── 3г. Недоступный способ не встаёт первым ───────────────────── */
+  //
+  // У сервисов есть обе границы. Yubor не принимает переводы меньше ста
+  // долларов и больше тысячи двухсот; у Avosend потолок 200 000 ₽.
+  // Способ, которым человек не может воспользоваться, не должен стоять
+  // сверху с меткой «больше всего» — он показывает сумму, которую по
+  // нему не отправить, и человек узнает об этом уже в самом сервисе.
+
+  const sGranicami = [
+    {
+      id: 'uzkiy', name: 'Узкий', route: 'A', corridors: ['RU-UZ'],
+      fee_fixed: 0, fee_percent: 0, rate_rub_uzs: 140.0,
+      limit_min: 9000, limit_per_operation: 100000,
+      delivery_minutes: 60, incoming_fee: 0,
+      checked_at: new Date().toISOString(),
+    },
+    {
+      id: 'shirokiy', name: 'Широкий', route: 'A', corridors: ['RU-UZ'],
+      fee_fixed: 0, fee_percent: 0, rate_rub_uzs: 135.0,
+      limit_per_operation: 500000,
+      delivery_minutes: 60, incoming_fee: 0,
+      checked_at: new Date().toISOString(),
+    },
+  ];
+
+  function schitat(summa) {
+    return w.CALC.poschitat({ summa: summa, bank_id: null, corridor: 'RU-UZ' },
+      sGranicami, [], { usd_uzs: 11937.89, rub_uzs: 141.76 });
+  }
+
+  const malo = schitat(3000);
+  proverka('ниже минимума способ помечен',
+    malo.results.some(function (r) { return r.nizhe_minimuma; }),
+    'Yubor не принимает меньше ста долларов, и молчать об этом нельзя');
+  proverka('при малой сумме сверху доступный способ',
+    malo.results[0].service_id === 'shirokiy',
+    'первым идёт ' + malo.results[0].service_id +
+      ' — недоступный не должен стоять с меткой «больше всего»');
+
+  const mnogo = schitat(300000);
+  proverka('выше лимита способ помечен',
+    mnogo.results.some(function (r) { return r.vyshe_limita; }));
+  proverka('при крупной сумме сверху доступный способ',
+    mnogo.results[0].service_id === 'shirokiy',
+    'первым идёт ' + mnogo.results[0].service_id);
+
+  const vsamyyraz = schitat(50000);
+  proverka('в рабочем диапазоне сверху тот, где придёт больше',
+    vsamyyraz.results[0].service_id === 'uzkiy',
+    'курс 140 против 135 — выигрывает узкий, если он доступен');
+
   /* ── 4а. Кеш не заслоняет свежие данные ────────────────────────── */
   //
   // Здесь стоял ранний возврат: есть кеш моложе суток — берём его и в
