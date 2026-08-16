@@ -1546,6 +1546,45 @@ def svodka_dlya_svoih():
     print("[сводка] отправлена", flush=True)
 
 
+def data_kursa_seychas():
+    """Дата последнего курса ЦБ, а не сегодняшнее число. Или None."""
+    dannye = svezhie_dannye() or {}
+    ocenka = dannye.get("sovet") or {}
+    if ocenka.get("data"):
+        return str(ocenka["data"])[:10]
+    istoriya = dannye.get("history") or []
+    if istoriya:
+        return max((str(z.get("date") or "")[:10] for z in istoriya)) or None
+    return None
+
+
+def odnazhdy(kluch, metka, deystvie):
+    """Выполняет `deystvie` один раз на каждое новое значение `metka`.
+
+    Отметка живёт в хранилище, а не в памяти процесса, и в этом весь
+    смысл. На бесплатном тарифе Render перезапускает сервис сам, и
+    переменная внутри цикла обнулялась вместе с ним: после каждого
+    пробуждения бот считал, что сегодня ещё не публиковал, — и публиковал
+    заново. Читатель видел бы один и тот же пост столько раз, сколько
+    Render решит нас разбудить, а канал отписывают за меньшее.
+
+    Записываем ПОСЛЕ действия: не сделали — не запомнили, попробуем через
+    час. Если запомнить не удалось, говорим об этом вслух — молча
+    оставлять возможность повтора нельзя.
+    """
+    metka = str(metka)
+    if hranilishche.sostoyanie(kluch) == metka:
+        return False
+
+    if not deystvie():
+        return False
+
+    if not hranilishche.zapisat_sostoyanie(kluch, metka):
+        print("[планировщик] ВНИМАНИЕ: «%s» сделано, но не запомнилось — "
+              "возможен повтор" % kluch, flush=True)
+    return True
+
+
 def chasovoy_uvedomleniy():
     """Проверяем раз в час, шлём не чаще раза в сутки и только днём.
 
@@ -1553,9 +1592,6 @@ def chasovoy_uvedomleniy():
     способ быть отключённым, каким бы полезным ни было сообщение.
     """
     posledniy_den = None
-    posledniaya_svodka = None
-    posledniy_post = None
-    posledniy_ryvok = None
     while True:
         try:
             teper = datetime.now(timezone.utc) + timedelta(hours=5)
@@ -1564,25 +1600,49 @@ def chasovoy_uvedomleniy():
             # Сводка по понедельникам, одна за неделю. Ключ — номер недели,
             # а не дата: иначе при перезапуске в тот же понедельник она
             # ушла бы второй раз.
-            nedelya = teper.isocalendar()[:2]
-            if teper.weekday() == 0 and teper.hour >= 10 and nedelya != posledniaya_svodka:
-                svodka_dlya_svoih()
-                posledniaya_svodka = nedelya
+            if teper.weekday() == 0 and teper.hour >= 10:
+                odnazhdy("svodka", "%d-%02d" % teper.isocalendar()[:2],
+                         svodka_dlya_svoih)
 
-            # Пост в канал — раз в сутки, утром. Курс люди смотрят с утра,
-            # до того как решить, отправлять сегодня или нет.
-            if teper.hour >= 9 and den != posledniy_post:
-                if opublikovat_v_kanale():
-                    posledniy_post = den
+            # Пост в канал — утром, и только когда есть о чём сказать.
+            #
+            # Ключ — ДАТА КУРСА, а не сегодняшнее число. ЦБ не публикует по
+            # выходным, и по календарю в субботу и воскресенье выходили бы
+            # ещё два поста с теми же числами и той же пятничной датой:
+            # три одинаковых сообщения подряд. Правило проекта прямое —
+            # молчание лучше повтора, и канал, в котором нечего сказать,
+            # честнее канала, который повторяется.
+            #
+            # Итоги недели и месяца привязаны к своим срокам, а не к
+            # курсу: они выходят раз в неделю и раз в месяц независимо от
+            # того, обновился ли курс в этот день.
+            vid = vid_posta_na_segodnya(teper)
+            tolko_chto_pisali = False
+            if teper.hour >= 9:
+                if vid == "nedelya":
+                    metka = "%d-%02d" % teper.isocalendar()[:2]
+                elif vid == "mesyac":
+                    metka = teper.strftime("%Y-%m")
+                else:
+                    metka = data_kursa_seychas()
+
+                if metka:
+                    tolko_chto_pisali = odnazhdy(
+                        "post_" + vid, metka, lambda: _opublikovat(vid))
 
             # Внеочередной пост про резкое движение курса — после обеда и
-            # только если утренний уже вышел. Два поста подряд читаются
-            # как спам даже в канале, а разнесённые по времени — как две
-            # разные новости. Один за сутки, не больше.
-            if (teper.hour >= 13 and den == posledniy_post
-                    and den != posledniy_ryvok):
-                if opublikovat_ryvok():
-                    posledniy_ryvok = den
+            # никогда в том же проходе, что утренний. Два сообщения подряд
+            # читаются как спам даже в канале, а разнесённые по времени —
+            # как две разные новости. Проход бывает и в два часа дня: бот
+            # перезапускается когда угодно, и тогда оба поста собрались бы
+            # в одну минуту.
+            #
+            # Ключ снова дата курса: рывок описывает движение к ней, и по
+            # календарю он повторился бы все выходные.
+            if teper.hour >= 13 and not tolko_chto_pisali:
+                data_ryvka = data_kursa_seychas()
+                if data_ryvka:
+                    odnazhdy("post_ryvok", data_ryvka, opublikovat_ryvok)
             if 10 <= teper.hour <= 20 and den != posledniy_den:
                 # Сначала личные цели, потом общая рассылка. Порядок важен:
                 # человек, дождавшийся своего курса, не должен получить
@@ -1732,8 +1792,9 @@ def podnyat_stranicu():
 # последствие, а не про имя: «нет CHANNEL_ID» ни о чём не говорит через
 # месяц, а «постов в канале не будет» говорит всё.
 NASTROYKI = [
-    ("DATABASE_URL", "подписчики сотрутся при первом же перезапуске, "
-                     "события никуда не пишутся"),
+    ("DATABASE_URL", "подписчики сотрутся при первом же перезапуске, события "
+                     "не пишутся, и один и тот же пост может уйти в канал "
+                     "несколько раз"),
     ("CHANNEL_ID", "постов в канале не будет, ссылка на канал не появится"),
     ("ADMIN_CHAT_ID", "еженедельная сводка не придёт"),
     ("SVOI", "команда /tekst недоступна даже своим"),

@@ -739,6 +739,135 @@ else:
     proverka("возраст страницы правдоподобен", _vozrast < 3650, str(_vozrast))
 
 
+# ── Повторные посты в канал ──────────────────────────────────────────
+#
+# Два способа отправить читателю один и тот же пост дважды, и оба
+# выстрелили бы в первый же день после создания канала.
+#
+# Первый: отметка «сегодня уже публиковал» жила в памяти процесса. На
+# бесплатном тарифе Render перезапускает сервис сам, и после каждого
+# пробуждения бот считал, что ещё не публиковал.
+#
+# Второй: ключом был календарный день. ЦБ не публикует курс по выходным,
+# значит в субботу и воскресенье выходили бы ещё два поста с теми же
+# числами и той же пятничной датой.
+
+_otpravleno_v_kanal = []
+
+
+def _zapomnit_vyzov(metod, dannye=None):
+    if metod == "sendMessage":
+        _otpravleno_v_kanal.append(dannye)
+    return {"ok": True, "result": {"message_id": len(_otpravleno_v_kanal)}}
+
+
+_bylo_sostoyanie = {}
+
+
+def _chistoe_sostoyanie():
+    """Хранилище состояния с нуля — как у только что заведённого бота."""
+    _bylo_sostoyanie.clear()
+    bot.hranilishche.sostoyanie = lambda k, po_umolchaniyu=None: (
+        _bylo_sostoyanie.get(k, po_umolchaniyu))
+    bot.hranilishche.zapisat_sostoyanie = lambda k, z: (
+        _bylo_sostoyanie.__setitem__(k, str(z)) or True)
+
+
+_nastoyashchie = (bot.hranilishche.sostoyanie,
+                  bot.hranilishche.zapisat_sostoyanie, bot.vyzov)
+try:
+    _chistoe_sostoyanie()
+
+    # «odnazhdy» — сердце защиты: одно действие на одно значение метки.
+    _schetchik = [0]
+
+    def _deystvie():
+        _schetchik[0] += 1
+        return True
+
+    proverka("первый раз действие выполняется",
+             bot.odnazhdy("proba", "A", _deystvie) is True)
+    proverka("на ту же метку второй раз не выполняется",
+             bot.odnazhdy("proba", "A", _deystvie) is False)
+    proverka("действие выполнилось ровно один раз", _schetchik[0] == 1,
+             str(_schetchik[0]))
+    proverka("на новую метку выполняется снова",
+             bot.odnazhdy("proba", "B", _deystvie) is True)
+    proverka("теперь ровно два раза", _schetchik[0] == 2, str(_schetchik[0]))
+
+    # Неудачное действие не запоминается: через час попробуем ещё раз.
+    proverka("неудача не запоминается",
+             bot.odnazhdy("proba2", "A", lambda: False) is False)
+    proverka("после неудачи попытка повторится",
+             bot.odnazhdy("proba2", "A", lambda: True) is True)
+
+    # Отметка переживает перезапуск. Изображаем его: состояние осталось,
+    # а все переменные внутри цикла обнулились.
+    proverka("после перезапуска повтора нет",
+             bot.odnazhdy("proba", "B", _deystvie) is False,
+             "отметка обязана лежать в хранилище, а не в памяти процесса")
+
+    # Пост дня привязан к дате курса, а не к календарю.
+    _chistoe_sostoyanie()
+    bot.vyzov = _zapomnit_vyzov
+    _byl_kanal_post = os.environ.get("CHANNEL_ID")
+    os.environ["CHANNEL_ID"] = "@testovyy_kanal"
+
+    _dannye_pyatnicy = {
+        "cbu": {"rub_uzs": 141.76, "usd_uzs": 12000.0, "date": "14.08.2026"},
+        "history": [{"date": "2026-07-%02d" % d, "rub_uzs": 150.0}
+                    for d in (17, 20, 21, 22, 23)]
+        + [{"date": "2026-08-%02d" % d, "rub_uzs": k} for d, k in
+           ((3, 150.4), (4, 149.5), (5, 147.4), (6, 146.4), (7, 146.2),
+            (10, 145.2), (11, 144.6), (12, 143.9), (13, 144.3), (14, 141.76))],
+    }
+    _dannye_pyatnicy["sovet"] = sovet.analiz(_dannye_pyatnicy["history"])
+
+    bot._dannye["snimok"] = _dannye_pyatnicy
+    bot._dannye["obnovleno"] = __import__("time").time()
+
+    proverka("дата курса берётся из данных, а не с часов",
+             bot.data_kursa_seychas() == "2026-08-14",
+             str(bot.data_kursa_seychas()))
+
+    _otpravleno_v_kanal[:] = []
+    bot.odnazhdy("post_den", bot.data_kursa_seychas(),
+                 lambda: bot._opublikovat("den"))
+    proverka("пятничный пост ушёл", len(_otpravleno_v_kanal) == 1,
+             str(len(_otpravleno_v_kanal)))
+
+    # Суббота и воскресенье: данные те же, курс тот же. Молчание.
+    for _den in ("суббота", "воскресенье"):
+        bot.odnazhdy("post_den", bot.data_kursa_seychas(),
+                     lambda: bot._opublikovat("den"))
+    proverka("в выходные пост не повторяется", len(_otpravleno_v_kanal) == 1,
+             "%d сообщений — три одинаковых поста подряд читаются как спам"
+             % len(_otpravleno_v_kanal))
+
+    # Понедельник: ЦБ опубликовал новый курс — есть о чём сказать.
+    _dannye_ponedelnika = dict(_dannye_pyatnicy)
+    _dannye_ponedelnika["history"] = (
+        _dannye_pyatnicy["history"] + [{"date": "2026-08-17", "rub_uzs": 143.0}])
+    _dannye_ponedelnika["sovet"] = sovet.analiz(_dannye_ponedelnika["history"])
+    bot._dannye["snimok"] = _dannye_ponedelnika
+
+    proverka("дата курса сдвинулась на понедельник",
+             bot.data_kursa_seychas() == "2026-08-17",
+             str(bot.data_kursa_seychas()))
+
+    bot.odnazhdy("post_den", bot.data_kursa_seychas(),
+                 lambda: bot._opublikovat("den"))
+    proverka("на новый курс пост выходит", len(_otpravleno_v_kanal) == 2,
+             str(len(_otpravleno_v_kanal)))
+finally:
+    (bot.hranilishche.sostoyanie,
+     bot.hranilishche.zapisat_sostoyanie, bot.vyzov) = _nastoyashchie
+    if _byl_kanal_post is None:
+        os.environ.pop("CHANNEL_ID", None)
+    else:
+        os.environ["CHANNEL_ID"] = _byl_kanal_post
+
+
 # ── Сообщение о незаданных настройках ────────────────────────────────
 #
 # Единственное место, куда Семён точно заглянет: логи Render открываются

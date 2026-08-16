@@ -146,7 +146,62 @@ def podnyat():
             dannye    TEXT,
             sozdano_v TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )""")
+
+    # Служебная память бота: что уже опубликовано, что уже разослано.
+    # Раньше это жило в переменных внутри цикла, то есть в памяти
+    # процесса. На бесплатном тарифе сервис перезапускается сам по себе, и
+    # после каждого перезапуска бот считал, что сегодня ещё ничего не
+    # публиковал, — и публиковал заново. Читатель канала видел бы один и
+    # тот же пост столько раз, сколько Render решит нас разбудить.
+    _vypolnit("""
+        CREATE TABLE IF NOT EXISTS sostoyanie (
+            kluch      TEXT PRIMARY KEY,
+            znachenie  TEXT,
+            obnovleno  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )""")
     print("[хранилище] Postgres готов", flush=True)
+
+
+# ── Служебная память ─────────────────────────────────────────────────
+
+def sostoyanie(kluch, po_umolchaniyu=None):
+    """Что записано под этим ключом. Нет записи — `po_umolchaniyu`."""
+    if na_postgres():
+        ryady = _vypolnit("SELECT znachenie FROM sostoyanie WHERE kluch = %s",
+                          (kluch,), vernut=True)
+        if ryady:
+            return ryady[0][0]
+        return po_umolchaniyu
+
+    return (_chitat_fayl().get("sostoyanie") or {}).get(kluch, po_umolchaniyu)
+
+
+def zapisat_sostoyanie(kluch, znachenie):
+    """Запоминает значение под ключом. Возвращает True, если получилось.
+
+    Ответ важен: вызывающий по нему решает, публиковать ли. Если запомнить
+    не удалось, честнее промолчать, чем отправить пост, о котором мы потом
+    забудем и отправим его снова.
+    """
+    znachenie = str(znachenie)
+
+    if na_postgres():
+        return bool(_vypolnit(
+            "INSERT INTO sostoyanie (kluch, znachenie, obnovleno) "
+            "VALUES (%s, %s, NOW()) "
+            "ON CONFLICT (kluch) DO UPDATE SET "
+            "znachenie = EXCLUDED.znachenie, obnovleno = NOW()",
+            (kluch, znachenie)))
+
+    try:
+        dannye = _chitat_fayl()
+        dannye.setdefault("sostoyanie", {})[kluch] = znachenie
+        _pisat_fayl(dannye)
+        return True
+    except Exception as oshibka:
+        print("[хранилище] состояние не записалось:", repr(oshibka)[:200],
+              flush=True)
+        return False
 
 
 def zapisat_cheloveka(chat_id, **polya):
