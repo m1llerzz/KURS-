@@ -859,6 +859,29 @@ try:
                  lambda: bot._opublikovat("den"))
     proverka("на новый курс пост выходит", len(_otpravleno_v_kanal) == 2,
              str(len(_otpravleno_v_kanal)))
+
+    # Пятница-суббота. В пятницу выходит итог недели с пятничным курсом.
+    # В субботу нового курса нет, и пост дня о том же курсе выглядел бы не
+    # вторым постом, а первым, отставшим на сутки.
+    _chistoe_sostoyanie()
+    _otpravleno_v_kanal[:] = []
+    bot._dannye["snimok"] = _dannye_pyatnicy
+
+    _data = bot.data_kursa_seychas()
+    if bot.odnazhdy("post_nedelya", "2026-33", lambda: bot._opublikovat("nedelya")):
+        bot.hranilishche.zapisat_sostoyanie("kurs_osveshchen", _data)
+    proverka("пятничный итог недели ушёл", len(_otpravleno_v_kanal) == 1,
+             str(len(_otpravleno_v_kanal)))
+
+    _uzhe = bot.hranilishche.sostoyanie("kurs_osveshchen") == _data
+    proverka("курс помечен как освещённый", _uzhe,
+             str(bot.hranilishche.sostoyanie("kurs_osveshchen")))
+    if not _uzhe:
+        bot.odnazhdy("post_den", _data, lambda: bot._opublikovat("den"))
+    proverka("в субботу пост дня не дублирует пятничный",
+             len(_otpravleno_v_kanal) == 1,
+             "%d сообщений — тот же курс и та же дата сутки спустя"
+             % len(_otpravleno_v_kanal))
 finally:
     (bot.hranilishche.sostoyanie,
      bot.hranilishche.zapisat_sostoyanie, bot.vyzov) = _nastoyashchie

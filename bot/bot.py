@@ -1617,6 +1617,7 @@ def chasovoy_uvedomleniy():
             # курсу: они выходят раз в неделю и раз в месяц независимо от
             # того, обновился ли курс в этот день.
             vid = vid_posta_na_segodnya(teper)
+            data_kursa = data_kursa_seychas()
             tolko_chto_pisali = False
             if teper.hour >= 9:
                 if vid == "nedelya":
@@ -1624,11 +1625,23 @@ def chasovoy_uvedomleniy():
                 elif vid == "mesyac":
                     metka = teper.strftime("%Y-%m")
                 else:
-                    metka = data_kursa_seychas()
+                    metka = data_kursa
 
-                if metka:
+                # Про один курс — один пост дня, каким бы видом он ни был
+                # рассказан. Иначе выходило так: в пятницу итог недели с
+                # пятничным курсом, а в субботу ещё и пост дня с ним же —
+                # те же числа и та же дата, только сутки спустя. Читатель
+                # видит не два поста, а один отставший.
+                uzhe_govorili = (vid == "den" and data_kursa
+                                 and hranilishche.sostoyanie("kurs_osveshchen")
+                                 == data_kursa)
+
+                if metka and not uzhe_govorili:
                     tolko_chto_pisali = odnazhdy(
                         "post_" + vid, metka, lambda: _opublikovat(vid))
+                    if tolko_chto_pisali and data_kursa:
+                        hranilishche.zapisat_sostoyanie("kurs_osveshchen",
+                                                        data_kursa)
 
             # Внеочередной пост про резкое движение курса — после обеда и
             # никогда в том же проходе, что утренний. Два сообщения подряд
@@ -1639,10 +1652,8 @@ def chasovoy_uvedomleniy():
             #
             # Ключ снова дата курса: рывок описывает движение к ней, и по
             # календарю он повторился бы все выходные.
-            if teper.hour >= 13 and not tolko_chto_pisali:
-                data_ryvka = data_kursa_seychas()
-                if data_ryvka:
-                    odnazhdy("post_ryvok", data_ryvka, opublikovat_ryvok)
+            if teper.hour >= 13 and not tolko_chto_pisali and data_kursa:
+                odnazhdy("post_ryvok", data_kursa, opublikovat_ryvok)
             if 10 <= teper.hour <= 20 and den != posledniy_den:
                 # Сначала личные цели, потом общая рассылка. Порядок важен:
                 # человек, дождавшийся своего курса, не должен получить
