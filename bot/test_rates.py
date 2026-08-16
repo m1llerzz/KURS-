@@ -314,6 +314,34 @@ finally:
         os.remove(_vremenny_kesh)
 
 
+# ── День считается по Ташкенту, а не по UTC ──────────────────────────
+#
+# Курс ЦБ датируется днём Узбекистана. С семи вечера по UTC там уже
+# следующий день, и «сегодня» по UTC отстаёт на сутки: сборщик не
+# спрашивает про день, за который курс уже опубликован, а текущий курс на
+# экране при этом свежий. Поймано 16 августа в 20:00 UTC — курс за 17-е
+# был, в ряду последняя точка стояла за 14-е.
+#
+# Тот же по сути дефект уже чинили в кеше истории. Место другое, причина
+# одна, поэтому проверка стоит на самой функции дня.
+
+_utc_segodnya = _dt.datetime.now(_dt.timezone.utc).date()
+_tashkent = rates.segodnya_v_tashkente()
+
+proverka("день Ташкента не отстаёт от UTC", _tashkent >= _utc_segodnya,
+         "%s против %s" % (_tashkent, _utc_segodnya))
+proverka("день Ташкента опережает UTC не больше чем на сутки",
+         (_tashkent - _utc_segodnya).days <= 1,
+         "%s против %s" % (_tashkent, _utc_segodnya))
+
+# Вечером по UTC в Ташкенте уже завтра — именно это окно и ломалось.
+_vecher_utc = _dt.datetime(2026, 8, 16, 20, 0, tzinfo=_dt.timezone.utc)
+proverka("в 20:00 UTC в Ташкенте уже следующий день",
+         (_vecher_utc + rates.CHASOVOY_POYAS).date()
+         == _dt.date(2026, 8, 17),
+         str((_vecher_utc + rates.CHASOVOY_POYAS).date()))
+
+
 # ── Разбор bank.uz ───────────────────────────────────────────────────
 #
 # Второй источник продукта. Из него берутся все «способы» и наценка
@@ -435,7 +463,9 @@ else:
                  "выходные дублируют пятницу")
         proverka("живой ряд отсортирован", daty == sorted(daty))
 
-        segodnya_iso = _dt.datetime.now(_dt.timezone.utc).date().isoformat()
+        # «Сегодня» здесь тоже по Ташкенту: курс за 17-е появляется, когда
+        # по UTC ещё 16-е, и проверка на UTC объявила бы его будущим.
+        segodnya_iso = rates.segodnya_v_tashkente().isoformat()
         proverka("в живом ряду нет дат из будущего",
                  all(d <= segodnya_iso for d in daty), daty[-1])
 

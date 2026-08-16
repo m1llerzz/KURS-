@@ -63,6 +63,26 @@ def _teper():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+# Узбекистан живёт в UTC+5, и курс ЦБ датируется ЕГО днём, а не нашим.
+CHASOVOY_POYAS = timedelta(hours=5)
+
+
+def segodnya_v_tashkente():
+    """Какое сегодня число там, где публикуют курс.
+
+    Считать «сегодня» по UTC нельзя, и это не придирка. С семи вечера по
+    UTC в Ташкенте уже следующий день: ЦБ публикует курс за него, наш
+    сборщик про этот день даже не спрашивает — и ряд заканчивается
+    позавчерашним числом, пока текущий курс на экране уже завтрашний.
+    Ровно так и поймано: 16 августа 20:00 UTC, курс за 17-е опубликован,
+    в ряду последняя точка за 14-е.
+
+    Тот же по сути дефект уже чинили в кеше истории (61). Место другое,
+    причина одна: день продукта считается там, где живут его люди.
+    """
+    return (datetime.now(timezone.utc) + CHASOVOY_POYAS).date()
+
+
 # ── 1. ЦБ Узбекистана ────────────────────────────────────────────────
 
 def kursy_cb(data=None):
@@ -222,7 +242,7 @@ def istoriya_s_keshem(dney=30, data_kursa=None):
     вердикт считался по ряду, который заканчивается вчера. Числа
     настоящие, даты честные, а сравниваются разные дни.
     """
-    segodnya = datetime.now(timezone.utc).date().isoformat()
+    segodnya = segodnya_v_tashkente().isoformat()
 
     kesh = _kesh_istorii()
     if kesh and kesh.get("sobrano") == segodnya:
@@ -277,7 +297,7 @@ def istoriya_cb(dney=30):
     совет ждать или не ждать — то есть чужие деньги.
     """
     po_publikacii = {}
-    segodnya = datetime.now(timezone.utc).date()
+    segodnya = segodnya_v_tashkente()
     for shag in range(dney):
         den = (segodnya - timedelta(days=shag)).isoformat()
         tochka = kurs_valyuty("RUB", den)
