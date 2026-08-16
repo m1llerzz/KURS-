@@ -847,6 +847,25 @@ try:
     proverka("после успешной отправки цель снята",
              not (hranilishche.chelovek(_komu) or {}).get("cel_kurs"),
              "цель срабатывает один раз, второго сигнала он не просил")
+
+    # Предложение подписки приходит один раз за всю жизнь. Отметка «уже
+    # спрашивали» ставилась ДО отправки: не дошло — человек помечен, и
+    # предложения он не увидит уже никогда. Один сбой сети стоил бы
+    # подписчика навсегда, и заметить это было нечем.
+    _nesprosh = 424002
+    hranilishche.zapisat_cheloveka(_nesprosh, lang="ru")
+    bot.poslat = lambda *a, **k: {"ok": False, "error_code": 429}
+    bot.predlozhit_podpisku(_nesprosh, "ru")
+    proverka("не дошло — «уже спрашивали» не ставится",
+             not (hranilishche.chelovek(_nesprosh) or {}).get("sprosili_podpisku"),
+             "иначе один сбой сети стоит подписчика навсегда")
+
+    bot.poslat = lambda *a, **k: {"ok": True, "result": {}}
+    bot.predlozhit_podpisku(_nesprosh, "ru")
+    proverka("дошло — отметка поставлена",
+             (hranilishche.chelovek(_nesprosh) or {}).get("sprosili_podpisku")
+             is True,
+             "второй раз тот же вопрос — это давление, а не предложение")
 finally:
     bot.mozhno_pisat_naruzhu = _bylo_pravilo
     bot.poslat = _bylo_poslat_uved

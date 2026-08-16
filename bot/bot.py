@@ -618,12 +618,28 @@ def privetstvie(chat_id, lang):
 
 
 def predlozhit_podpisku(chat_id, lang):
+    """Предложение приходит один раз за всю жизнь — и только если дошло.
+
+    Отметка «уже спрашивали» ставилась ДО отправки. Не дошло — человек
+    всё равно помечен, и предложения он не увидит уже никогда: второй
+    раз мы намеренно не спрашиваем. Один сбой сети стоил бы подписчика
+    навсегда, и никто бы этого не заметил.
+
+    Порядок «сначала отправить, потом запомнить» даёт риск обратного —
+    спросить дважды, если запись не удалась. Из двух зол это меньшее:
+    повтор один раз читается как неловкость, молчание навсегда — как
+    потерянный человек.
+    """
     t = TEKSTY[lang]
-    hranilishche.zapisat_cheloveka(chat_id, sprosili_podpisku=True)
-    poslat(chat_id, t["podpiska_predlozhenie"], [[
+    otvet = poslat(chat_id, t["podpiska_predlozhenie"], [[
         {"text": t["podpiska_da"], "callback_data": "sub:1"},
         {"text": t["podpiska_net"], "callback_data": "sub:0"},
     ]], html=False)
+
+    if otvet and otvet.get("ok"):
+        hranilishche.zapisat_cheloveka(chat_id, sprosili_podpisku=True)
+        return True
+    return False
 
 
 def mozhet_predlozhit_podpisku(chat_id):
@@ -647,8 +663,11 @@ def mozhet_predlozhit_podpisku(chat_id):
         return
 
     lang = c.get("lang") if c.get("lang") in TEKSTY else "uz"
-    predlozhit_podpisku(chat_id, lang)
-    hranilishche.sobytie(chat_id, "podpiska_predlozhena")
+    # Событие — только если предложение дошло. Иначе в цифрах будет
+    # «предложили ста, согласились двое», хотя часть из ста ничего не
+    # видела, и доля согласий окажется заниженной без причины.
+    if predlozhit_podpisku(chat_id, lang):
+        hranilishche.sobytie(chat_id, "podpiska_predlozhena")
 
 
 def _stroka_summy(lang, ocenka, summa):
