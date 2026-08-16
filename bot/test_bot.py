@@ -816,6 +816,22 @@ try:
              len(_poslannoe_v_kanal) == 0,
              "ушло сообщений: %d — блокировка бота необратима"
              % len(_poslannoe_v_kanal))
+
+    # И то же в самом механизме «ровно один раз». Без базы это обещание
+    # невыполнимо, а значит и действие выполнять нельзя — иначе оно
+    # повторится столько раз, сколько Render решит нас разбудить.
+    _schyotchik_odnazhdy = [0]
+
+    def _sdelat():
+        _schyotchik_odnazhdy[0] += 1
+        return True
+
+    bot.odnazhdy("proba_bez_bazy", "A", _sdelat)
+    bot.odnazhdy("proba_bez_bazy", "A", _sdelat)
+    proverka("без базы «ровно один раз» не выполняется вовсе",
+             _schyotchik_odnazhdy[0] == 0,
+             "выполнено раз: %d — обещание невыполнимо, значит и действия нет"
+             % _schyotchik_odnazhdy[0])
 finally:
     bot.vyzov = _byl_vyzov_pub
     os.environ.pop("CHANNEL_ID", None)
