@@ -1660,6 +1660,10 @@ def svodka_dlya_svoih():
     sobytiya = hranilishche.svodka_sobytiy(7)
     ocenka = (svezhie_dannye() or {}).get("sovet") or {}
 
+    # Собирается по ходу, печатается в конце: тревожное должно стоять
+    # последним, иначе его прочитают первым и не дочитают цифры.
+    predupredit = []
+
     stroki = ["<b>Qancha yetadi — неделя</b>", ""]
     stroki.append("Людей всего: %d" % vsego)
     stroki.append("С оповещениями: %d" % podpisano)
@@ -1678,7 +1682,13 @@ def svodka_dlya_svoih():
         # расчётов хуже, чем чат с двадцатью заходами и пятнадцатью
         # расчётами. По одним переходам их не различить.
         voronka = hranilishche.voronka_istochnikov(7)
-        if voronka:
+        if voronka is None:
+            # Запрос не выполнился — это не «людей не было». Молчать здесь
+            # значит показать пустую разбивку и заставить думать, что
+            # посев не сработал, когда сломались мы.
+            predupredit.append("РАЗБИВКА «ОТКУДА ПРИШЛИ» НЕ СОБРАЛАСЬ — "
+                               "ошибка запроса, смотри журнал Render")
+        elif voronka:
             stroki.append("")
             stroki.append("<b>Откуда пришли</b>")
             stroki.append("<i>источник: зашли / посчитали / переслали</i>")
@@ -1706,7 +1716,6 @@ def svodka_dlya_svoih():
     # молча. Приложение спрячет их само через 72 часа по правилу свежести,
     # но узнать об этом надо раньше, чем через три дня.
     d = svezhie_dannye() or {}
-    predupredit = []
     servisov = len(d.get("services") or [])
     if not servisov:
         predupredit.append("НЕ СОБИРАЮТСЯ КУРСЫ СЕРВИСОВ — проверь разбор bank.uz")
