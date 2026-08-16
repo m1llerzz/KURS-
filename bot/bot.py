@@ -565,7 +565,19 @@ def vyzov(metod, telo=None, popytok=2):
 
             # 403 — человек заблокировал бота. Это не сбой, это ответ:
             # больше ему не пишем, иначе будем долбиться в стену вечно.
-            return {"ok": False, "error_code": oshibka.code}
+            #
+            # Причину отказа отдаём вместе с кодом. Раньше она только
+            # печаталась, и «почему Telegram отказал» можно было узнать
+            # лишь из журнала Render — то есть никогда, если ты не Семён.
+            prichina = ""
+            try:
+                prichina = str(json.loads(
+                    telo_oshibki.decode("utf-8", "replace")).get("description")
+                    or "")[:200]
+            except Exception:
+                pass
+            return {"ok": False, "error_code": oshibka.code,
+                    "description": prichina}
         except Exception as oshibka:
             print("сеть", metod, oshibka, flush=True)
             return None
@@ -1992,6 +2004,27 @@ def odnazhdy(kluch, metka, deystvie):
     if otmetka == metka:
         return False
 
+    # На запасной памяти отметка ставится ДО действия.
+    #
+    # Обычно правильно наоборот: не сделали — не запомнили, попробуем
+    # через час. Так и работает с базой. Но у запасной памяти запись
+    # проверяется чтением и может честно не подтвердиться — и тогда
+    # выбор такой: либо действие без подтверждённой отметки, либо
+    # пропущенный день. Пропущенный день стоит одного поста, действие
+    # без отметки — семнадцати копий и канала.
+    if hranilishche.zayavka_do_deystviya():
+        if not hranilishche.zapisat_sostoyanie(kluch, metka):
+            print("[планировщик] «%s» пропущено: отметку не удалось "
+                  "поставить, а без неё действие может повториться."
+                  % kluch, flush=True)
+            return False
+        if not deystvie():
+            print("[планировщик] ВНИМАНИЕ: «%s» не вышло, но отметка уже "
+                  "стоит — сегодня промолчим, повтора не будет" % kluch,
+                  flush=True)
+            return False
+        return True
+
     if not deystvie():
         return False
 
@@ -2146,6 +2179,12 @@ class Stranica(BaseHTTPRequestHandler):
                 # признаку «база» состояние канала уже не прочитать.
                 "kanal_pishet": hranilishche.pamyat_perezhivet_perezapusk(),
             }
+
+            # Почему не пишет, если не пишет. Молчащий канал без причины —
+            # это поломка, о которой узнаёшь через неделю по пустой ленте.
+            pochemu = hranilishche.pochemu_net_pamyati()
+            if pochemu:
+                otvet["pochemu_ne_pishet"] = pochemu
 
             # А вот разбивка «откуда пришли» — это карта нашего посева.
             # Адрес открыт всему интернету без пароля, и по нему любой —

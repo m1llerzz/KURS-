@@ -1456,31 +1456,66 @@ import pamyat_kanala   # noqa: E402
 
 
 class _FeykTelegrama(object):
-    """Telegram, который помнит. И умеет ломаться всеми способами."""
+    """Telegram, который помнит. И умеет ломаться всеми способами.
 
-    def __init__(self):
-        self.lezhit = {}
+    Умеет оба хранилища: команды чата и описание на чужом языке. Плюс
+    `komandy_dlya_kanala` — так ведёт себя настоящий Telegram, если
+    область `chat` для канала он не принимает.
+    """
+
+    def __init__(self, komandy_dlya_kanala=True):
+        self.komandy = {}
+        self.opisaniya = {}
+        self.komandy_dlya_kanala = komandy_dlya_kanala
         self.chtenie_slomano = False
         self.zapis_slomana = False
         self.otdavat_staroe = None   # отдаёт это вместо записанного
         self.postov = 0
 
+    def _kanal_li(self, telo):
+        oblast = telo.get("scope") or {}
+        return oblast.get("type") == "chat"
+
     def vyzov(self, metod, telo=None, popytok=2):
         telo = telo or {}
+
+        if metod in ("getMyCommands", "setMyCommands") and self._kanal_li(telo) \
+                and not self.komandy_dlya_kanala:
+            return {"ok": False, "error_code": 400,
+                    "description": "Bad Request: BOT_COMMAND_SCOPE_INVALID"}
+
         if metod == "getMyCommands":
             if self.chtenie_slomano:
                 return None
-            istochnik = (self.lezhit if self.otdavat_staroe is None
+            istochnik = (self.komandy if self.otdavat_staroe is None
                          else self.otdavat_staroe)
             return {"ok": True, "result": [
                 {"command": k, "description": z}
                 for k, z in sorted(istochnik.items())]}
         if metod == "setMyCommands":
             if self.zapis_slomana:
-                return {"ok": False, "error_code": 400}
-            self.lezhit = {k["command"]: k["description"]
-                           for k in (telo.get("commands") or [])}
+                return {"ok": False, "error_code": 400,
+                        "description": "Bad Request: не сегодня"}
+            self.komandy = {k["command"]: k["description"]
+                            for k in (telo.get("commands") or [])}
             return {"ok": True, "result": True}
+
+        if metod == "getMyDescription":
+            if self.chtenie_slomano:
+                return None
+            if self.otdavat_staroe is not None:
+                stroka = ";".join("%s=%s" % kz
+                                  for kz in sorted(self.otdavat_staroe.items()))
+            else:
+                stroka = self.opisaniya.get(telo.get("language_code"), "")
+            return {"ok": True, "result": {"description": stroka}}
+        if metod == "setMyDescription":
+            if self.zapis_slomana:
+                return {"ok": False, "error_code": 400,
+                        "description": "Bad Request: не сегодня"}
+            self.opisaniya[telo.get("language_code")] = telo.get("description")
+            return {"ok": True, "result": True}
+
         if metod == "sendMessage":
             self.postov += 1
             return {"ok": True, "result": {"message_id": self.postov}}
@@ -1491,56 +1526,88 @@ class _FeykTelegrama(object):
 # правила Telegram, тот отвергнет запись ЦЕЛИКОМ — вместе с остальными
 # отметками. Проверка дешёвая, а находка была бы дорогой.
 for _kluch in ("post_den", "post_nedelya", "post_mesyac", "post_ryvok",
-               "kurs_osveshchen", "svodka", pamyat_kanala.KLUCH_PROVERKI):
+               "kurs_osveshchen", "svodka"):
     proverka("ключ «%s» годится для хранилища Telegram" % _kluch,
              pamyat_kanala.prigoden(_kluch, "2026-08-17"))
+
+# Метки недели и месяца выглядят иначе, чем даты, — их тоже проверяем.
+proverka("метка недели годится", pamyat_kanala.prigoden("post_nedelya", "2026-33"))
+proverka("метка месяца годится", pamyat_kanala.prigoden("post_mesyac", "2026-08"))
 
 proverka("пустое значение не пишем",
          not pamyat_kanala.prigoden("post_den", ""),
          "Telegram отвергнет всю запись из-за пустого описания")
 proverka("ключ с заглавными и точками не пишем",
          not pamyat_kanala.prigoden("Post.Den", "2026-08-17"))
+proverka("значение с разделителем не пишем",
+         not pamyat_kanala.prigoden("post_den", "2026;08"),
+         "точка с запятой разделяет отметки — внутри значения она сломает разбор")
+proverka("значение с равно не пишем",
+         not pamyat_kanala.prigoden("post_den", "a=b"))
 
-# Память работает: записали — прочитали.
-_tg = _FeykTelegrama()
-_pamyat = pamyat_kanala.PamyatTelegrama(_tg.vyzov, "@kanal")
-proverka("память поднимается, когда Telegram отвечает", _pamyat.podnyat())
-proverka("проверка оставила свой след у Telegram",
-         pamyat_kanala.KLUCH_PROVERKI in _tg.lezhit)
-proverka("записанное читается обратно",
-         _pamyat.zapisat("post_den", "2026-08-14")
-         and _pamyat.vse().get("post_den") == "2026-08-14")
+# Память работает: записали — прочитали. И так же после перезапуска.
+for _kanalnye_komandy in (True, False):
+    _kak = ("команды канала" if _kanalnye_komandy
+            else "описание на чужом языке")
+    _tg = _FeykTelegrama(komandy_dlya_kanala=_kanalnye_komandy)
+    _pamyat = pamyat_kanala.PamyatTelegrama(_tg.vyzov, "@kanal")
 
-# Перезапуск: наш процесс начался заново, у Telegram всё на месте.
-_posle = pamyat_kanala.PamyatTelegrama(_tg.vyzov, "@kanal")
-proverka("после перезапуска отметка на месте",
-         _posle.podnyat() and _posle.vse().get("post_den") == "2026-08-14",
-         "ради этого всё и затевалось")
-proverka("проверка при запуске не съела отметку",
-         _tg.lezhit.get("post_den") == "2026-08-14",
-         "иначе каждый перезапуск стирал бы память тем, что её проверяет")
+    proverka("память поднимается (%s)" % _kak, _pamyat.podnyat(),
+             _pamyat.pochemu)
+    proverka("записанное читается обратно (%s)" % _kak,
+             _pamyat.zapisat("post_den", "2026-08-14")
+             and _pamyat.vse().get("post_den") == "2026-08-14")
+    proverka("вторая отметка не затирает первую (%s)" % _kak,
+             _pamyat.zapisat("kurs_osveshchen", "2026-08-14")
+             and _pamyat.vse().get("post_den") == "2026-08-14")
+
+    _posle = pamyat_kanala.PamyatTelegrama(_tg.vyzov, "@kanal")
+    proverka("после перезапуска отметка на месте (%s)" % _kak,
+             _posle.podnyat() and _posle.vse().get("post_den") == "2026-08-14",
+             "ради этого всё и затевалось")
+
+proverka("подъём памяти ничего не записал",
+         not _tg.opisaniya.get(pamyat_kanala.YAZYK_TAYNIKA, "").startswith("proba"),
+         "запись при каждом запуске — это сотни обращений в день на "
+         "бесплатном Render, который перезапускается постоянно")
+
+# Когда команды канала не принимаются — переходим ко второму способу, а
+# не сдаёмся. Ровно это и случилось на боевом 17 августа.
+_tg_bez_komand = _FeykTelegrama(komandy_dlya_kanala=False)
+_zapasnaya = pamyat_kanala.PamyatTelegrama(_tg_bez_komand.vyzov, "@kanal")
+_zapasnaya.podnyat()
+proverka("отказ первого способа не останавливает — берём второй",
+         isinstance(_zapasnaya.sposob, pamyat_kanala.VOpisaniiNaChuzhomYazyke),
+         str(_zapasnaya.sposob))
+proverka("отметки не лежат на языке наших людей",
+         pamyat_kanala.YAZYK_TAYNIKA not in ("uz", "ru", "en"),
+         "иначе человек увидел бы служебную строку вместо описания бота")
 
 # Дальше — все способы подвести. В каждом ответ один: памяти нет.
 _slomannoe = _FeykTelegrama()
 _slomannoe.chtenie_slomano = True
-proverka("не читает — памяти нет",
-         not pamyat_kanala.PamyatTelegrama(_slomannoe.vyzov, "@kanal").podnyat())
+_net_pamyati = pamyat_kanala.PamyatTelegrama(_slomannoe.vyzov, "@kanal")
+proverka("не читает — памяти нет", not _net_pamyati.podnyat())
+proverka("причина отказа названа", bool(_net_pamyati.pochemu),
+         "молчащий канал без причины — поломка, о которой узнаёшь по "
+         "пустой ленте через неделю")
 
 _slomannoe = _FeykTelegrama()
 _slomannoe.zapis_slomana = True
-proverka("не пишет — памяти нет",
-         not pamyat_kanala.PamyatTelegrama(_slomannoe.vyzov, "@kanal").podnyat())
+_ne_pishet = pamyat_kanala.PamyatTelegrama(_slomannoe.vyzov, "@kanal")
+_ne_pishet.podnyat()
+proverka("не пишет — отметка не считается поставленной",
+         not _ne_pishet.zapisat("post_den", "2026-08-14"))
 
-# Самый тихий случай: пишет, отвечает «ок», а отдаёт старое. Именно он
+# Самый тихий случай: пишет, отвечает «ок», а читается старое. Именно он
 # вернул бы нас к повторным постам, и заметить его иначе нечем.
 _ustarevshee = _FeykTelegrama()
+_pamyat_ust = pamyat_kanala.PamyatTelegrama(_ustarevshee.vyzov, "@kanal")
+_pamyat_ust.podnyat()
 _ustarevshee.otdavat_staroe = {"post_den": "2026-08-01"}
-proverka("отдаёт старое вместо записанного — памяти нет",
-         not pamyat_kanala.PamyatTelegrama(_ustarevshee.vyzov, "@kanal").podnyat(),
+proverka("записали, а читается старое — отметка не считается поставленной",
+         not _pamyat_ust.zapisat("post_den", "2026-08-14"),
          "иначе «уже публиковали» тоже читалось бы устаревшим")
-
-proverka("без адреса канала памяти нет",
-         not pamyat_kanala.PamyatTelegrama(_tg.vyzov, "").podnyat())
 
 # Чтение сломалось уже после подъёма: «не знаю» — это не «не публиковали».
 _tg_zhivoy = _FeykTelegrama()
@@ -1549,6 +1616,9 @@ _pamyat_zhivaya.podnyat()
 _tg_zhivoy.chtenie_slomano = True
 proverka("сбой чтения даёт «не знаю», а не пустоту",
          _pamyat_zhivaya.vse() is None)
+proverka("поверх непрочитанного не пишем",
+         not _pamyat_zhivaya.zapisat("post_den", "2026-08-14"),
+         "затёрли бы остальные отметки, и повторы вернулись бы с другой стороны")
 _tg_zhivoy.chtenie_slomano = False
 
 # ── Как это ведёт себя внутри бота ───────────────────────────────────
@@ -1591,6 +1661,18 @@ try:
     bot.odnazhdy("post_den", _data_posta, lambda: bot._opublikovat("den"))
     proverka("после двух перезапусков пост не повторился", _tg.postov == 1,
              "%d копий — ровно то, что случилось 16 августа" % _tg.postov)
+
+    # Отметка ставится ДО поста. Значит неудачная отправка стоит одного
+    # дня молчания, а не повтора: через час мы не попробуем ещё раз, и
+    # это выбор, а не оплошность.
+    proverka("на запасной памяти отметка ставится до действия",
+             bot.hranilishche.zayavka_do_deystviya())
+
+    _ne_vyshlo = bot.odnazhdy("post_ryvok", _data_posta, lambda: False)
+    proverka("неудачное действие не выполняется второй раз",
+             _ne_vyshlo is False
+             and bot.odnazhdy("post_ryvok", _data_posta, lambda: True) is False,
+             "с запасной памятью повтор опаснее пропуска")
 
     # Чтение отметки сломалось. Молчим: «не знаю» не разрешение.
     _tg.chtenie_slomano = True
@@ -1637,10 +1719,6 @@ try:
         proverka("перенеслась именно отметка о посте",
                  _baza.get("post_den") == _data_posta,
                  str(_baza))
-        proverka("метка самопроверки в базу не поехала",
-                 pamyat_kanala.KLUCH_PROVERKI not in _baza,
-                 "она служебная и в базе только мешает")
-
         _baza["post_den"] = "2026-08-01"
         bot.hranilishche.perenesti_otmetki(_tg.vyzov, "@testovyy_kanal")
         proverka("уже записанное в базе не затирается",

@@ -41,6 +41,10 @@ _pg = None
 # нет, здесь None, и всё работает ровно как раньше.
 _telegram = None
 
+# Почему не поднялась, если не поднялась. Хранится отдельно от самой
+# памяти нарочно: когда она не поднялась, спрашивать причину не у кого.
+_pochemu_pamyati = ""
+
 
 class _Neizvestno(object):
     """Ответ «прочитать не удалось». Это НЕ «записи нет».
@@ -87,6 +91,33 @@ def na_telegrame():
     return _telegram is not None
 
 
+def zayavka_do_deystviya():
+    """Ставить ли отметку ДО действия, а не после.
+
+    С базой правильно после: не сделали — не запомнили, попробуем через
+    час. С запасной памятью — до: она проверяет каждую запись чтением, и
+    пока запись не подтверждена, действия быть не должно вовсе. Ошибка
+    тогда играет в сторону молчания, а молчание стоит одного дня, повтор
+    — канала.
+    """
+    return na_telegrame() and not na_postgres()
+
+
+def pochemu_net_pamyati():
+    """Почему запасная память не поднялась. Пусто — вопрос не стоит.
+
+    Наружу это выходит в `/api/stats`: иначе узнать причину можно было бы
+    только из журнала Render, то есть только Семёну и только вручную. А
+    неподнявшаяся память — это молчащий канал, и молчать о её причине
+    было бы ровно тем, за что мы ругаем молчаливые поломки.
+    """
+    if na_postgres():
+        return ""
+    if _telegram is not None and _telegram.pochemu:
+        return _telegram.pochemu
+    return _pochemu_pamyati
+
+
 def pamyat_perezhivet_perezapusk():
     """Переживёт ли перезапуск отметка «это уже сделано».
 
@@ -104,13 +135,16 @@ def pamyat_na_telegrame(vyzov, kanal):
     Вызывать только когда Postgres нет: настоящая база лучше во всём, а
     две памяти сразу — это две правды о том, что уже опубликовано.
     """
-    global _telegram
-    if na_postgres() or not kanal:
+    global _telegram, _pochemu_pamyati
+    if na_postgres():
+        _pochemu_pamyati = ""
         return False
 
     zapas = pamyat_kanala.PamyatTelegrama(vyzov, kanal)
     if not zapas.podnyat():
+        _pochemu_pamyati = zapas.pochemu
         return False
+    _pochemu_pamyati = ""
     _telegram = zapas
     return True
 
@@ -131,13 +165,15 @@ def perenesti_otmetki(vyzov, kanal):
         return 0
 
     zapas = pamyat_kanala.PamyatTelegrama(vyzov, kanal)
+    if not zapas.podnyat():
+        return 0
     bylo = zapas.vse()
     if not bylo:
         return 0
 
     perenesli = []
     for kluch, znachenie in sorted(bylo.items()):
-        if kluch == pamyat_kanala.KLUCH_PROVERKI or not znachenie:
+        if not znachenie:
             continue
         if sostoyanie(kluch) is not None:
             continue
