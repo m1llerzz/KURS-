@@ -18,14 +18,23 @@
 const fs = require('fs');
 const path = require('path');
 
-let JSDOM;
+let JSDOM, VirtualConsole;
 try {
   JSDOM = require('jsdom').JSDOM;
+  VirtualConsole = require('jsdom').VirtualConsole;
 } catch (e) {
   console.log('jsdom не установлен. Поставь его: npm install jsdom');
   console.log('Проверки НЕ выполнены.');
   process.exit(2);
 }
+
+/* Ошибки, которые приложение выдало в консоль за весь прогон.
+ *
+ * Пункт чек-листа приёмки «в консоли ноль ошибок» проверялся глазами —
+ * то есть один раз и на одном телефоне. Ошибка в скрипте не обязана
+ * ронять экран целиком: чаще она тихо ломает одну ветку, и человек
+ * видит пустое место там, где должно быть число. */
+const oshibkiKonsoli = [];
 
 const KORNI = __dirname;
 const proshlo = [];
@@ -50,11 +59,26 @@ function podnyat(otvet, pamyat, startParam) {
   // окружении, где нет даже window, и все четыре файла падают на первой
   // строке. 'outside-only' даёт нам eval, но не запускает скрипты из html —
   // мы грузим их сами, по одному, в нужном порядке.
+  const konsol = new VirtualConsole();
+  konsol.on('jsdomError', function (e) {
+    oshibkiKonsoli.push('jsdomError: ' + (e && e.message));
+  });
+  konsol.on('error', function () {
+    oshibkiKonsoli.push('console.error: ' +
+      Array.prototype.join.call(arguments, ' ').slice(0, 200));
+  });
+
   const dom = new JSDOM(html, {
     url: 'https://m1llerzz.github.io/KURS-/',
     runScripts: 'outside-only',
+    virtualConsole: konsol,
   });
   const w = dom.window;
+
+  // Необработанное исключение в обработчике события тоже считается.
+  w.addEventListener('error', function (e) {
+    oshibkiKonsoli.push('window.onerror: ' + (e && e.message));
+  });
 
   // Настоящего Telegram здесь нет: приложение обязано работать и в браузере.
   w.fetch = function () {
@@ -1080,6 +1104,17 @@ function dozhdatsya() {
   proverka('блок канала спрятан, пока канала нет',
     kanalBlok && kanalBlok.hasAttribute('hidden'),
     'ссылка на # в выдаче читается как поломка');
+
+  /* ── Ноль ошибок в консоли ─────────────────────────────────────── */
+  //
+  // Считаем за весь прогон: все сценарии выше, включая мёртвую сеть,
+  // протухшие данные, пустые поля и переходы по меткам. Ошибка в
+  // скрипте не обязана ронять экран целиком — чаще она тихо ломает одну
+  // ветку, и человек видит пустое место там, где должно быть число.
+
+  proverka('за весь прогон ни одной ошибки в консоли',
+    oshibkiKonsoli.length === 0,
+    oshibkiKonsoli.slice(0, 3).join(' | '));
 
   /* ── Итог ──────────────────────────────────────────────────────── */
 
