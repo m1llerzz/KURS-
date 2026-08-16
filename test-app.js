@@ -271,6 +271,8 @@ function dozhdatsya() {
   proverka('кнопка пересылки появилась', vidno(w, 'share'));
   proverka('подписка предложена после пользы', vidno(w, 'subCta'),
     'сначала цифра, потом просьба писать');
+  proverka('ссылка на канал скрыта, пока канала нет', !vidno(w, 'chLink'),
+    'пустой CHANNEL_LINK — рабочее состояние, а не недоделка');
   proverka('дисклеймер показан', vidno(w, 'disclaimer'));
   proverka('нет пометки о тестовых данных',
     !/ТЕСТ|TEST/i.test(tekst(w, 'disclaimer')),
@@ -478,6 +480,20 @@ function dozhdatsya() {
     '160 против среднего 150 — заметно лучше обычного');
   proverka('банк появился, когда курсы банков пришли', vidno(w2, 'bankBlock'),
     'поле обязано появляться само, без правки кода');
+
+  // Канал заведён — ссылка обязана появиться сама, без правки кода.
+  const w2ch = podnyat(null, { intro_pokazan: '1' });
+  w2ch.CHANNEL_LINK = 'https://t.me/proverka_kanala';
+  w2ch.eval("window.CHANNEL_LINK = 'https://t.me/proverka_kanala';"
+    + require('fs').readFileSync(require('path').join(KORNI, 'app.js'), 'utf8'));
+  await dozhdatsya();
+  const ssylka = w2ch.document.getElementById('chLink');
+  proverka('ссылка на канал появляется, когда канал заведён',
+    !!ssylka && !ssylka.classList.contains('hidden'),
+    'вписать адрес должно быть достаточно');
+  proverka('ссылка ведёт на указанный канал',
+    ssylka && ssylka.getAttribute('href') === 'https://t.me/proverka_kanala',
+    ssylka ? String(ssylka.getAttribute('href')) : 'нет');
 
   w2.document.getElementById('schitat').click();
   await dozhdatsya();

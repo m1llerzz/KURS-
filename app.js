@@ -52,6 +52,7 @@
     vHint:      document.getElementById('vHint'),
     subCta:     document.getElementById('subCta'),
     subBtn:     document.getElementById('subBtn'),
+    chLink:     document.getElementById('chLink'),
     srcUpd:     document.getElementById('srcUpd'),
     razbor:     document.getElementById('razbor'),
     rBar:       document.getElementById('rBar'),
@@ -968,6 +969,23 @@
   el.schitat.addEventListener('click', poschitat);
   el.share.addEventListener('click', otpravitVChat);
   if (el.subBtn) el.subBtn.addEventListener('click', otkrytPodpisku);
+
+  // Ссылка на канал появляется, только если канал заведён. Пустая
+  // строка в CHANNEL_LINK — блок просто не показывается, и это
+  // нормальное рабочее состояние, а не недоделка.
+  if (el.chLink && window.CHANNEL_LINK) {
+    el.chLink.href = window.CHANNEL_LINK;
+    el.chLink.classList.remove('hidden');
+    el.chLink.addEventListener('click', function (e) {
+      sobytie('kanal_klik');
+      // Внутри Telegram ссылку надо открывать его же средствами,
+      // иначе она уходит во внешний браузер и человек теряется.
+      if (tg && tg.openTelegramLink) {
+        e.preventDefault();
+        tg.openTelegramLink(window.CHANNEL_LINK);
+      }
+    });
+  }
   el.summa.addEventListener('keydown', function (e) { if (e.key === 'Enter') poschitat(); });
 
   // Пока человек правит сумму, ошибку показываем сразу, но расчёт не

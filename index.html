@@ -327,6 +327,11 @@
   }
   .sub .st { font-size: 14.5px; font-weight: 700; }
   .sub .sp { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .sub .chlink {
+    font-size: 12.5px; color: var(--accent); text-decoration: none;
+    font-weight: 600; text-align: center; padding: 2px 0;
+  }
+  .sub .chlink::after { content: ' →'; }
 
   /* Сообщение о неверной сумме. Красное и прямо под полем: человек должен
      понять, что не так, не отводя глаз от того места, где он ошибся. */
@@ -501,6 +506,10 @@
     <span class="st" data-i18n="sub.t"></span>
     <span class="sp" data-i18n="sub.p"></span>
     <button id="subBtn" class="ghost" data-i18n="sub.btn"></button>
+    <!-- Второй путь возврата, мягче первого: канал не пишет лично.
+         Появляется только если канал заведён — см. CHANNEL_LINK. -->
+    <a id="chLink" class="chlink hidden" target="_blank" rel="noopener"
+       data-i18n="sub.ch"></a>
   </div>
 
   <p id="disclaimer" class="note hidden"></p>
@@ -526,9 +535,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=24"></script>
-<script src="data.js?v=24"></script>
-<script src="calc.js?v=24"></script>
-<script src="app.js?v=24"></script>
+<script src="i18n.js?v=25"></script>
+<script src="data.js?v=25"></script>
+<script src="calc.js?v=25"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

@@ -135,6 +135,7 @@ window.I18N = (function () {
       'sub.t':           'Kurs yaxshilanganda aytaymi?',
       'sub.p':           'Faqat kurs odatdagidan yaxshi bo’lganda yozaman — ya’ni jim turishim sizga pulga tushadigan paytda. Uch kunda bir martadan ko’p emas.',
       'sub.btn':         'Ha, xabar bering',
+      'sub.ch':          'Yoki har kuni ertalab kanalda kurs',
 
       // ── Pul qayerga ketadi ───────────────────────────────────────
       'br.t':            'Pul qayerga ketadi',
@@ -273,6 +274,7 @@ window.I18N = (function () {
       'sub.t':           'Написать, когда курс станет лучше?',
       'sub.p':           'Пишу только когда курс выше обычного — то есть когда моё молчание стоило бы вам денег. Не чаще раза в трое суток.',
       'sub.btn':         'Да, пишите',
+      'sub.ch':          'Или курс каждое утро в канале',
 
       // ── Куда уходят деньги ───────────────────────────────────────
       'br.t':            'Куда уходят деньги',
