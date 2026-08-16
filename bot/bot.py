@@ -760,7 +760,14 @@ def obrabotat_soobshchenie(soobshchenie):
 
         if not izvesten:
             sprosit_yazyk(chat_id, posle="uved" if parametr == "uved" else "")
-            hranilishche.sobytie(chat_id, "novyy", {"start": parametr[:32]})
+            # Метку чистим так же, как в приложении: Telegram и так
+            # ограничивает набор символов в start-параметре, но полагаться
+            # на чужие ограничения в том, что уходит к нам в базу и потом
+            # в сводку, — плохая привычка.
+            metka = "".join(z for z in parametr
+                            if (z.isalnum() and z.isascii()) or z in "_-")[:32]
+            hranilishche.sobytie(chat_id, "novyy",
+                                 {"start": metka} if metka else None)
             return
 
         if parametr == "uved":
@@ -773,7 +780,16 @@ def obrabotat_soobshchenie(soobshchenie):
     # ── Всё остальное ────────────────────────────────────────────────
     if not izvesten:
         sprosit_yazyk(chat_id)
-        hranilishche.sobytie(chat_id, "novyy", {"start": tekst[:32]})
+        # Метки здесь НЕТ, и это важно. Раньше сюда клался текст самого
+        # сообщения — то есть в разбивку «откуда пришли» попадали строки
+        # «привет», «здравствуйте» и что угодно ещё, что человек напишет
+        # первым. Карта посева, ради которой всё это и считается,
+        # засорялась словами живых людей.
+        #
+        # Вторая причина серьёзнее: мы обещаем не собирать личных данных,
+        # а в первом сообщении человек может написать что угодно, включая
+        # свой номер телефона. Такому не место в нашей базе.
+        hranilishche.sobytie(chat_id, "novyy")
         print("сообщение", chat_id, tekst[:40], flush=True)
         return
 

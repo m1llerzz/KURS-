@@ -772,6 +772,54 @@ finally:
         os.environ["CHANNEL_ID"] = _byl_kanal
 
 
+# ── В учёт не уходит текст живого человека ───────────────────────────
+#
+# Незнакомый человек может написать боту что угодно первым сообщением —
+# «привет», «сколько будет 50000», свой номер телефона. Раньше этот текст
+# клался в поле метки источника: он и засорял карту посева живыми
+# словами, и попадал в базу, хотя мы обещаем личных данных не собирать.
+
+_sobrannye = []
+_bylo_sobytie = hranilishche.sobytie
+hranilishche.sobytie = lambda chat_id, tip, dannye=None: _sobrannye.append(
+    (tip, dannye))
+_bylo_poslat_ = bot.poslat
+bot.poslat = lambda *a, **k: {"ok": True}
+try:
+    _novyy_chelovek = 987654
+    bot.obrabotat_soobshchenie({
+        "chat": {"id": _novyy_chelovek}, "from": {"id": _novyy_chelovek},
+        "text": "Salom, mening raqamim +998901234567",
+    })
+    _novye = [d for t, d in _sobrannye if t == "novyy"]
+    proverka("текст человека не уходит в учёт",
+             all(not d or "start" not in d for d in _novye),
+             str(_novye) + " — в базу не должно попадать написанное человеком")
+
+    _sobrannye.clear()
+    bot.obrabotat_soobshchenie({
+        "chat": {"id": _novyy_chelovek + 1}, "from": {"id": _novyy_chelovek + 1},
+        "text": "/start chat_moskva1",
+    })
+    _novye = [d for t, d in _sobrannye if t == "novyy"]
+    proverka("метка из /start в учёт уходит",
+             any(d and d.get("start") == "chat_moskva1" for d in _novye),
+             str(_novye) + " — иначе весь посев не посчитать")
+
+    _sobrannye.clear()
+    bot.obrabotat_soobshchenie({
+        "chat": {"id": _novyy_chelovek + 2}, "from": {"id": _novyy_chelovek + 2},
+        "text": "/start чат <script>",
+    })
+    _novye = [d for t, d in _sobrannye if t == "novyy"]
+    proverka("мусор из метки /start вычищен",
+             all(not d or "<" not in (d.get("start") or "") for d in _novye),
+             str(_novye))
+finally:
+    hranilishche.sobytie = _bylo_sobytie
+    bot.poslat = _bylo_poslat_
+
+
 # ── Обещания, которых мы не даём ─────────────────────────────────────
 #
 # Пункты чек-листа приёмки, которые проверялись глазами. Глазами их
