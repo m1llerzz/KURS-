@@ -784,6 +784,75 @@ finally:
         os.environ["CHANNEL_ID"] = _byl_kanal
 
 
+# ── Не дошло — не считаем отправленным ───────────────────────────────
+#
+# Telegram ограничивает рассылку и на превышение отвечает кодом 429.
+# Раньше любая неудача отправки — 429, обрыв сети, пятисотка — считалась
+# успешной: человеку проставлялись последний вердикт и время, пауза в
+# трое суток начинала идти. Он не получал ничего, пропускал хороший курс,
+# а в наших цифрах всё выглядело отправленным.
+
+_bylo_pravilo = bot.mozhno_pisat_naruzhu
+_bylo_poslat_uved = bot.poslat
+_bylo_svezh = bot.svezhie_dannye
+try:
+    # Подменяем ПРАВИЛО, а не признак базы: na_postgres переключает и
+    # само хранилище, и тогда проверки перестают видеть свои же записи.
+    bot.mozhno_pisat_naruzhu = lambda: True
+
+    _horoshiy_ryad = [{"date": "2026-08-%02d" % (i + 1), "rub_uzs": v}
+                      for i, v in enumerate([140] * 9 + [150])]
+    bot.svezhie_dannye = lambda *a, **k: {
+        "sovet": sovet.analiz(_horoshiy_ryad), "history": _horoshiy_ryad}
+
+    _komu = 424001
+    hranilishche.zapisat_cheloveka(_komu, lang="ru", uvedomlyat=True,
+                                   summa_rub=50000)
+
+    # Telegram ответил «слишком часто» — отправки не было.
+    bot.poslat = lambda *a, **k: {"ok": False, "error_code": 429}
+    bot.razoslat_uvedomleniya()
+    _posle_429 = hranilishche.chelovek(_komu) or {}
+    proverka("после 429 вердикт не записан как отправленный",
+             not _posle_429.get("posledniy_verdikt"),
+             str(_posle_429.get("posledniy_verdikt")) +
+             " — иначе пауза в трое суток пойдёт, а человек ничего не получил")
+
+    # Сеть отвалилась — vyzov вернул None.
+    bot.poslat = lambda *a, **k: None
+    bot.razoslat_uvedomleniya()
+    _posle_seti = hranilishche.chelovek(_komu) or {}
+    proverka("после обрыва сети вердикт тоже не записан",
+             not _posle_seti.get("posledniy_verdikt"))
+
+    # А когда дошло — записываем.
+    bot.poslat = lambda *a, **k: {"ok": True, "result": {}}
+    bot.razoslat_uvedomleniya()
+    _posle_uspeha = hranilishche.chelovek(_komu) or {}
+    proverka("после успешной отправки вердикт записан",
+             _posle_uspeha.get("posledniy_verdikt") == "otlichno",
+             str(_posle_uspeha.get("posledniy_verdikt")))
+
+    # Цель по курсу: не дошло — цель остаётся. Человек сам её назвал и
+    # ждал неделями; потерять и сообщение, и цель разом — худшее из всего.
+    hranilishche.zapisat_cheloveka(_komu, cel_kurs=140.0)
+    bot.poslat = lambda *a, **k: {"ok": False, "error_code": 429}
+    bot.proverit_celi()
+    proverka("после 429 цель по курсу не снята",
+             (hranilishche.chelovek(_komu) or {}).get("cel_kurs") == 140.0,
+             "иначе человек теряет и сообщение, и цель, ничего не узнав")
+
+    bot.poslat = lambda *a, **k: {"ok": True, "result": {}}
+    bot.proverit_celi()
+    proverka("после успешной отправки цель снята",
+             not (hranilishche.chelovek(_komu) or {}).get("cel_kurs"),
+             "цель срабатывает один раз, второго сигнала он не просил")
+finally:
+    bot.mozhno_pisat_naruzhu = _bylo_pravilo
+    bot.poslat = _bylo_poslat_uved
+    bot.svezhie_dannye = _bylo_svezh
+
+
 # ── Без базы в канал не пишем ────────────────────────────────────────
 #
 # Отметка «этот пост уже публиковали» лежит в хранилище. Без

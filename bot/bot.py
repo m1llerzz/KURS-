@@ -453,6 +453,25 @@ def _chistye_dannye(syroe):
     return chistoe or None
 
 
+def mozhno_pisat_naruzhu():
+    """Можно ли сейчас делать то, что уходит к людям и повторяется.
+
+    Правило одно на все такие действия: посты в канал, рассылку
+    оповещений, еженедельную сводку. Все они защищены от повторов
+    отметкой в хранилище — «этот пост уже публиковали», «этому человеку
+    писали в среду». Без DATABASE_URL хранилище это файл на диске
+    Render, а он стирается при каждом пробуждении сервиса.
+
+    16 августа так вышло семнадцать копий одного поста подряд в канале с
+    четырьмя подписчиками. В личных сообщениях то же кончилось бы
+    блокировкой бота, и это навсегда.
+
+    Отдельной функцией, а не проверкой `na_postgres()` по месту: у
+    правила есть имя, и оно читается там, где применяется.
+    """
+    return hranilishche.na_postgres()
+
+
 def poryadok_summy(n):
     """Порядок суммы вместо самой суммы: 50 000 -> «50-150k».
 
@@ -480,25 +499,58 @@ def yazyk(chat_id, po_umolchaniyu="uz"):
 
 # ── Telegram ─────────────────────────────────────────────────────────
 
-def vyzov(metod, telo=None):
-    """Обращение к Bot API. Сетевые сбои не роняют бота — он живёт долго."""
+def vyzov(metod, telo=None, popytok=2):
+    """Обращение к Bot API. Сетевые сбои не роняют бота — он живёт долго.
+
+    Отдельно про 429 «слишком часто». Telegram ограничивает рассылку
+    примерно тридцатью сообщениями в секунду и на превышение отвечает
+    кодом 429, называя в ответе, сколько подождать.
+
+    Без этой обработки выходило хуже потери сообщения: рассылка считала
+    отправку состоявшейся, записывала человеку «последний вердикт» и
+    время — и пауза в трое суток начинала идти. Человек не получал
+    ничего и пропускал хороший курс, а мы об этом не знали. Пока
+    подписчиков единицы, 429 не случается; на сотне случится.
+    """
     dannye = json.dumps(telo or {}).encode("utf-8")
-    zapros = urllib.request.Request(
-        API + "/" + metod, data=dannye,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(zapros, timeout=65) as otvet:
-            return json.load(otvet)
-    except urllib.error.HTTPError as oshibka:
-        telo_oshibki = oshibka.read()[:200]
-        print("ошибка", metod, oshibka.code, telo_oshibki, flush=True)
-        # 403 — человек заблокировал бота. Это не сбой, это ответ:
-        # больше ему не пишем, иначе будем долбиться в стену вечно.
-        return {"ok": False, "error_code": oshibka.code}
-    except Exception as oshibka:
-        print("сеть", metod, oshibka, flush=True)
-    return None
+
+    for popytka in range(max(1, popytok)):
+        zapros = urllib.request.Request(
+            API + "/" + metod, data=dannye,
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(zapros, timeout=65) as otvet:
+                return json.load(otvet)
+        except urllib.error.HTTPError as oshibka:
+            telo_oshibki = oshibka.read()[:200]
+            print("ошибка", metod, oshibka.code, telo_oshibki, flush=True)
+
+            if oshibka.code == 429 and popytka + 1 < max(1, popytok):
+                # Telegram сам говорит, сколько ждать. Верхнюю границу
+                # ставим: висеть полчаса в одном вызове нельзя, за это
+                # время встанет и опрос сообщений.
+                zhdat = 3
+                try:
+                    razbor = json.loads(telo_oshibki.decode("utf-8", "replace"))
+                    zhdat = int((razbor.get("parameters") or {})
+                                .get("retry_after") or 3)
+                except Exception:
+                    pass
+                zhdat = max(1, min(zhdat, 30))
+                print("[telegram] слишком часто, жду %d с и повторяю" % zhdat,
+                      flush=True)
+                time.sleep(zhdat)
+                continue
+
+            # 403 — человек заблокировал бота. Это не сбой, это ответ:
+            # больше ему не пишем, иначе будем долбиться в стену вечно.
+            return {"ok": False, "error_code": oshibka.code}
+        except Exception as oshibka:
+            print("сеть", metod, oshibka, flush=True)
+            return None
+
+    return {"ok": False, "error_code": 429}
 
 
 def poslat(chat_id, text, knopki=None, html=True):
@@ -979,11 +1031,22 @@ def proverit_celi():
 
         # Заблокировал бота — цель тоже снимаем, иначе она будет висеть
         # вечно и дёргать нас каждый день.
-        hranilishche.zapisat_cheloveka(chat_id, cel_kurs="sbros")
         if otvet and otvet.get("error_code") in (400, 403):
-            hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=False)
+            hranilishche.zapisat_cheloveka(chat_id, cel_kurs="sbros",
+                                           uvedomlyat=False)
             continue
 
+        # Не дошло — цель НЕ снимаем.
+        #
+        # Она снималась до проверки ответа, то есть при любой неудаче
+        # отправки. Человек сам назвал курс, при котором его разбудить,
+        # ждал его неделями — и терял бы и сообщение, и саму цель разом,
+        # ничего об этом не узнав. Попробуем в следующий час.
+        if not otvet or not otvet.get("ok"):
+            print("[цели] не дошло до %s, цель оставляю" % chat_id, flush=True)
+            continue
+
+        hranilishche.zapisat_cheloveka(chat_id, cel_kurs="sbros")
         hranilishche.sobytie(chat_id, "cel_dostignuta", {"cel": cel, "kurs": segodnya})
         srabotalo += 1
         time.sleep(0.2)
@@ -1006,7 +1069,7 @@ def razoslat_uvedomleniya():
     #
     # В канале за такое отписываются. В личных сообщениях — блокируют
     # бота, и это навсегда: второго шанса написать человеку не будет.
-    if not hranilishche.na_postgres():
+    if not mozhno_pisat_naruzhu():
         print("[оповещения] НЕ РАССЫЛАЮ: нет DATABASE_URL. Пауза между "
               "письмами и прошлый вердикт не переживут перезапуск, и один "
               "и тот же текст уйдёт человеку многократно.", flush=True)
@@ -1051,6 +1114,20 @@ def razoslat_uvedomleniya():
         # мёртвых адресов растёт, а Telegram считает нас навязчивыми.
         if otvet and otvet.get("error_code") in (400, 403):
             hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=False)
+            continue
+
+        # Не дошло — не записываем, что дошло.
+        #
+        # Здесь этой проверки не было, и любая неудача отправки (429
+        # «слишком часто», обрыв сети, пятисотка на стороне Telegram)
+        # засчитывалась как успешная: человеку проставлялся последний
+        # вердикт и время, пауза в трое суток начинала идти. Он не
+        # получал ничего, пропускал хороший курс, а в наших цифрах всё
+        # выглядело отправленным.
+        if not otvet or not otvet.get("ok"):
+            propushcheno += 1
+            print("[оповещения] не дошло до %s, попробуем в следующий раз"
+                  % chat_id, flush=True)
             continue
 
         # Время отправки записываем обязательно: по нему держится пауза в
@@ -1401,7 +1478,7 @@ def _opublikovat(vid):
     # а второго шанса у канала не бывает.
     #
     # Выбор здесь между «молчит» и «спамит», и молчание лучше.
-    if not hranilishche.na_postgres():
+    if not mozhno_pisat_naruzhu():
         print("[канал] НЕ ПУБЛИКУЮ: нет DATABASE_URL. Отметка о публикации "
               "не переживёт перезапуск, и один пост уйдёт в канал "
               "десятки раз. Задай DATABASE_URL на Render.", flush=True)
@@ -1797,7 +1874,7 @@ def odnazhdy(kluch, metka, deystvie):
     Правило общее для всего, что продукт делает сам и наружу: нет
     памяти — нет действия. Не «действие с оговорками», а нет действия.
     """
-    if not hranilishche.na_postgres():
+    if not mozhno_pisat_naruzhu():
         print("[планировщик] «%s» пропущено: нет DATABASE_URL, а без базы "
               "«ровно один раз» не гарантировать — при каждом перезапуске "
               "оно повторилось бы заново." % kluch, flush=True)
