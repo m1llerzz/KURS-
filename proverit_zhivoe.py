@@ -259,7 +259,14 @@ if "podrobnosti" in (s if isinstance(s, dict) else {}):
     ne_vklyucheno.append(
         "STATS_KEY — разбивка «откуда пришли» закрыта, посев не посчитать")
 
-if isinstance(s, dict) and not (s.get("sobytiya_7d") or []) \
+if isinstance(s, dict) and s.get("baza") is False:
+    # Первым в списке: без базы продукт молчит в канал и не рассылает
+    # оповещения — это не «одна невключённая мелочь», а половина того,
+    # ради чего он вообще работает без нас.
+    ne_vklyucheno.insert(0, (
+        "DATABASE_URL — событий нет, подписчики стираются при перезапуске, "
+        "а посты в канал и оповещения НЕ ВЫХОДЯТ ВОВСЕ"))
+elif isinstance(s, dict) and "baza" not in s and not (s.get("sobytiya_7d") or []) \
         and "podrobnosti" not in s:
     ne_vklyucheno.append(
         "похоже, нет DATABASE_URL — события не пишутся, подписчики стираются")

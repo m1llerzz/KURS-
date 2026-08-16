@@ -1946,6 +1946,11 @@ class Stranica(BaseHTTPRequestHandler):
                 "podpischikov": vsego,
                 "s_uvedomleniyami": podpisano,
                 "kursy_obnovleny": _dannye["obnovleno"],
+                # Есть ли база — не секрет, а самый нужный признак
+                # состояния: без неё продукт молчит в канал и не шлёт
+                # оповещений. Узнать это иначе можно было только из
+                # журнала Render или имея ключ к подробностям.
+                "baza": hranilishche.na_postgres(),
             }
 
             # А вот разбивка «откуда пришли» — это карта нашего посева.
