@@ -772,6 +772,58 @@ finally:
         os.environ["CHANNEL_ID"] = _byl_kanal
 
 
+# ── Обещания, которых мы не даём ─────────────────────────────────────
+#
+# Пункты чек-листа приёмки, которые проверялись глазами. Глазами их
+# проверяют один раз, а нарушают потом — когда правят текст и хочется
+# написать поярче. То же самое проверяется и для приложения.
+
+import re as _re_zapret                                    # noqa: E402
+
+_ZAPRESHCHENO = [
+    ("«самый выгодный»", r"самый выгодн|самый лучш|eng foydali|eng yaxshi kurs",
+     "мы не знаем всех сервисов коридора и не можем называть лучший"),
+    ("«придёт ровно столько»", r"придёт ровно|точно придёт|aniq keladi",
+     "комиссии не объявлены, наш итог — верхняя граница"),
+    ("«экономьте»", r"экономьте|сэконом|tejang",
+     "обещание экономии — это обещание, а мы только считаем"),
+    ("«гарантируем»", r"гарантир|kafolat", "мы ничего не гарантируем"),
+    ("предсказание курса",
+     r"курс вырастет|курс упадёт|kurs ko‘tariladi|kurs tushadi",
+     "за предсказание курса нужна лицензия ЦБ — это закон"),
+    ("«без комиссии»", r"без комисси|komissiyasiz",
+     "комиссии сервисов как раз и неизвестны"),
+]
+
+
+def _vse_teksty_bota():
+    """Все строки, которые бот может сказать человеку."""
+    kuski = []
+
+    def sobrat(znachenie):
+        if isinstance(znachenie, str):
+            kuski.append(znachenie)
+        elif isinstance(znachenie, dict):
+            for v in znachenie.values():
+                sobrat(v)
+        elif isinstance(znachenie, (list, tuple)):
+            for v in znachenie:
+                sobrat(v)
+
+    for slovar in (bot.TEKSTY, bot.VERDIKTY, bot.DEYSTVIYA, bot.POST_KANALA,
+                   bot.POST_NEDELI, bot.POST_MESYACA, bot.POST_RYVOK,
+                   bot.UPUSHCHENO, bot.TEKSTY_POSEVA):
+        sobrat(slovar)
+    return "\n".join(kuski)
+
+
+_teksty_bota = _vse_teksty_bota()
+for _imya, _shablon, _pochemu in _ZAPRESHCHENO:
+    _najdeno = _re_zapret.search(_shablon, _teksty_bota, _re_zapret.I)
+    proverka("в текстах бота нет " + _imya, _najdeno is None,
+             ("нашлось «%s»: " % _najdeno.group(0) if _najdeno else "") + _pochemu)
+
+
 # ── По старым данным советов не даём ─────────────────────────────────
 #
 # Приложение при таких данных прячет курсы сервисов целиком, а совет
