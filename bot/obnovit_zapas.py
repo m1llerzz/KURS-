@@ -269,8 +269,9 @@ def main():
     _obnovit_stranicu_poiska(snimok)
     _obnovit_sitemap(str(istoriya[-1]["date"])[:10])
 
-    print("Не забудь поднять ?v= у скриптов в index.html — иначе Telegram "
-          "будет отдавать старую версию из кеша.", flush=True)
+    print("Версию скриптов в index.html поднимает `py obnovit_vsyo.py` — "
+          "если запускали этот скрипт отдельно, поднимите вручную, иначе "
+          "Telegram будет отдавать людям старую версию из кеша.", flush=True)
 
 
 if __name__ == "__main__":
