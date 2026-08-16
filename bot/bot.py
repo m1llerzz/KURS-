@@ -417,6 +417,61 @@ def summa_slovom(n):
     return "{:,}".format(int(round(n))).replace(",", " ")
 
 
+# Поля, которые вообще принимаются в событии. Адрес /api/event открыт
+# всему интернету: прислать туда можно что угодно, и без белого списка
+# это «что угодно» осело бы у нас в базе.
+#
+# Мы обещаем не собирать личных данных — значит отвечаем и за то, что
+# нам присылают. Обещание «не собираем» ничего не стоит, если мы кладём
+# в базу любое поле, которое пришло.
+POLYA_SOBYTIYA = {
+    "verdikt",        # каков был курс, когда человек пришёл
+    "istochnik",      # метка: канал, поиск, чат, пересылка
+    "iz_peresylki",   # пришёл по чужому расчёту
+    "summa",          # ПОРЯДОК суммы, не сама сумма
+    "sposobov",       # сколько способов показали
+    "servis",         # куда ушёл
+    "partner",        # была ли партнёрская ссылка
+}
+
+
+def _chistye_dannye(syroe):
+    """Оставляет только известные поля и режет длину значений."""
+    if not isinstance(syroe, dict):
+        return None
+    chistoe = {}
+    for kluch in POLYA_SOBYTIYA:
+        if kluch not in syroe:
+            continue
+        znachenie = syroe[kluch]
+        if isinstance(znachenie, bool) or isinstance(znachenie, int):
+            chistoe[kluch] = znachenie
+        elif isinstance(znachenie, str):
+            chistoe[kluch] = znachenie[:40]
+        elif znachenie is None:
+            chistoe[kluch] = None
+    return chistoe or None
+
+
+def poryadok_summy(n):
+    """Порядок суммы вместо самой суммы: 50 000 -> «50-150k».
+
+    Ровно те же границы, что в приложении. Для решений порядка хватает,
+    а для вреда — нет: сумма, которую человек собирается отправить домой,
+    в нашей базе лежать не должна ни в каком виде.
+    """
+    v = abs(int(n or 0))
+    if v < 10000:
+        return "до10k"
+    if v < 50000:
+        return "10-50k"
+    if v < 150000:
+        return "50-150k"
+    if v < 500000:
+        return "150-500k"
+    return "от500k"
+
+
 def yazyk(chat_id, po_umolchaniyu="uz"):
     c = hranilishche.chelovek(chat_id)
     lang = (c or {}).get("lang") or po_umolchaniyu
@@ -705,7 +760,13 @@ def obrabotat_soobshchenie(soobshchenie):
             zhdyom_summu.discard(chat_id)
             poslat(chat_id, TEKSTY[lang]["summa_prinyata"].format(
                 summa="{:,}".format(summa).replace(",", " ")), html=False)
-            hranilishche.sobytie(chat_id, "summa_zadana", {"summa": summa})
+            # Порядок суммы, а не сама сумма. Приложение так и делает,
+            # а бот писал в базу точное число — то самое, которое человек
+            # собирается отправить домой. Правило одно для обоих:
+            # наружу уходит порядок, потому что для решений его хватает,
+            # а для вреда — нет.
+            hranilishche.sobytie(chat_id, "summa_zadana",
+                                 {"summa": poryadok_summy(summa)})
             pokazat_kurs(chat_id, lang)
         else:
             poslat(chat_id, TEKSTY[lang]["summa_ne_ponyal"], html=False)
@@ -1881,7 +1942,7 @@ class Stranica(BaseHTTPRequestHandler):
             if tip:
                 syroy_id = str(telo.get("chat_id") or "")
                 chat_id = int(syroy_id) if syroy_id.lstrip("-").isdigit() else None
-                hranilishche.sobytie(chat_id, tip, telo.get("dannye"))
+                hranilishche.sobytie(chat_id, tip, _chistye_dannye(telo.get("dannye")))
 
                 # Человек только что посчитал — значит уже получил то, зачем
                 # приходил. Вот теперь можно спросить про оповещения: он
