@@ -96,6 +96,19 @@ def zapustit(imya, komanda, papka, propustit_esli=None, prichina=""):
         # Показываем последнюю содержательную строку — обычно это итог.
         stroki = [s for s in vyvod.strip().splitlines() if s.strip()]
         itog = stroki[-1] if stroki else "готово"
+
+        # Набор мог пройти, но часть проверок внутри выполнить не удалось —
+        # чужой сервер не ответил. Это не провал и не успех, и объявлять
+        # такой прогон полностью зелёным нельзя: молчаливый пропуск
+        # опаснее красной строки. Ровно так две трети проверок приложения
+        # не гонялись неделю, а сводка каждый раз говорила «всё хорошо».
+        if "НЕ ПРОВЕРЕНО" in vyvod:
+            print("%s~ %-28s %s%s" % (ZHELTY, imya, itog.strip(), SBROS))
+            for stroka in vyvod.splitlines():
+                if stroka.strip().startswith("~"):
+                    print("      " + stroka.strip())
+            return "propushcheno"
+
         print("%s+ %-28s %s%s" % (ZELYONY, imya, itog.strip(), SBROS))
         return "proshlo"
 

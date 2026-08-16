@@ -25,12 +25,24 @@ if os.path.exists(_VREMENNYY):
 import bot          # noqa: E402
 import sovet        # noqa: E402
 
-provereno, provalov = [], []
+provereno, provalov, predupredit = [], [], []
 
 
 def proverka(imya, uslovie, podskazka=""):
     (provereno if uslovie else provalov).append(
         imya + ("" if uslovie or not podskazka else "  << " + podskazka))
+
+
+def preduprezhdenie(imya, podskazka=""):
+    """Не провал и не успех: проверить не удалось по чужой вине.
+
+    Нужно, чтобы отличать «наш код сломан» от «ЦБ не ответил». Часть
+    проверок ходит в интернет, и без этого разделения красное появлялось
+    бы на здоровом коде каждый раз, когда чужой сервер моргнул. А тест,
+    который краснеет просто так, перестают читать — и вместе с ним
+    перестают замечать настоящие поломки.
+    """
+    predupredit.append(imya + ("  << " + podskazka if podskazka else ""))
 
 
 # ── Тексты: два языка обязаны совпадать по составу ───────────────────
@@ -124,16 +136,30 @@ try:
                  "без этого приложение на github.io не получит данные")
         telo = json.loads(r.read().decode("utf-8"))
 
-    proverka("в ответе есть курс ЦБ", bool(telo.get("cbu")))
-    proverka("курс рубля правдоподобен",
-             telo["cbu"] and 80 < telo["cbu"]["rub_uzs"] < 250,
-             str(telo.get("cbu")))
-    proverka("в ответе есть сервисы", len(telo.get("services") or []) > 0)
-    proverka("у сервиса посчитана наценка",
-             all("nacenka_percent" in s for s in telo["services"]))
-    proverka("наценка сервисов в разумных пределах",
-             all(-20 < s["nacenka_percent"] < 30 for s in telo["services"]),
-             str([(s["name"], s["nacenka_percent"]) for s in telo["services"]]))
+    # Данные приходят от ЦБ Узбекистана и bank.uz — чужих серверов, до
+    # которых нам нет никакого дела в момент проверки кода. Их молчание
+    # это не поломка нашего кода, и объявлять её провалом нельзя: красное
+    # на здоровом коде обесценивает все остальные строки прогона.
+    if not telo.get("cbu"):
+        preduprezhdenie(
+            "данные не проверены: ЦБ Узбекистана не ответил",
+            "это не поломка кода — прогони позже или проверь сеть")
+    else:
+        proverka("в ответе есть курс ЦБ", True)
+        proverka("курс рубля правдоподобен",
+                 80 < telo["cbu"]["rub_uzs"] < 250, str(telo.get("cbu")))
+
+    if not (telo.get("services") or []):
+        preduprezhdenie(
+            "курсы сервисов не проверены: bank.uz не ответил",
+            "если повторяется несколько дней — смотри разбор страницы")
+    else:
+        proverka("в ответе есть сервисы", True)
+        proverka("у сервиса посчитана наценка",
+                 all("nacenka_percent" in s for s in telo["services"]))
+        proverka("наценка сервисов в разумных пределах",
+                 all(-20 < s["nacenka_percent"] < 30 for s in telo["services"]),
+                 str([(s["name"], s["nacenka_percent"]) for s in telo["services"]]))
 
     with urllib.request.urlopen("http://127.0.0.1:18081/api/stats", timeout=10) as r:
         stat = json.loads(r.read().decode("utf-8"))
@@ -697,10 +723,21 @@ print("Пройдено:", len(provereno))
 for p in provereno:
     print("  + " + p)
 
+if predupredit:
+    print("\nНЕ ПРОВЕРЕНО:", len(predupredit))
+    for p in predupredit:
+        print("  ~ " + p)
+
 if provalov:
     print("\nПРОВАЛЕНО:", len(provalov))
     for p in provalov:
         print("  - " + p)
     raise SystemExit(1)
 
-print("\nВсе проверки зелёные.")
+# Непроверенное не объявляем зелёным: молчаливый пропуск опаснее красной
+# строки — именно так две трети проверок приложения не гонялись неделю.
+if predupredit:
+    print("\nОстальное зелёное, но %d проверок выполнить не удалось."
+          % len(predupredit))
+else:
+    print("\nВсе проверки зелёные.")
