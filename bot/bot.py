@@ -1728,7 +1728,48 @@ def podnyat_stranicu():
 
 # ── Запуск ───────────────────────────────────────────────────────────
 
+# Что перестаёт работать без каждой переменной. Формулировки нарочно про
+# последствие, а не про имя: «нет CHANNEL_ID» ни о чём не говорит через
+# месяц, а «постов в канале не будет» говорит всё.
+NASTROYKI = [
+    ("DATABASE_URL", "подписчики сотрутся при первом же перезапуске, "
+                     "события никуда не пишутся"),
+    ("CHANNEL_ID", "постов в канале не будет, ссылка на канал не появится"),
+    ("ADMIN_CHAT_ID", "еженедельная сводка не придёт"),
+    ("SVOI", "команда /tekst недоступна даже своим"),
+]
+
+
+def soobshchit_o_nastroykah():
+    """Список того, что не задано, и что из-за этого не работает.
+
+    Пишется в журнал при каждом запуске. Это единственное место, куда
+    Семён точно заглянет: логи Render открываются сами после заливки.
+
+    Иначе получался замкнутый круг. О незаданных переменных сообщала
+    еженедельная сводка — но она сама уходит на ADMIN_CHAT_ID, и пока он
+    не задан, молчит и о себе, и обо всём остальном.
+    """
+    net = [(imya, chto) for imya, chto in NASTROYKI
+           if not os.environ.get(imya, "").strip()]
+
+    if not net:
+        print("[настройки] всё задано: " +
+              ", ".join(imya for imya, _ in NASTROYKI), flush=True)
+        return
+
+    print("", flush=True)
+    print("[настройки] НЕ ЗАДАНО %d из %d — вот что из-за этого не работает:"
+          % (len(net), len(NASTROYKI)), flush=True)
+    for imya, chto in net:
+        print("[настройки]   %-14s %s" % (imya, chto), flush=True)
+    print("[настройки] Render -> сервис -> Environment. "
+          "Подробно: DEYSTVIYA-SEMYONA.md", flush=True)
+    print("", flush=True)
+
+
 def main():
+    soobshchit_o_nastroykah()
     hranilishche.podnyat()
     podnyat_stranicu()
     threading.Thread(target=fonovoe_obnovlenie, daemon=True).start()

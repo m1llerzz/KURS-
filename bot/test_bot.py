@@ -739,6 +739,63 @@ else:
     proverka("возраст страницы правдоподобен", _vozrast < 3650, str(_vozrast))
 
 
+# ── Сообщение о незаданных настройках ────────────────────────────────
+#
+# Единственное место, куда Семён точно заглянет: логи Render открываются
+# сами после заливки. До этого получался замкнутый круг — о незаданных
+# переменных сообщала еженедельная сводка, но она уходит на
+# ADMIN_CHAT_ID и, пока он не задан, молчит и о себе тоже.
+
+import contextlib   # noqa: E402
+import io as _io    # noqa: E402
+
+
+def _chto_skazhet_pro_nastroyki(zadano):
+    """Печать функции при заданных переменных `zadano` (словарь)."""
+    bylo = {imya: os.environ.get(imya) for imya, _ in bot.NASTROYKI}
+    try:
+        for imya, _ in bot.NASTROYKI:
+            os.environ.pop(imya, None)
+        for imya, znachenie in zadano.items():
+            os.environ[imya] = znachenie
+        bufer = _io.StringIO()
+        with contextlib.redirect_stdout(bufer):
+            bot.soobshchit_o_nastroykah()
+        return bufer.getvalue()
+    finally:
+        for imya, znachenie in bylo.items():
+            if znachenie is None:
+                os.environ.pop(imya, None)
+            else:
+                os.environ[imya] = znachenie
+
+
+_nichego = _chto_skazhet_pro_nastroyki({})
+proverka("без настроек названы все четыре",
+         all(imya in _nichego for imya, _ in bot.NASTROYKI),
+         _nichego.replace("\n", " | ")[:160])
+proverka("сказано не только имя, но и последствие",
+         "подписчики сотрутся" in _nichego,
+         "имя переменной через месяц ни о чём не говорит, последствие говорит всё")
+proverka("сказано, где это задаётся", "Environment" in _nichego)
+
+_chastichno = _chto_skazhet_pro_nastroyki({"DATABASE_URL": "postgres://x"})
+proverka("заданное не попадает в список пропущенного",
+         "DATABASE_URL" not in _chastichno, _chastichno.replace("\n", " | ")[:160])
+proverka("незаданное остаётся в списке", "CHANNEL_ID" in _chastichno)
+
+_vsyo = _chto_skazhet_pro_nastroyki({
+    "DATABASE_URL": "postgres://x", "CHANNEL_ID": "@k",
+    "ADMIN_CHAT_ID": "1", "SVOI": "1"})
+proverka("когда всё задано, тревоги нет", "НЕ ЗАДАНО" not in _vsyo, _vsyo.strip())
+
+# Пустая строка — это не заданное значение. На Render переменную легко
+# завести с пустым полем и решить, что дело сделано.
+_pustaya = _chto_skazhet_pro_nastroyki({"DATABASE_URL": "   "})
+proverka("пробелы вместо значения считаются незаданным",
+         "DATABASE_URL" in _pustaya, _pustaya.replace("\n", " | ")[:160])
+
+
 # ── Тексты для посева ────────────────────────────────────────────────
 #
 # Тексты в документе устаревают молча: числа в них остаются от того дня,
