@@ -117,8 +117,30 @@ function dozhdatsya() {
   proverka('на графике отмечен сегодняшний день', !!grafik.querySelector('circle.dt'));
 
   proverka('разница показана в сумах', /\d/.test(tekst(w, 'vOnSum')), tekst(w, 'vOnSum'));
-  proverka('на 50 000 ₽ разница около 400 тысяч',
-    /40[0-9]\s?\d{3}/.test(tekst(w, 'vOnSum')), tekst(w, 'vOnSum'));
+
+  /* Ожидаемое считаем из тех же данных, а не пишем числом.
+   *
+   * Здесь стояло «разница около 400 тысяч» — и проверка покраснела в
+   * первый же день, когда запас пересобрали настоящими курсами. Тест,
+   * который краснеет от нормальной работы, перестают открывать, а вместе
+   * с ним перестают замечать и настоящие поломки. */
+  function summaIzTeksta(stroka) {
+    const najdeno = String(stroka).replace(/\s| | /g, '').match(/\d+/g);
+    // Берём НАИБОЛЬШЕЕ число строки, а не первое: строка выглядит как
+    // «50 000 ₽ uchun odatdagidan 381 000 so'm kam olasiz», и первое
+    // число в ней — сумма перевода из подписи, а не ответ.
+    const chisla = (najdeno || []).map(function (ch) {
+      return parseInt(ch, 10);
+    }).filter(function (ch) { return !isNaN(ch); });
+    return chisla.length ? Math.max.apply(null, chisla) : NaN;
+  }
+
+  const ocenkaZapasa = w.CALC.sovet(w.HISTORY_ZAPAS);
+  const zhdem50 = Math.abs(Math.round(
+    (ocenkaZapasa.segodnya - ocenkaZapasa.srednee_30) * 50000));
+  proverka('разница на 50 000 ₽ совпадает с расчётом по тем же данным',
+    Math.abs(summaIzTeksta(tekst(w, 'vOnSum')) - zhdem50) <= 1,
+    tekst(w, 'vOnSum') + ' — ждали ' + zhdem50);
   // Курс падал весь месяц. Совет «подожди» здесь стоил бы человеку денег:
   // каждый следующий день был хуже предыдущего.
   proverka('совет учитывает направление курса',
@@ -368,8 +390,11 @@ function dozhdatsya() {
 
   vvesti(100000);
   proverka('верная сумма — ошибки нет', !vidno(w, 'summaErr'), tekst(w, 'summaErr'));
+  // Вдвое большая сумма обязана дать вдвое большую разницу. Проверяем
+  // соотношение, а не число: числа приходят из живых данных и меняются.
   proverka('разница пересчиталась на новую сумму',
-    /8\d\d\s?\d{3}|80[0-9]\s?\d{3}/.test(tekst(w, 'vOnSum')), tekst(w, 'vOnSum'));
+    Math.abs(summaIzTeksta(tekst(w, 'vOnSum')) - 2 * zhdem50) <= 2,
+    tekst(w, 'vOnSum') + ' — на 100 000 ₽ ждали ' + 2 * zhdem50);
 
   w.document.getElementById('schitat').click();
   await dozhdatsya();
@@ -518,6 +543,135 @@ function dozhdatsya() {
     /\d{3}/.test(tekst(w3, 'vOnSum')), tekst(w3, 'vOnSum'));
   proverka('объяснение не повторяется тому, кто его закрыл',
     !vidno(w3, 'intro'));
+
+  /* ── Страница под поиск: kurs.html ───────────────────────────────
+   *
+   * Её никто не открывает — и именно поэтому она сломается молча.
+   * Числа там переписывает bot/obnovit_zapas.py по меткам data-zapas:
+   * стоит переименовать метку, и страница застынет с числами
+   * полугодовой давности, продолжая выглядеть исправной.
+   */
+
+  const kursHtml = fs.readFileSync(path.join(KORNI, 'kurs.html'), 'utf8');
+  const kursDom = new JSDOM(kursHtml, {
+    url: 'https://m1llerzz.github.io/KURS-/kurs.html',
+  });
+  const kd = kursDom.window.document;
+
+  proverka('страница поиска парсится', !!kd.querySelector('h1'));
+  proverka('заголовок отвечает на запрос про курс',
+    /курс рубля/i.test(kd.querySelector('title').textContent),
+    kd.querySelector('title').textContent);
+  proverka('описание для выдачи на месте',
+    !!kd.querySelector('meta[name="description"]'));
+  proverka('канонический адрес указан',
+    !!kd.querySelector('link[rel="canonical"]'));
+
+  // Оба языка обязательны — это решение проекта, и страница поиска
+  // ловит запросы обоих: «курс рубля к суму» и «rubl kursi bugun».
+  proverka('на странице оба языка',
+    !!kd.querySelector('section[lang="ru"]') && !!kd.querySelector('section[lang="uz"]'),
+    'узбекский первый по важности, русский обязателен');
+
+  // Метки должны совпадать с теми, что подставляет обновлятор. Список
+  // здесь продублирован намеренно: он и есть договор между страницей и
+  // скриптом, и расхождение обязано быть красным, а не тихим.
+  const METKI = ['kurs', 'data_ru', 'data_uz', 'kurs_min', 'kurs_max',
+                 'razmah_percent', 'razmah_sum', 'period_ru', 'period_uz',
+                 'kurs_servisa', 'nacenka_percent', 'nacenka_sum', 'itog_50k'];
+  METKI.forEach(function (m) {
+    proverka('метка ' + m + ' есть на странице',
+      !!kd.querySelector('[data-zapas="' + m + '"]'),
+      'обновлятор её подставляет, а подставлять некуда');
+  });
+
+  const obnovlyator = fs.readFileSync(
+    path.join(KORNI, 'bot', 'obnovit_zapas.py'), 'utf8');
+  const metkiNaStranice = Array.from(kd.querySelectorAll('[data-zapas]'))
+    .map(function (el) { return el.getAttribute('data-zapas'); });
+  proverka('обновлятор знает все метки страницы',
+    metkiNaStranice.every(function (m) {
+      return obnovlyator.indexOf('"' + m + '"') !== -1;
+    }),
+    'метка есть на странице, но её никто не обновляет: ' +
+      metkiNaStranice.filter(function (m) {
+        return obnovlyator.indexOf('"' + m + '"') === -1;
+      }).join(', '));
+
+  // Ни одного пустого места: страница читается поисковиком как есть,
+  // без выполнения скриптов, и пустой span стал бы дырой в тексте.
+  proverka('все числа заполнены',
+    Array.from(kd.querySelectorAll('[data-zapas]')).every(function (el) {
+      return el.textContent.trim().length > 0;
+    }));
+
+  proverka('вместо чисел нигде не стоит прочерк',
+    Array.from(kd.querySelectorAll('[data-zapas]')).every(function (el) {
+      return el.textContent.trim() !== '—';
+    }),
+    'прочерк на странице поиска — это дыра в тексте, который читает робот');
+
+  // Числа обязаны сходиться между собой: человек проверит на
+  // калькуляторе, и разошедшаяся строка стоит дороже, чем кажется.
+  function chisloSoStranicy(metka) {
+    const el = kd.querySelector('[data-zapas="' + metka + '"]');
+    if (!el) return NaN;
+    return parseFloat(el.textContent.replace(/\s/g, '').replace(',', '.'));
+  }
+
+  const kursCB = chisloSoStranicy('kurs');
+  const kursServisa = chisloSoStranicy('kurs_servisa');
+  const nacenka = chisloSoStranicy('nacenka_percent');
+  proverka('наценка сходится с курсами на странице',
+    Math.abs((kursCB - kursServisa) / kursCB * 100 - nacenka) < 0.05,
+    kursCB + ' и ' + kursServisa + ' дают не ' + nacenka + '%');
+
+  const nacenkaSum = chisloSoStranicy('nacenka_sum');
+  proverka('наценка в сумах сходится с курсами',
+    Math.abs((kursCB - kursServisa) * 50000 - nacenkaSum) < 100,
+    'на 50 000 ₽ это ' + Math.round((kursCB - kursServisa) * 50000) +
+      ', а написано ' + nacenkaSum);
+
+  const kursMin = chisloSoStranicy('kurs_min');
+  const kursMax = chisloSoStranicy('kurs_max');
+  proverka('размах в сумах сходится с коридором месяца',
+    Math.abs((kursMax - kursMin) * 50000 - chisloSoStranicy('razmah_sum')) < 100,
+    'коридор ' + kursMin + '–' + kursMax);
+  proverka('размах в процентах сходится с коридором',
+    Math.abs((kursMax - kursMin) / kursMin * 100 - chisloSoStranicy('razmah_percent')) < 0.05);
+  proverka('минимум месяца не больше максимума', kursMin <= kursMax);
+  proverka('курс перевода ниже официального', kursServisa < kursCB,
+    'иначе наценка отрицательная, и весь смысл строки теряется');
+
+  // Разметка для поисковика. Расхождение с видимым текстом Google
+  // считает обманом и понижает страницу целиком.
+  const ldEl = kd.querySelector('script[type="application/ld+json"]');
+  proverka('разметка вопрос-ответ есть', !!ldEl);
+  let ld = null;
+  try { ld = JSON.parse(ldEl.textContent); } catch (e) { ld = null; }
+  proverka('разметка вопрос-ответ разбирается', !!ld,
+    'сломанный JSON-LD поисковик просто выбрасывает');
+  if (ld) {
+    proverka('разметка объявлена как FAQPage', ld['@type'] === 'FAQPage');
+    const vidimyy = kd.body.textContent.replace(/\s+/g, ' ');
+    proverka('каждый вопрос из разметки виден на странице',
+      (ld.mainEntity || []).every(function (v) {
+        return vidimyy.indexOf(v.name) !== -1;
+      }),
+      'разметка с невидимыми вопросами считается обманом');
+    proverka('в разметке нет курса, который меняется',
+      !(ld.mainEntity || []).some(function (v) {
+        return /\d{3},\d{2}/.test(v.acceptedAnswer.text);
+      }),
+      'обновлятор до разметки не дотягивается, и такое число протухнет');
+  }
+
+  // Метка источника: без неё непонятно, приводит ли поиск людей вообще.
+  const ssylki = Array.from(kd.querySelectorAll('a[href*="t.me"]'));
+  proverka('на странице есть ссылка в приложение', ssylki.length > 0);
+  proverka('все ссылки в приложение помечены источником',
+    ssylki.every(function (a) { return /startapp=poisk/.test(a.href); }),
+    'иначе переходы из поиска сольются с остальными и посчитать их нечем');
 
   /* ── Итог ──────────────────────────────────────────────────────── */
 

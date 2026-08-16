@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!--
+  СТРАНИЦА ПОД ПОИСК — Google и Yandex.
+
+  Зачем она отдельно от приложения. Мини-апп живёт внутри Telegram, и
+  поисковику там смотреть нечего: экран рисуется скриптом, текста в
+  разметке нет. Эта страница — обычный сайт: числа и объяснения лежат
+  прямо в HTML, и поисковик читает их сразу, без выполнения скриптов.
+
+  Почему это стоит времени при нулевом бюджете. Денег на рекламу нет,
+  а запросы «курс рубля к суму сегодня» и «rubl kursi bugun» люди
+  набирают каждый день и будут набирать всегда. Место в выдаче не
+  кончается и не требует ничьего времени после того, как сделано.
+
+  Честно про срок: результат появляется через два-три месяца, не раньше.
+  Поэтому делать надо сейчас.
+
+  ПРАВИЛО ЭТОЙ СТРАНИЦЫ: ни одного числа без даты. Числа в разметке —
+  последний известный замер, их переписывает `bot/obnovit_zapas.py`
+  вместе с data.js. Скрипт ниже подменяет их живыми, если бот ответил.
+-->
+
+<title>Курс рубля к суму сегодня · Rubl kursi bugun — сколько дойдёт до карты</title>
+<meta name="description" content="Курс рубля к суму на сегодня, курс переводов Россия — Узбекистан и расчёт, сколько реально дойдёт до карты. Официальный курс ЦБ Узбекистана обновляется каждый час.">
+
+<link rel="canonical" href="https://m1llerzz.github.io/KURS-/kurs.html">
+
+<meta property="og:title" content="Курс рубля к суму сегодня — и сколько дойдёт до карты">
+<meta property="og:description" content="Отправлять сегодня или подождать. Курс ЦБ Узбекистана, курс переводов и разница в сумах на вашей сумме.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://m1llerzz.github.io/KURS-/kurs.html">
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f4f7fa;
+    --ink: #101820;
+    --muted: #5c6b7a;
+    --accent: #0f6a8b;
+    --line: rgba(16, 24, 32, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12181d;
+      --surface: #1b232a;
+      --ink: #eef3f7;
+      --muted: #9bacbb;
+      --accent: #4fb3d9;
+      --line: rgba(238, 243, 247, 0.14);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 18px 56px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 720px;
+    margin-inline: auto;
+    -webkit-text-size-adjust: 100%;
+  }
+  h1 { font-size: 26px; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 20px; line-height: 1.3; margin: 36px 0 12px; }
+  h3 { font-size: 17px; margin: 22px 0 6px; }
+  p { margin: 0 0 12px; }
+  .lead { color: var(--muted); margin-bottom: 24px; }
+
+  .kurs {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin: 20px 0 8px;
+  }
+  .kurs .big { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+  .kurs .podpis { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 18px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; font-size: 14px; color: var(--muted); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .obertka { overflow-x: auto; }
+
+  .knopka {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    padding: 13px 22px;
+    border-radius: 11px;
+    font-weight: 600;
+    margin: 8px 0 4px;
+  }
+  .vopros { font-weight: 600; margin: 18px 0 4px; }
+  .otvet { color: var(--muted); margin: 0 0 8px; }
+  footer { margin-top: 44px; color: var(--muted); font-size: 14px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+  [lang="uz"] { display: block; }
+</style>
+</head>
+<body>
+
+<section lang="ru">
+
+<h1>Курс рубля к суму сегодня — и сколько дойдёт до карты</h1>
+<p class="lead">
+  Официальный курс Центрального банка Узбекистана, курс сервисов переводов
+  Россия — Узбекистан и главное, чего не показывает никто: насколько
+  сегодняшний курс отличается от обычного.
+</p>
+
+<div class="kurs">
+  <div class="big"><span data-zapas="kurs">141,76</span> сум за 1 ₽</div>
+  <div class="podpis">
+    Курс ЦБ Узбекистана на <span data-zapas="data_ru">16 августа 2026</span>.
+    <span id="kurs-verdikt">Заметно ниже среднего за месяц.</span>
+  </div>
+</div>
+
+<p>
+  <a class="knopka" href="https://t.me/QanchaYetadi_bot/call?startapp=poisk">
+    Посчитать свой перевод
+  </a>
+</p>
+
+<h2>Больше всего решает день отправки, а не сервис</h2>
+
+<p>
+  Это главное, что стоит знать про переводы в Узбекистан, и об этом молчат
+  все. Замер по курсам ЦБ за 30 дней — <span data-zapas="period_ru">с 18 июля по 16 августа 2026</span>, на переводе 50 000 ₽:
+</p>
+
+<div class="obertka">
+<table>
+  <thead>
+    <tr><th>Что выбираешь</th><th>Разница</th><th>В сумах на 50 000 ₽</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>День отправки</td>
+        <td class="num"><span data-zapas="razmah_percent">9,49</span>%</td>
+        <td class="num"><span data-zapas="razmah_sum">673 000</span></td></tr>
+    <tr><td>Сервис перевода</td>
+        <td class="num"><span data-zapas="nacenka_percent">4,06</span>%</td>
+        <td class="num"><span data-zapas="nacenka_sum">288 000</span></td></tr>
+    <tr><td>Банк получателя</td><td class="num">0,84%</td><td class="num">55 000</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>
+  За этот месяц курс рубля прошёл путь от <span data-zapas="kurs_max">155,22</span>
+  до <span data-zapas="kurs_min">141,76</span> сума. Человек, отправивший в
+  худший день месяца вместо лучшего, недосчитался
+  <span data-zapas="razmah_sum">673 000</span> сум на переводе 50 000 ₽.
+  Комиссия рядом с этим — мелочь.
+</p>
+
+<p>
+  Разброс курсов банков получателя — 0,84%, замер 15 августа 2026 года по
+  23 банкам. Это самый слабый из трёх рычагов, и потому выбор банка мы не
+  показываем главным экраном.
+</p>
+
+<h2>Курс переводов против официального</h2>
+
+<p>
+  Официальный курс ЦБ — это не тот курс, по которому идёт перевод. Сервисы
+  считают по своему, и разница нигде не написана отдельной строкой.
+  На <span data-zapas="data_ru">16 августа 2026</span> года: официальный
+  <span data-zapas="kurs">141,76</span>, курс переводов
+  <span data-zapas="kurs_servisa">136,00</span>. Разница
+  <span data-zapas="nacenka_percent">4,06</span>% — это
+  <span data-zapas="nacenka_sum">288 000</span> сум на переводе 50 000 ₽.
+</p>
+
+<p>
+  Это не комиссия. Комиссия объявляется, а это просто другой курс.
+</p>
+
+<h2>Откуда числа</h2>
+
+<p>
+  Официальный курс — открытый API Центрального банка Узбекистана,
+  обновляется каждый час. Курсы переводов — страница переводов bank.uz.
+  Ни одно число здесь не вписано руками, и у каждого стоит дата.
+</p>
+
+<p>
+  Комиссии сервисы не публикуют, поэтому расчёт даёт верхнюю границу —
+  так и написано в приложении. Курс зачисления банка получателя
+  оценочный: банки его не объявляют заранее.
+</p>
+
+<h2>Частые вопросы</h2>
+
+<p class="vopros">Какой сегодня курс рубля к суму?</p>
+<p class="otvet">
+  На <span data-zapas="data_ru">16 августа 2026</span> официальный курс
+  ЦБ Узбекистана — <span data-zapas="kurs">141,76</span> сума за
+  1 рубль. Перевод идёт по курсу около
+  <span data-zapas="kurs_servisa">136,00</span> сума за рубль.
+</p>
+
+<p class="vopros">Сколько дойдёт до карты при переводе 50 000 рублей?</p>
+<p class="otvet">
+  По курсу переводов <span data-zapas="kurs_servisa">136,00</span> —
+  около <span data-zapas="itog_50k">6 800 000</span> сумов, если сервис не
+  берёт комиссию сверху. Комиссии сервисы не публикуют, поэтому это
+  верхняя граница. Точная сумма зависит от дня отправки и от банка,
+  который зачисляет деньги на карту.
+</p>
+
+<p class="vopros">Через какой сервис выгоднее переводить в Узбекистан?</p>
+<p class="otvet">
+  Разница между сервисами в этом коридоре почти нулевая: на открытых
+  данных их два, и курс у них одинаковый. Настоящая разница — в дне
+  отправки: за месяц курс менялся на
+  <span data-zapas="razmah_percent">9,49</span>%.
+</p>
+
+<p class="vopros">Стоит ли подождать с переводом?</p>
+<p class="otvet">
+  Зависит от того, куда идёт курс. Если он падает — ждать значит терять:
+  завтра дойдёт меньше. Ждать имеет смысл только когда курс ниже обычного
+  и при этом растёт. Предсказывать курс мы не беремся и не имеем права.
+</p>
+
+<p class="vopros">Сколько это стоит?</p>
+<p class="otvet">
+  Ноль. Деньги мы не переводим и не принимаем — только считаем и
+  показываем.
+</p>
+
+</section>
+
+<hr>
+
+<section lang="uz">
+
+<h2>Rubl kursi bugun — kartaga qancha yetib boradi</h2>
+
+<p class="lead">
+  O‘zbekiston Markaziy banki kursi, Rossiyadan pul o‘tkazish kursi va eng
+  muhimi: bugungi kurs odatdagidan qanchalik farq qiladi.
+</p>
+
+<div class="kurs">
+  <div class="big"><span data-zapas="kurs">141,76</span> so‘m — 1 ₽</div>
+  <div class="podpis">
+    Markaziy bank kursi, <span data-zapas="data_uz">16 avgust 2026</span>.
+  </div>
+</div>
+
+<p>
+  <a class="knopka" href="https://t.me/QanchaYetadi_bot/call?startapp=poisk">
+    O‘z pulingizni hisoblang
+  </a>
+</p>
+
+<h3>Eng ko‘p pulni yuborish KUNI hal qiladi</h3>
+
+<p>
+  30 kunlik o‘lchov (<span data-zapas="period_uz">18 iyul — 16 avgust 2026</span>), 50 000 rubl uchun: yuborish kuni —
+  <span data-zapas="razmah_percent">9,49</span>% yoki
+  <span data-zapas="razmah_sum">673 000</span> so‘m; servis tanlash —
+  <span data-zapas="nacenka_percent">4,06</span>% yoki
+  <span data-zapas="nacenka_sum">288 000</span> so‘m; qabul qiluvchi
+  bank — 0,84%.
+</p>
+
+<p>
+  Bir oyda rubl kursi <span data-zapas="kurs_max">155,22</span> dan
+  <span data-zapas="kurs_min">141,76</span> gacha tushdi. Eng yomon kunda
+  yuborgan odam eng yaxshi kunga nisbatan
+  <span data-zapas="razmah_sum">673 000</span> so‘m kam oldi.
+  Komissiya bunga nisbatan mayda gap.
+</p>
+
+<h3>O‘tkazma kursi rasmiy kursdan past</h3>
+
+<p>
+  Rasmiy kurs — bu o‘tkazma kursi emas.
+  <span data-zapas="data_uz">16 avgust 2026</span>: rasmiy
+  <span data-zapas="kurs">141,76</span>, o‘tkazma
+  <span data-zapas="kurs_servisa">136,00</span>. Farqi
+  <span data-zapas="nacenka_percent">4,06</span>% — 50 000 rublda
+  <span data-zapas="nacenka_sum">288 000</span> so‘m. Bu komissiya
+  emas, bu kurs, va u hech qayerda alohida yozilmagan.
+</p>
+
+<h3>Raqamlar qayerdan</h3>
+
+<p>
+  Rasmiy kurs — O‘zbekiston Markaziy bankining ochiq API'si, har soatda
+  yangilanadi. O‘tkazma kurslari — bank.uz. Hech bir raqam qo‘lda
+  yozilmagan, har birida sana bor.
+</p>
+
+</section>
+
+<footer>
+  <p>
+    Qancha yetadi — pul o‘tkazish uchun hisob-kitob. Biz pul o‘tkazmaymiz
+    va qabul qilmaymiz. · Мы не переводим и не принимаем деньги, только
+    считаем.
+  </p>
+  <p>
+    <a href="https://t.me/QanchaYetadi_bot/call?startapp=poisk">Ilova</a> ·
+    <a href="index.html">Приложение</a>
+  </p>
+</footer>
+
+<!--
+  Разметка для поисковика: вопрос-ответ. Google показывает такие блоки
+  прямо в выдаче, и человек видит наш ответ, ещё не открыв страницу.
+
+  Здесь НЕТ ни одного числа, которое меняется день ото дня, и это
+  сделано нарочно. Видимые числа на странице переписывает
+  `bot/obnovit_zapas.py`, а до этой разметки он не дотягивается: она
+  разошлась бы с текстом за неделю. Поисковик считает расхождение
+  разметки с видимым текстом обманом и понижает страницу целиком.
+
+  Поэтому здесь остались только утверждения, которые не устаревают.
+  Вопросы обязаны совпадать с теми, что видны выше, — за этим следит
+  проверка в test-app.js.
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Через какой сервис выгоднее переводить в Узбекистан?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Разница между сервисами в этом коридоре почти нулевая: на открытых данных их два, и курс у них одинаковый. Настоящая разница — в дне отправки."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Стоит ли подождать с переводом?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Зависит от того, куда идёт курс. Если он падает — ждать значит терять: завтра дойдёт меньше. Ждать имеет смысл только когда курс ниже обычного и при этом растёт. Предсказывать курс мы не беремся и не имеем права."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Сколько это стоит?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ноль. Деньги мы не переводим и не принимаем — только считаем и показываем."
+      }
+    }
+  ]
+}
+</script>
+
+<script>
+/* Живые числа поверх статических.
+ *
+ * Страница полностью читается и без этого скрипта — в разметке лежит
+ * последний замер с датой. Скрипт лишь освежает числа, если бот ответил.
+ * Если не ответил, человек видит старое число С ЧЕСТНОЙ ДАТОЙ, а не
+ * прочерк: правило проекта — цифра без даты не показывается, но и
+ * пустой экран вместо цифры никому не помогает.
+ */
+(function () {
+  'use strict';
+
+  var API = 'https://qanchayetadi-bot.onrender.com/api/rates';
+
+  var MESYACY = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  var MESYACY_UZ = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+                    'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+
+  var VERDIKTY = {
+    otlichno: 'Заметно выше среднего за месяц.',
+    horosho: 'Выше среднего за месяц.',
+    obychno: 'На уровне среднего за месяц.',
+    nize_obychnogo: 'Ниже среднего за месяц.',
+    ploho: 'Заметно ниже среднего за месяц.'
+  };
+
+  function chislo(z) {
+    return z.toFixed(2).replace('.', ',');
+  }
+
+  function dataSlovom(iso, uz) {
+    var chasti = String(iso).slice(0, 10).split('-');
+    if (chasti.length !== 3) return null;
+    var mesyac = (uz ? MESYACY_UZ : MESYACY)[parseInt(chasti[1], 10) - 1];
+    if (!mesyac) return null;
+    return parseInt(chasti[2], 10) + ' ' + mesyac + ' ' + chasti[0];
+  }
+
+  function summaSlovom(n) {
+    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  /* Числа на странице помечены атрибутом data-zapas. Один и тот же
+   * маркер встречается в нескольких местах — и в русской половине, и в
+   * узбекской, — поэтому обновляются все сразу. */
+  function postavit(metka, tekst) {
+    var vse = document.querySelectorAll('[data-zapas="' + metka + '"]');
+    for (var i = 0; i < vse.length; i++) vse[i].textContent = tekst;
+  }
+
+  try {
+    fetch(API, { cache: 'no-store' })
+      .then(function (o) { return o.json(); })
+      .then(function (d) {
+        var kurs = d && d.cbu && d.cbu.rub_uzs;
+        if (!kurs) return;
+
+        var ocenka = d.sovet || {};
+        // Дату берём из самих данных, а не из часов браузера: ЦБ не
+        // публикует курс по выходным, и «сегодня» три дня в неделю
+        // означало бы не тот день.
+        var iso = ocenka.data || (d.cbu && d.cbu.date) || null;
+
+        postavit('kurs', chislo(kurs));
+
+        if (iso) {
+          var ru = dataSlovom(iso, false);
+          var uz = dataSlovom(iso, true);
+          if (ru) postavit('data_ru', ru);
+          if (uz) postavit('data_uz', uz);
+        }
+
+        if (ocenka.verdikt && VERDIKTY[ocenka.verdikt]) {
+          var el = document.getElementById('kurs-verdikt');
+          if (el) el.textContent = VERDIKTY[ocenka.verdikt];
+        }
+
+        // Размах месяца — та самая цифра, ради которой страница написана.
+        if (ocenka.min_30 && ocenka.max_30) {
+          postavit('kurs_min', chislo(ocenka.min_30));
+          postavit('kurs_max', chislo(ocenka.max_30));
+          postavit('razmah_percent',
+                   chislo((ocenka.max_30 - ocenka.min_30) / ocenka.min_30 * 100));
+          postavit('razmah_sum', summaSlovom((ocenka.max_30 - ocenka.min_30) * 50000));
+        }
+
+        // Курс сервисов и наценка к официальному.
+        var servisy = (d.services || []).filter(function (s) {
+          return s && s.rate_rub_uzs;
+        });
+        if (servisy.length) {
+          var luchshiy = servisy.reduce(function (a, b) {
+            return b.rate_rub_uzs > a.rate_rub_uzs ? b : a;
+          });
+          postavit('kurs_servisa', chislo(luchshiy.rate_rub_uzs));
+          postavit('nacenka_percent', chislo((kurs - luchshiy.rate_rub_uzs) / kurs * 100));
+          postavit('nacenka_sum', summaSlovom((kurs - luchshiy.rate_rub_uzs) * 50000));
+          postavit('itog_50k', summaSlovom(luchshiy.rate_rub_uzs * 50000));
+        }
+      })
+      .catch(function () {});   // молча: статические числа уже показаны
+  } catch (e) {}
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://m1llerzz.github.io/KURS-/sitemap.xml
