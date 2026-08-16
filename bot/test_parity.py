@@ -182,30 +182,59 @@ KORNI_ = os.path.dirname(os.path.abspath(__file__))
 
 
 def _chislo_iz_fayla(put, shablon):
+    """Число из исходника. None — не нашли или файла нет.
+
+    Сравниваем как float: «30» и «30.0» — одно и то же число, и падать
+    на этом было бы придиркой, а не проверкой.
+    """
     try:
         with open(put, "r", encoding="utf-8") as f:
             najdeno = _re.search(shablon, f.read(), _re.M)
-        return int(najdeno.group(1)) if najdeno else None
+        return float(najdeno.group(1)) if najdeno else None
     except OSError:
         return None
 
 
-_v_js = _chislo_iz_fayla(os.path.join(KORNI_, "..", "app.js"),
-                         r"const PREDEL_SOVETA_DNEY = (\d+)")
-_v_py = _chislo_iz_fayla(os.path.join(KORNI_, "bot.py"),
-                         r"^PREDEL_SOVETA_DNEY = (\d+)")
+PARY_KONSTANT = [
+    # имя, файл+шаблон для Python, файл+шаблон для JS, чем грозит расхождение
+    ("порог совета",
+     ("bot.py", r"^PREDEL_SOVETA_DNEY = ([\d.]+)"),
+     ("app.js", r"const PREDEL_SOVETA_DNEY = ([\d.]+)"),
+     "по старым данным один будет советовать, а другой молчать"),
+    ("порог заметности",
+     ("sovet.py", r"^PORAG_ZAMETNOSTI = ([\d.]+)"),
+     ("calc.js", r"const PORAG_ZAMETNOSTI = ([\d.]+)"),
+     "один назовёт курс обычным, другой — хуже обычного"),
+    ("порог сильного отклонения",
+     ("sovet.py", r"^PORAG_SILNYY = ([\d.]+)"),
+     ("calc.js", r"const PORAG_SILNYY = ([\d.]+)"),
+     "«заметно хуже» и «просто хуже» разойдутся"),
+    ("окно месяца",
+     ("sovet.py", r"^OKNO_DNEY = ([\d.]+)"),
+     ("calc.js", r"const OKNO_DNEY = ([\d.]+)"),
+     "среднее будет считаться по разным отрезкам"),
+    ("окно недели",
+     ("sovet.py", r"^NEDELYA_DNEY = ([\d.]+)"),
+     ("calc.js", r"const NEDELYA_DNEY = ([\d.]+)"),
+     "строка «за неделю» покажет разные числа"),
+]
 
-if _v_js is None or _v_py is None:
-    print("РАСХОЖДЕНИЕ [порог устаревания совета]")
-    print("     константа не найдена: py=%s js=%s" % (_v_py, _v_js))
-    rashozhdeniy += 1
-elif _v_js != _v_py:
-    print("РАСХОЖДЕНИЕ [порог устаревания совета]")
-    print("     py=%s js=%s — по старым данным один будет советовать, "
-          "а другой молчать" % (_v_py, _v_js))
-    rashozhdeniy += 1
-else:
-    print("  = %-20s %s дней в обоих" % ("порог совета", _v_py))
+for _imya_k, (_fayl_py, _shab_py), (_fayl_js, _shab_js), _chem in PARY_KONSTANT:
+    _v_py = _chislo_iz_fayla(os.path.join(KORNI_, _fayl_py), _shab_py)
+    _v_js = _chislo_iz_fayla(
+        os.path.join(KORNI_, _fayl_js if _fayl_js.endswith(".py")
+                     else os.path.join("..", _fayl_js)), _shab_js)
+
+    if _v_py is None or _v_js is None:
+        print("РАСХОЖДЕНИЕ [%s]" % _imya_k)
+        print("     константа не найдена: py=%s js=%s" % (_v_py, _v_js))
+        rashozhdeniy += 1
+    elif _v_py != _v_js:
+        print("РАСХОЖДЕНИЕ [%s]" % _imya_k)
+        print("     py=%s js=%s — %s" % (_v_py, _v_js, _chem))
+        rashozhdeniy += 1
+    else:
+        print("  = %-20s %s в обоих" % (_imya_k, _v_py))
 
 print()
 if rashozhdeniy:
