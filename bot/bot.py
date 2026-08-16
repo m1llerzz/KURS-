@@ -26,6 +26,7 @@
 """
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -1415,6 +1416,42 @@ def opublikovat_ryvok():
     return _opublikovat("ryvok")
 
 
+def svezhest_stranicy_poiska():
+    """Сколько дней числам на странице под поиск. None — не удалось узнать.
+
+    Зачем бот вообще смотрит на чужую страницу. Числа на ней переписывает
+    `obnovit_zapas.py`, которого надо не забыть запустить и залить. Того,
+    что надо помнить, не делают — и через полгода страница, которую никто
+    не открывает, будет показывать позапрошлый курс, выглядя исправной.
+    Так что помнит бот, а не человек.
+    """
+    try:
+        zapros = urllib.request.Request(
+            "https://m1llerzz.github.io/KURS-/kurs.html",
+            headers={"User-Agent": "qy-svodka/1"})
+        with urllib.request.urlopen(zapros, timeout=30) as o:
+            stranica = o.read().decode("utf-8", "replace")
+    except Exception:
+        return None
+
+    najdeno = re.search(r'data-zapas="data_ru">([^<]+)<', stranica)
+    if not najdeno:
+        return None
+
+    # «16 августа 2026» -> дата. Месяц ищем по нашему же списку.
+    kuski = najdeno.group(1).strip().split()
+    if len(kuski) != 3:
+        return None
+    try:
+        den, mesyac, god = int(kuski[0]), kuski[1], int(kuski[2])
+        nomer = MESYACY["ru"].index(mesyac) + 1
+        byla = datetime(god, nomer, den, tzinfo=timezone.utc)
+    except (ValueError, IndexError):
+        return None
+
+    return (datetime.now(timezone.utc) - byla).days
+
+
 def svodka_dlya_svoih():
     """Еженедельная сводка тому, кто ведёт проект.
 
@@ -1487,6 +1524,19 @@ def svodka_dlya_svoih():
                 predupredit.append("ДАННЫЕ НЕ ОБНОВЛЯЛИСЬ %d ч" % vozrast)
         except Exception:
             pass
+
+    # Страница под поиск и обложка живут отдельно от бота и не обновляются
+    # сами. Напоминаем не «раз в месяц», а по факту устаревания.
+    vozrast_stranicy = svezhest_stranicy_poiska()
+    if vozrast_stranicy is None:
+        predupredit.append("НЕ ОТКРЫВАЕТСЯ СТРАНИЦА ПОИСКА kurs.html")
+    elif vozrast_stranicy > 30:
+        predupredit.append(
+            "ЧИСЛАМ НА СТРАНИЦЕ ПОИСКА %d дней. Пересобери и залей:\n"
+            "  cd app/bot\n"
+            "  py obnovit_zapas.py\n"
+            "  py sobrat_oblozhku.py\n"
+            "  cd .. && py proverit.py" % vozrast_stranicy)
 
     if predupredit:
         stroki.append("")
