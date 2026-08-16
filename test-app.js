@@ -193,11 +193,57 @@ function dozhdatsya() {
   proverka('разница на 50 000 ₽ совпадает с расчётом по тем же данным',
     Math.abs(summaIzTeksta(tekst(w, 'vOnSum')) - zhdem50) <= 1,
     tekst(w, 'vOnSum') + ' — ждали ' + zhdem50);
-  // Курс падал весь месяц. Совет «подожди» здесь стоил бы человеку денег:
-  // каждый следующий день был хуже предыдущего.
+  /* Совет проверяем НЕ на запасе, а на данных с сегодняшними датами.
+   *
+   * Запас лежит с фиксированными датами и стареет сам по себе: через
+   * пять дней после последней пересборки приложение перестаёт по нему
+   * советовать — и правильно делает. Проверка, привязанная к тексту
+   * совета на запасе, начала бы краснеть в календарный срок, без единой
+   * правки кода. Такие бомбы обесценивают весь прогон: их принимают за
+   * «опять что-то моргнуло».
+   *
+   * Здесь ряд строится от сегодняшнего дня и падает — как в тот август,
+   * когда «подожди» стоило человеку денег каждый день. */
+  const segodnyashniy_padayushchiy = [];
+  for (let i = 20; i >= 0; i--) {
+    segodnyashniy_padayushchiy.push({
+      date: new Date(Date.now() - i * 86400000).toISOString().slice(0, 10),
+      rub_uzs: 155 - (20 - i) * 0.7,
+    });
+  }
+  const wSovet = podnyat({
+    ok: true,
+    cbu: { usd_uzs: 11937.89, rub_uzs: 141.0,
+           date: segodnyashniy_padayushchiy[20].date },
+    services: [{
+      id: 'yubor', name: 'Yubor', route: 'A', corridors: ['RU-UZ'],
+      fee_fixed: 0, fee_percent: 0, rate_rub_uzs: 136.0,
+      limit_per_operation: 1000000, delivery_minutes: 60, incoming_fee: 0,
+      checked_at: new Date().toISOString(), fee_unknown: true,
+      nacenka_percent: 4.06,
+    }],
+    banks: [], history: segodnyashniy_padayushchiy, sovet: null,
+  }, { intro_pokazan: '1' });
+  await dozhdatsya();
+
   proverka('совет учитывает направление курса',
-    /падает|tushmoqda/i.test(tekst(w, 'vHint')),
-    tekst(w, 'vHint') + ' — при падающем курсе советовать ждать нельзя');
+    /падает|tushmoqda/i.test(tekst(wSovet, 'vHint')),
+    tekst(wSovet, 'vHint') + ' — при падающем курсе советовать ждать нельзя');
+
+  /* А на старом запасе совета быть НЕ должно — и это тоже правило, а не
+   * случайность. Проверяем его прямо, чтобы никто не «починил» молчание
+   * обратно в бодрый совет по позапрошлому курсу. */
+  const vozrastZapasa = (Date.now()
+    - Date.parse(w.HISTORY_ZAPAS[w.HISTORY_ZAPAS.length - 1].date)) / 86400000;
+  if (vozrastZapasa > 5) {
+    proverka('на устаревшем запасе совет не даётся',
+      /устарел|eski/i.test(tekst(w, 'vHint')),
+      tekst(w, 'vHint') + ' — запасу ' + Math.round(vozrastZapasa) + ' дней');
+  } else {
+    proverka('запас свежий — совет по нему даётся',
+      !/устарел|eski/i.test(tekst(w, 'vHint')),
+      tekst(w, 'vHint') + ' — запасу ' + Math.round(vozrastZapasa) + ' дней');
+  }
 
   proverka('банк спрятан, пока курсов банков нет', !vidno(w, 'bankBlock'),
     'пустой список в выпадашке обещает данные, которых нет');
