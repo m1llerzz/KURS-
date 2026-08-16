@@ -167,8 +167,49 @@ for imya in NABORY:
               % (imya, a["verdikt"], a.get("deystvie"),
                  a["otklonenie_percent"], a["vygoda_50k"]))
 
+
+# ── Пороги, заданные числом в двух местах ────────────────────────────
+#
+# Часть правил живёт не в формуле, а константой — и потому не попадает в
+# сверку выше. Их приходится сравнивать отдельно, иначе однажды поменяют
+# одно из двух, и один человек получит разные советы в чате и в мини-аппе.
+
+import re as _re                                            # noqa: E402
+
+# Читаем ИСХОДНИКИ, а не импортируем: bot.py при импорте требует токен и
+# выходит, а сверять две константы можно и не поднимая бота.
+KORNI_ = os.path.dirname(os.path.abspath(__file__))
+
+
+def _chislo_iz_fayla(put, shablon):
+    try:
+        with open(put, "r", encoding="utf-8") as f:
+            najdeno = _re.search(shablon, f.read(), _re.M)
+        return int(najdeno.group(1)) if najdeno else None
+    except OSError:
+        return None
+
+
+_v_js = _chislo_iz_fayla(os.path.join(KORNI_, "..", "app.js"),
+                         r"const PREDEL_SOVETA_DNEY = (\d+)")
+_v_py = _chislo_iz_fayla(os.path.join(KORNI_, "bot.py"),
+                         r"^PREDEL_SOVETA_DNEY = (\d+)")
+
+if _v_js is None or _v_py is None:
+    print("РАСХОЖДЕНИЕ [порог устаревания совета]")
+    print("     константа не найдена: py=%s js=%s" % (_v_py, _v_js))
+    rashozhdeniy += 1
+elif _v_js != _v_py:
+    print("РАСХОЖДЕНИЕ [порог устаревания совета]")
+    print("     py=%s js=%s — по старым данным один будет советовать, "
+          "а другой молчать" % (_v_py, _v_js))
+    rashozhdeniy += 1
+else:
+    print("  = %-20s %s дней в обоих" % ("порог совета", _v_py))
+
 print()
 if rashozhdeniy:
     print("РАСХОЖДЕНИЙ:", rashozhdeniy)
     sys.exit(1)
-print("Обе реализации считают одинаково на", len(NABORY), "наборах.")
+print("Обе реализации считают одинаково на", len(NABORY),
+      "наборах, пороги совпадают.")
