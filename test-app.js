@@ -1036,9 +1036,18 @@ function dozhdatsya() {
       const adres = kartinka.getAttribute('content');
       proverka('адрес картинки ' + imya + ' абсолютный',
         /^https:\/\//.test(adres), adres + ' — относительный адрес соцсети не примут');
+      // Версию из адреса отбрасываем: на диске файл лежит без неё.
+      const imyaFayla = adres.split('/').pop().split('?')[0];
       proverka('картинка карточки ' + imya + ' лежит на месте',
-        fs.existsSync(path.join(KORNI, adres.split('/').pop())),
+        fs.existsSync(path.join(KORNI, imyaFayla)),
         adres + ' — файла нет, карточка будет пустой');
+
+      /* Версия в адресе обязательна. Telegram и соцсети кешируют превью
+       * по АДРЕСУ и держат его неделями: пересобранная обложка с новым
+       * числом просто не доедет, в чатах останется висеть прошлое. */
+      proverka('у картинки карточки ' + imya + ' есть версия',
+        /\?v=\d{8}/.test(adres),
+        adres + ' — без версии Telegram будет показывать старое число');
     }
   });
 

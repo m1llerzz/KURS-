@@ -20,6 +20,7 @@
 ВАЖНО: никаких эмодзи. PIL рисует их пустыми квадратами.
 """
 import os
+import re
 import sys
 
 from PIL import Image, ImageDraw, ImageFont
@@ -84,6 +85,39 @@ def data_slovom(iso):
     return "%d %s %s" % (int(d[2]), MESYACY[int(d[1]) - 1], d[0])
 
 
+def _obnovit_versiyu_oblozhki(data_kursa):
+    """Дописывает дату курса в адрес обложки: `oblozhka.png?v=20260814`.
+
+    Зачем. Telegram и соцсети кешируют превью по АДРЕСУ и держат его
+    неделями. Пересобранная картинка с новым числом просто не доедет:
+    в чатах будет висеть прошлое. Меняется адрес — меняется и картинка.
+
+    Версия — дата курса, а не время запуска: пересборка в тот же день
+    ничего не меняет, а новый курс меняет и число, и адрес.
+    """
+    versiya = str(data_kursa or "").replace("-", "").replace(".", "")[:8]
+    if not versiya.isdigit():
+        print("  версию обложки поставить не из чего:", data_kursa, flush=True)
+        return
+
+    obrazec = re.compile(r'(content="https://[^"]*?oblozhka\.png)(\?v=\d+)?(")')
+    for imya in ("index.html", "kurs.html"):
+        put = os.path.normpath(os.path.join(PAPKA, "..", imya))
+        if not os.path.exists(put):
+            continue
+        with open(put, "r", encoding="utf-8") as f:
+            tekst = f.read()
+        novyy, skolko = obrazec.subn(
+            lambda m: m.group(1) + "?v=" + versiya + m.group(3), tekst)
+        if not skolko:
+            print("  ВНИМАНИЕ: в %s не найден адрес обложки" % imya, flush=True)
+            continue
+        if novyy != tekst:
+            with open(put, "w", encoding="utf-8") as f:
+                f.write(novyy)
+            print("  %s: адрес обложки → ?v=%s" % (imya, versiya), flush=True)
+
+
 def main():
     print("собираю живые данные…", flush=True)
     snimok = rates.snimok(s_istoriey=True)
@@ -132,6 +166,8 @@ def main():
 
     kartinka.save(KUDA, "PNG", optimize=True)
     print("готово:", KUDA, flush=True)
+
+    _obnovit_versiyu_oblozhki(ocenka.get("data") or istoriya[-1]["date"])
     # «Публикаций», а не «дней»: ЦБ печатает курс по рабочим дням, и за
     # месячное окно их около двадцати одной.
     print("  число на обложке:", summa_slovom(razmah_sum), "сум по",
