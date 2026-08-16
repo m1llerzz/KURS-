@@ -269,6 +269,89 @@ finally:
         os.remove(_vremenny_kesh)
 
 
+# ── Разбор bank.uz ───────────────────────────────────────────────────
+#
+# Второй источник продукта. Из него берутся все «способы» и наценка
+# 4,06% — то есть второй по величине рычаг из трёх. Разметку bank.uz
+# меняет когда захочет, поэтому разбор цепляется не за классы, а за пару
+# «имя рядом с числом и словом сум». Проверки идут на куске страницы, а
+# не в сети: они обязаны краснеть всегда, а не когда bank.uz прилёг.
+
+STRANICA_BANKUZ = """
+<html><body>
+<h2>Курсы денежных переводов</h2>
+<div class="napravlenie">Из РФ в Узбекистан</div>
+<table>
+  <tr><td>Yubor</td><td>комиссия 0%</td><td>136 сум</td></tr>
+  <tr><td>Avosend (Paysend)</td><td>комиссия 1%</td><td>136 сум</td></tr>
+  <tr><td>Unistream</td><td>лимит 1000000 сум</td><td>134,5 сум</td></tr>
+  <tr><td>Contact</td><td>телефон 998901234567</td><td>135 сум</td></tr>
+</table>
+<div class="napravlenie">Из Узбекистана в РФ</div>
+<table>
+  <tr><td>Korona</td><td>0,0068 сум</td></tr>
+  <tr><td>Sberbank</td><td>199 сум</td></tr>
+</table>
+</body></html>
+"""
+
+
+def razobrat(html):
+    return s_podstavoy(Podstava({}, po_umolchaniyu=html),
+                       rates.perevody_bankuz)
+
+
+servisy = razobrat(STRANICA_BANKUZ)
+po_imeni = {s["name"]: s["rate_rub_uzs"] for s in servisy}
+
+proverka("сервисы со страницы разобраны", len(servisy) >= 3,
+         "найдено %d: %r" % (len(servisy), po_imeni))
+proverka("Yubor найден с верным курсом", po_imeni.get("Yubor") == 136.0,
+         str(po_imeni.get("Yubor")))
+proverka("Avosend найден с верным курсом", po_imeni.get("Avosend") == 136.0,
+         str(po_imeni.get("Avosend")))
+
+# «Avosend (Paysend)» — одна строка на двоих. Наивный разбор заводил два
+# сервиса с одним и тем же числом, и приложение показывало выдуманного
+# конкурента самому себе.
+proverka("Paysend не задвоился на чужом числе", "Paysend" not in po_imeni,
+         "у Avosend и Paysend оказался бы один курс из одной строки")
+
+# Лимит стоит РАНЬШЕ курса. Пока бралось первое число, Unistream пропадал
+# со страницы целиком, и отличить это от «его там нет» было нечем.
+proverka("сервис не теряется из-за лимита перед курсом",
+         po_imeni.get("Unistream") == 134.5,
+         "%r — перед курсом стоит «лимит 1000000 сум»"
+         % (po_imeni.get("Unistream"),))
+proverka("телефон рядом с именем не сходит за курс",
+         po_imeni.get("Contact") == 135.0, str(po_imeni.get("Contact")))
+
+# Граница коридора. Ниже на странице идёт обратное направление с другими
+# курсами; смешать их значит показать человеку чужие числа.
+proverka("обратное направление не попало в выдачу",
+         "Korona" not in po_imeni and "Sberbank" not in po_imeni,
+         "из раздела «Из Узбекистана в РФ» взято: %r"
+         % [i for i in ("Korona", "Sberbank") if i in po_imeni])
+
+proverka("у всех найденных курс правдоподобен",
+         all(80 <= s["rate_rub_uzs"] <= 250 for s in servisy),
+         str(po_imeni))
+
+# Мусор вместо страницы не должен ни падать, ни выдумывать.
+proverka("пустая страница — пустой список", razobrat("") == [])
+proverka("страница без наших имён — пустой список",
+         razobrat("<html><body>Из РФ в Узбекистан<br>нет данных</body></html>") == [])
+proverka("сеть молчит — пустой список",
+         s_podstavoy(Podstava({}, po_umolchaniyu=None),
+                     rates.perevody_bankuz) == [])
+
+# Смена вёрстки: заголовка направления больше нет. Разбор обязан не
+# упасть — но и не притащить курсы обратного коридора как наши.
+bez_zagolovka = STRANICA_BANKUZ.replace("Из РФ в Узбекистан", "RU - UZ")
+proverka("без заголовка направления разбор не падает",
+         isinstance(razobrat(bez_zagolovka), list))
+
+
 # ── Живое: то, что придёт человеку прямо сейчас ──────────────────────
 #
 # Ходит в ЦБ. Молчит источник — «НЕ ПРОВЕРЕНО», а не провал: чужой сбой
@@ -315,6 +398,39 @@ else:
                  len(zhivaya_istoriya) <= 10, str(len(zhivaya_istoriya)))
         proverka("все курсы живого ряда правдоподобны",
                  all(50 < t["rub_uzs"] < 500 for t in zhivaya_istoriya))
+
+    # Живой bank.uz. Разметку там меняют когда захотят, и наш разбор
+    # цепляется за текст — то есть однажды перестанет находить что-либо.
+    # Молчаливая пустота выглядит как «сервисов нет», а не как поломка,
+    # поэтому спрашиваем прямо.
+    zhivye_servisy = rates.perevody_bankuz()
+    if not zhivye_servisy:
+        preduprezhdenie("живые курсы сервисов",
+                        "bank.uz не ответил или сменил вёрстку — проверь разбор")
+    else:
+        proverka("сервисы собрались с bank.uz", len(zhivye_servisy) >= 1,
+                 str(len(zhivye_servisy)))
+        proverka("курсы сервисов правдоподобны",
+                 all(80 <= s["rate_rub_uzs"] <= 250 for s in zhivye_servisy),
+                 str([(s["name"], s["rate_rub_uzs"]) for s in zhivye_servisy]))
+        proverka("у каждого сервиса есть имя",
+                 all((s.get("name") or "").strip() for s in zhivye_servisy))
+        proverka("сервисы не задвоились",
+                 len({s["name"] for s in zhivye_servisy}) == len(zhivye_servisy),
+                 str([s["name"] for s in zhivye_servisy]))
+
+        if zhivoy:
+            luchshiy = max(s["rate_rub_uzs"] for s in zhivye_servisy)
+            nacenka = (zhivoy["rub_uzs"] - luchshiy) / zhivoy["rub_uzs"] * 100
+            # Перевод по курсу ВЫШЕ официального означал бы, что сервис
+            # доплачивает за отправку. Такого не бывает, и показывать это
+            # человеку нельзя: он поверит и потеряет деньги.
+            proverka("курс перевода не выше официального", nacenka >= 0,
+                     "наценка %.2f%% — сервис отдаёт больше ЦБ" % nacenka)
+            # Пятнадцать процентов — не курс, а разъехавшиеся данные:
+            # курс сервиса от одной даты, курс ЦБ от другой.
+            proverka("наценка сервиса правдоподобна", nacenka < 15,
+                     "%.2f%% — похоже, курсы за разные дни" % nacenka)
 
 
 # ── Итог ─────────────────────────────────────────────────────────────

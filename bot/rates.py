@@ -323,23 +323,45 @@ def perevody_bankuz():
     zanyatye_chisla = set()
 
     for imya in _IMENA_SERVISOV:
-        m = re.search(re.escape(imya) + r"[^\d]{0,400}?([\d]+[.,]?[\d]*)\s*сум", kusok, re.I)
-        if not m:
+        mesto = re.search(re.escape(imya), kusok, re.I)
+        if not mesto:
             continue
-        pozicia = m.start(1)
-        if pozicia in zanyatye_chisla:
-            continue
-        try:
-            kurs = float(m.group(1).replace(",", "."))
-        except ValueError:
-            continue
-        # Курс рубля к суму живёт в коридоре примерно 100–200. Всё, что
-        # вне его, — это не курс, а комиссия, лимит или номер телефона,
-        # случайно оказавшийся рядом. Такое молча выбрасываем.
-        if not (80 <= kurs <= 250):
-            continue
-        zanyatye_chisla.add(pozicia)
-        naydeno.append({"name": imya, "rate_rub_uzs": kurs})
+
+        # Смотрим ВСЕ числа в пределах четырёхсот символов после имени, а
+        # не только ближайшее. Раньше бралось первое, и сервис, у которого
+        # перед курсом стоит «лимит 1 000 000 сум» или «комиссия 0 сум»,
+        # пропадал целиком и молча: первое число не курс, а до второго
+        # дело не доходило. Пропавший сервис ничем не отличается от
+        # несуществующего, и заметить это можно было, только сверив
+        # страницу глазами.
+        hvost = kusok[mesto.end():mesto.end() + 400]
+
+        for m in re.finditer(r"([\d]+[.,]?[\d]*)\s*сум", hvost):
+            try:
+                kurs = float(m.group(1).replace(",", "."))
+            except ValueError:
+                continue
+
+            # Курс рубля к суму живёт в коридоре примерно 100–200. Всё, что
+            # вне его, — это не курс, а комиссия, лимит или номер телефона,
+            # случайно оказавшийся рядом. Такое пропускаем и смотрим
+            # следующее число.
+            if not (80 <= kurs <= 250):
+                continue
+
+            # Первое же похожее на курс число — наше или ничьё. Если его
+            # уже забрал сервис выше по странице, значит это его строка, а
+            # у нас своего курса нет: на bank.uz строка называется
+            # «Avosend (Paysend)», и оба имени видят одно число. Искать
+            # дальше нельзя — так Paysend забирал курс следующего сервиса,
+            # тот у следующего, и вся таблица разъезжалась на один шаг.
+            pozicia = mesto.end() + m.start(1)
+            if pozicia in zanyatye_chisla:
+                break
+
+            zanyatye_chisla.add(pozicia)
+            naydeno.append({"name": imya, "rate_rub_uzs": kurs})
+            break
 
     return naydeno
 
