@@ -411,7 +411,7 @@ try:
         proverka("в посте есть курс", "149" in post, post[:120])
         proverka("в посте есть среднее за месяц", "140" in post or "141" in post)
         proverka("в посте оба языка",
-                 "Курс рубля" in post and "rubl kursi" in post,
+                 "урс рубля" in post and "ubl kursi" in post,
                  "канал читают и те, и другие")
         proverka("в посте нет незаполненных мест", "{" not in post,
                  "фигурная скобка в публичном посте — это позор")
@@ -523,6 +523,145 @@ finally:
             hranilishche._pisat_fayl(vse)
     except Exception:
         pass
+
+
+# ── Посты в канал: день, неделя, месяц, рывок ────────────────────────
+#
+# Канал — главный бесплатный источник людей, и посты уходят без единого
+# человека в цикле. Значит проверять их надо здесь: если шаблон однажды
+# разойдётся с данными, узнать об этом можно будет только от читателей,
+# у которых в посте стоят фигурные скобки вместо курса.
+
+for lang in ("uz", "ru"):
+    proverka("пост дня есть на " + lang, bool(bot.POST_KANALA[lang].strip()))
+    proverka("пост недели есть на " + lang, bool(bot.POST_NEDELI[lang].strip()))
+    proverka("пост месяца есть на " + lang, bool(bot.POST_MESYACA[lang].strip()))
+    proverka("пост рывка есть на " + lang,
+             set(bot.POST_RYVOK[lang]) == {"vverh", "vniz"},
+             "оба направления обязаны быть: пост «курс упал» нужен не меньше")
+    proverka("упущенное описано на " + lang,
+             set(bot.UPUSHCHENO[lang]) == {"est", "net"})
+
+# Ряд, на котором собираются все виды постов: месяц данных, курс ходил
+# вверх-вниз, последний день заметно ниже вчерашнего.
+_kursy = [150 + (i % 5) - (i * 0.3) for i in range(29)] + [130.0]
+_istoriya = [{"date": "2026-07-%02d" % (i + 1) if i < 31 else "2026-08-01",
+              "rub_uzs": v} for i, v in enumerate(_kursy)]
+_dannye_posta = {"sovet": sovet.analiz(_istoriya), "history": _istoriya}
+
+for vid in ("den", "nedelya", "mesyac", "ryvok"):
+    sobrano = bot.sobrat_post(vid, _dannye_posta)
+    proverka("пост «%s» собирается" % vid, sobrano is not None)
+    if not sobrano:
+        continue
+    tekst, metka = sobrano
+    proverka("в посте «%s» не осталось скобок" % vid,
+             "{" not in tekst and "}" not in tekst,
+             "незакрытая подстановка уедет читателям как есть")
+    proverka("пост «%s» на двух языках" % vid, "· · ·" in tekst,
+             "оба языка обязательны — это решение проекта")
+    proverka("у поста «%s» своя метка" % vid, metka.startswith("kanal_"), metka)
+    proverka("в посте «%s» нет точки в дробных" % vid,
+             not any(z.isdigit() for z in tekst.split(".")[0][-1:]) or "," in tekst,
+             "числа пишутся через запятую в обеих странах")
+
+_metki = {bot.sobrat_post(v, _dannye_posta)[1]
+          for v in ("den", "nedelya", "mesyac", "ryvok")}
+proverka("метки постов не совпадают", len(_metki) == 4, str(_metki))
+
+# Данных нет — молчим. Пост с прочерками вместо курса хуже, чем его
+# отсутствие: он остаётся в канале навсегда и читается как поломка.
+proverka("без данных пост не собирается",
+         bot.sobrat_post("den", {}) is None)
+proverka("без истории нет поста недели",
+         bot.sobrat_post("nedelya", {"sovet": ocenka, "history": []}) is None)
+# Наступили на живом прогоне: боевой бот отдавал вердикт, посчитанный
+# прошлой версией, без поля с датой — и в пост уезжало «Курс рубля —
+# None». В канале такая строка остаётся навсегда.
+_bez_daty = dict(_dannye_posta["sovet"])
+_bez_daty.pop("data", None)
+_post_bez_daty = bot.sobrat_post("den", {"sovet": _bez_daty,
+                                         "history": _istoriya})
+proverka("дата берётся из истории, если её нет в вердикте",
+         _post_bez_daty is not None and "one" not in _post_bez_daty[0],
+         "вердикт от старой версии бота не должен печатать None")
+proverka("совсем без даты пост не выходит",
+         bot.sobrat_post("den", {"sovet": _bez_daty, "history": []}) is None,
+         "молчание лучше, чем «Курс рубля — None» в публичном канале")
+
+proverka("спокойный день не даёт поста о рывке",
+         bot.sobrat_post("ryvok", {"sovet": ocenka, "history": [
+             {"date": "2026-08-01", "rub_uzs": 140.0},
+             {"date": "2026-08-02", "rub_uzs": 140.2}]}) is None,
+         "0,14% за день — не новость")
+
+# Направление в посте о рывке обязано совпадать с фактом. Ошибка здесь
+# сказала бы человеку «курс вырос» в день, когда он упал.
+_padenie = [{"date": "2026-08-01", "rub_uzs": 145.0},
+            {"date": "2026-08-02", "rub_uzs": 140.0}]
+_tekst_padeniya = bot.sobrat_post("ryvok", {"sovet": ocenka, "history": _padenie})[0]
+proverka("падение названо падением",
+         "tushdi" in _tekst_padeniya and "упал" in _tekst_padeniya,
+         "в посте о падении не должно быть слова «вырос»")
+proverka("в посте о падении нет минуса в сумме",
+         "-250 000" not in _tekst_padeniya and "250 000" in _tekst_padeniya,
+         "текст уже говорит «меньше», минус рядом читался бы как ошибка")
+
+_rost = [{"date": "2026-08-01", "rub_uzs": 140.0},
+         {"date": "2026-08-02", "rub_uzs": 145.0}]
+_tekst_rosta = bot.sobrat_post("ryvok", {"sovet": ocenka, "history": _rost})[0]
+proverka("рост назван ростом",
+         "ko‘tarildi" in _tekst_rosta and "вырос" in _tekst_rosta)
+
+
+# ── Какой пост выходит в какой день ──────────────────────────────────
+
+from datetime import datetime as _dt      # noqa: E402
+
+proverka("первого числа — итог месяца",
+         bot.vid_posta_na_segodnya(_dt(2026, 9, 1)) == "mesyac")
+proverka("в пятницу — итог недели",
+         bot.vid_posta_na_segodnya(_dt(2026, 8, 21)) == "nedelya",
+         "21 августа 2026 — пятница")
+proverka("в обычный день — пост дня",
+         bot.vid_posta_na_segodnya(_dt(2026, 8, 19)) == "den")
+proverka("первое число важнее пятницы",
+         bot.vid_posta_na_segodnya(_dt(2027, 1, 1)) == "mesyac",
+         "1 января 2027 — пятница; месячный итог бывает раз в месяц")
+
+
+# ── Метка источника в ссылке ─────────────────────────────────────────
+
+proverka("метка попадает в ссылку", "startapp=kanal_den" in bot.ssylka("kanal_den"))
+proverka("ссылка ведёт на приложение", bot.ssylka("x").startswith("https://t.me/"))
+proverka("пустая метка не ломает ссылку",
+         bot.ssylka("").endswith("startapp=kanal"))
+proverka("мусор из метки вычищен",
+         bot.ssylka("чат <script>") .endswith("startapp=script"),
+         bot.ssylka("чат <script>") + " — в ссылку не должно попадать ничего "
+         "кроме букв, цифр и дефиса")
+proverka("длинная метка обрезана",
+         len(bot.ssylka("a" * 200).split("startapp=")[1]) <= 32)
+
+
+# ── Дата словами ─────────────────────────────────────────────────────
+
+proverka("дата по-русски", bot.data_slovom("2026-08-03", "ru") == "3 августа",
+         bot.data_slovom("2026-08-03", "ru"))
+proverka("дата по-узбекски", bot.data_slovom("2026-08-03", "uz") == "3 avgust",
+         bot.data_slovom("2026-08-03", "uz"))
+proverka("месяцы покрыты на обоих языках",
+         len(bot.MESYACY["uz"]) == 12 and len(bot.MESYACY["ru"]) == 12)
+proverka("кривая дата не роняет пост",
+         bot.data_slovom("не дата", "ru") == "не дата")
+
+
+# ── Проценты со знаком ───────────────────────────────────────────────
+
+proverka("рост со знаком плюс", bot.procent_znakom(1.23) == "+1,23")
+proverka("падение со знаком минус", bot.procent_znakom(-1.23) == "-1,23")
+proverka("ноль без плюса", bot.procent_znakom(0) == "0,00")
+proverka("нет числа — прочерк", bot.procent_znakom(None) == "—")
 
 
 # ── Итог ─────────────────────────────────────────────────────────────

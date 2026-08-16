@@ -142,6 +142,39 @@
     } catch (e) {}   // учёт никогда не мешает работе приложения
   }
 
+  /* Откуда человек пришёл.
+   *
+   * Telegram кладёт метку из ссылки `?startapp=МЕТКА` в start_param, а в
+   * браузере она видна прямо в адресе. Читаем оба места: внутри Telegram
+   * работает первое, при открытии по обычной ссылке — второе.
+   *
+   * Зачем это нужно ровно настолько, насколько нужен весь маркетинг.
+   * Денег на рекламу нет, значит каждый человек приходит из какого-то
+   * одного места: из канала, из чата, из чужой пересылки. Без метки все
+   * они сливаются в одно число «пришло сорок человек», и понять, что
+   * работает, а что впустую, нельзя вообще ничем.
+   *
+   * Метку чистим: чужой текст из адресной строки попадает к нам в учёт,
+   * и пускать его туда как есть нельзя.
+   */
+  function istochnik() {
+    let metka = null;
+    try {
+      const iz_tg = tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param;
+      if (iz_tg) {
+        metka = String(iz_tg);
+      } else {
+        const najdeno = String(window.location.href)
+          .match(/(?:startapp|tgWebAppStartParam)=([^&#]+)/);
+        if (najdeno) metka = decodeURIComponent(najdeno[1]);
+      }
+    } catch (e) {}
+
+    if (!metka) return null;
+    metka = metka.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
+    return metka || null;
+  }
+
   /** Порядок суммы вместо самой суммы: 50 000 → «50k». */
   function poryadok(n) {
     const v = Math.abs(Number(n) || 0);
@@ -921,14 +954,16 @@
     // Учитываем открытие только после того, как узнали вердикт: иначе
     // в цифрах не будет видно, с каким курсом человек к нам пришёл,
     // а это и есть главный вопрос к продукту.
+    const otkuda = istochnik();
     sobytie('otkryt', {
       verdikt: ocenkaDnya ? ocenkaDnya.verdikt : null,
-      // Пришёл ли человек по чужой пересылке. Без этой отметки нельзя
-      // посчитать, сколько людей приводит один расчёт, — а это
-      // единственный бесплатный источник роста.
-      iz_peresylki: /startapp=share|tgWebAppStartParam=share/.test(
-        String(window.location.href)) ||
-        !!(tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param === 'share'),
+      // Откуда пришёл: kanal_den, kanal_nedelya, chat_moskva, share…
+      // Без этого весь посев превращается в гадание.
+      istochnik: otkuda,
+      // Пришёл ли по чужой пересылке. Отдельным полем, хотя оно выводится
+      // из метки: пересылка — единственный бесплатный источник роста, и
+      // считать её надо, даже если разметку источников однажды поменяют.
+      iz_peresylki: otkuda === 'share',
     });
   });
 

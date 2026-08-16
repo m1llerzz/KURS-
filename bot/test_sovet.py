@@ -175,6 +175,91 @@ proverka("без тренда не падаем",
          sovet.deystvie("obychno", None) == "obychno")
 
 
+# ── Итоги периода: материал для постов недели и месяца ───────────────
+
+proverka("пустая история — нет итога", sovet.itog_perioda([], 7) is None)
+proverka("None — нет итога", sovet.itog_perioda(None, 7) is None)
+proverka("две точки мало для итога", sovet.itog_perioda(ryad([140, 141]), 7) is None,
+         "максимум и минимум по двум дням — это не обзор периода")
+proverka("три точки уже итог", sovet.itog_perioda(ryad([140, 141, 142]), 7) is not None)
+
+nedelya = sovet.itog_perioda(ryad([140, 142, 145, 143, 141, 139, 144]), 7)
+proverka("итог недели — семь дней", nedelya["dney"] == 7, str(nedelya["dney"]))
+proverka("итог недели — начало первое значение", nedelya["nachalo"] == 140)
+proverka("итог недели — конец последнее", nedelya["konec"] == 144)
+proverka("итог недели — максимум найден", nedelya["max"] == 145)
+proverka("итог недели — минимум найден", nedelya["min"] == 139)
+proverka("итог недели — дата максимума верна", nedelya["max_data"] == "2026-08-03",
+         nedelya["max_data"] + " — третий день ряда, курс 145")
+proverka("итог недели — дата минимума верна", nedelya["min_data"] == "2026-08-06",
+         nedelya["min_data"])
+proverka("итог недели — размах на 50 000 считается",
+         nedelya["razmah_na_50k"] == round((145 - 139) * 50000),
+         str(nedelya["razmah_na_50k"]))
+proverka("итог недели — упущенное против лучшего дня",
+         nedelya["upushcheno_na_50k"] == round((145 - 144) * 50000),
+         str(nedelya["upushcheno_na_50k"]))
+
+# Окно обрезает лишнее с начала, а не с конца: итог недели про последние
+# семь дней, а не про первые.
+dlinnyy = sovet.itog_perioda(ryad([200] * 10 + [140, 141, 142, 143, 144, 145, 146]), 7)
+proverka("окно берёт последние дни", dlinnyy["max"] == 146,
+         str(dlinnyy["max"]) + " — курс 200 двухнедельной давности не в итоге недели")
+proverka("окно ровно по размеру", dlinnyy["dney"] == 7, str(dlinnyy["dney"]))
+
+# Лучший день сегодня — упускать нечего. Ноль здесь обязателен: любое
+# другое число заставило бы человека жалеть о дне, в котором он выиграл.
+luchshiy_segodnya = sovet.itog_perioda(ryad([140, 141, 145]), 7)
+proverka("лучший день сегодня — упущено ноль",
+         luchshiy_segodnya["upushcheno_na_50k"] == 0,
+         str(luchshiy_segodnya["upushcheno_na_50k"]))
+
+rostushchiy = sovet.itog_perioda(ryad([140, 142, 144]), 7)
+proverka("растущий период — изменение положительное",
+         rostushchiy["izmenenie_percent"] > 0, str(rostushchiy["izmenenie_percent"]))
+padayushchiy = sovet.itog_perioda(ryad([144, 142, 140]), 7)
+proverka("падающий период — изменение отрицательное",
+         padayushchiy["izmenenie_percent"] < 0, str(padayushchiy["izmenenie_percent"]))
+
+# Месяц: тот же расчёт на окне 30, важен факт, что окно не путается.
+mesyac = sovet.itog_perioda(ryad([140 + i * 0.5 for i in range(30)]), 30)
+proverka("итог месяца — тридцать дней", mesyac["dney"] == 30, str(mesyac["dney"]))
+proverka("итог месяца — максимум в конце при росте", mesyac["max"] == mesyac["konec"])
+
+
+# ── Резкое движение: внеочередной пост ───────────────────────────────
+
+proverka("пустая история — нет рывка", sovet.rezkoe_dvizhenie([]) is None)
+proverka("одна точка — нет рывка", sovet.rezkoe_dvizhenie(ryad([140])) is None)
+proverka("спокойный день — молчим",
+         sovet.rezkoe_dvizhenie(ryad([140, 140.3])) is None,
+         "0,2% за день — обычный шаг, кричать не о чем")
+
+vverh = sovet.rezkoe_dvizhenie(ryad([140, 143]))
+proverka("рывок вверх замечен", vverh is not None)
+proverka("рывок вверх — направление", vverh["napravlenie"] == "vverh")
+proverka("рывок вверх — процент около 2,14",
+         abs(vverh["percent"] - 2.14) < 0.02, str(vverh["percent"]))
+proverka("рывок вверх — цена на 50 000",
+         vverh["na_50k"] == round((143 - 140) * 50000), str(vverh["na_50k"]))
+
+vniz = sovet.rezkoe_dvizhenie(ryad([143, 140]))
+proverka("рывок вниз замечен и назван вниз", vniz["napravlenie"] == "vniz")
+proverka("рывок вниз — процент отрицательный", vniz["percent"] < 0, str(vniz["percent"]))
+proverka("рывок вниз — цена отрицательная", vniz["na_50k"] < 0, str(vniz["na_50k"]))
+
+proverka("ровно на пороге — считаем событием",
+         sovet.rezkoe_dvizhenie(ryad([100, 101])) is not None,
+         "1,0% при пороге 1,0 должен срабатывать")
+proverka("чуть ниже порога — молчим",
+         sovet.rezkoe_dvizhenie(ryad([100, 100.9])) is None)
+proverka("порог настраивается",
+         sovet.rezkoe_dvizhenie(ryad([140, 140.5]), porog=0.3) is not None)
+proverka("рывок берёт последние два дня, а не любые",
+         sovet.rezkoe_dvizhenie(ryad([100, 200, 140, 140.1])) is None,
+         "скачок в середине ряда — не сегодняшняя новость")
+
+
 # ── Итог ─────────────────────────────────────────────────────────────
 
 print("Пройдено:", len(provereno))

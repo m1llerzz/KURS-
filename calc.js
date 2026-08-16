@@ -341,6 +341,11 @@ window.CALC = (function () {
       deystvie: deystvie(verdikt, trend),
       nedelya_percent: nedelya,
       segodnya: Math.round(segodnya * 100) / 100,
+      // Дата последнего курса. ЦБ не публикует по выходным, и в
+      // понедельник «сегодняшний курс» — это курс за пятницу. Число без
+      // даты в этом продукте становится ложью, поэтому дата едет вместе
+      // с ним, а не добывается отдельно тем, кто рисует экран.
+      data: ryad[ryad.length - 1].date,
       srednee_30: Math.round(sred * 100) / 100,
       min_30: Math.round(minimum * 100) / 100,
       max_30: Math.round(maksimum * 100) / 100,

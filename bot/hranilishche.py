@@ -274,3 +274,27 @@ def svodka_sobytiy(dney=7):
         "WHERE sozdano_v > NOW() - INTERVAL '%s days' "
         "GROUP BY tip ORDER BY COUNT(*) DESC" % int(dney), vernut=True)
     return [{"tip": s[0], "skolko": s[1]} for s in (stroki or [])]
+
+
+def svodka_istochnikov(dney=7):
+    """Откуда приходили люди: канал, чат, чужая пересылка, напрямую.
+
+    Зачем это отдельно от общей сводки. Денег на рекламу нет, значит
+    каждый человек пришёл из какого-то одного места, и весь смысл посева
+    в том, чтобы понять, из какого именно. Без этой разбивки видно только
+    «пришло сорок человек» — и непонятно, повторять посев или бросать.
+
+    Метку кладёт приложение в поле `istochnik` события «открыл». Пустая
+    метка — человек открыл приложение сам, не по нашей ссылке.
+    """
+    if not na_postgres():
+        return []
+    stroki = _vypolnit(
+        "SELECT COALESCE(dannye::json->>'istochnik', 'напрямую') AS otkuda, "
+        "COUNT(*) FROM sobytiya "
+        "WHERE tip = 'otkryt' AND sozdano_v > NOW() - INTERVAL '%s days' "
+        # Событие без данных — это тоже «напрямую», а не повод уронить
+        # запрос. Кастуем только то, что заведомо json.
+        "AND (dannye IS NULL OR dannye LIKE '{%%') "
+        "GROUP BY 1 ORDER BY COUNT(*) DESC" % int(dney), vernut=True)
+    return [{"otkuda": s[0], "skolko": s[1]} for s in (stroki or [])]

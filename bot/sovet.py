@@ -147,6 +147,11 @@ def analiz(istoriya):
         "deystvie": deystvie(verdikt, trend),
         "nedelya_percent": nedelya,
         "segodnya": round(segodnya, 2),
+        # Дата последнего курса. ЦБ не публикует по выходным, и в
+        # понедельник «сегодняшний курс» — это курс за пятницу. Без даты
+        # такое число становится ложью, а правило проекта прямое:
+        # цифра без даты не показывается.
+        "data": ryad[-1]["date"],
         "srednee_30": round(srednee, 2),
         "min_30": round(minimum, 2),
         "max_30": round(maksimum, 2),
@@ -184,3 +189,96 @@ def vygoda_na_summe(ocenka, summa_rub):
     if not ocenka or not summa_rub:
         return 0
     return round((ocenka["segodnya"] - ocenka["srednee_30"]) * summa_rub)
+
+
+# ── Итоги периода: для постов в канал ────────────────────────────────
+#
+# Зачем отдельно от analiz(). Ежедневный пост отвечает на вопрос «что
+# делать сегодня». Итог недели отвечает на другой: «что вообще
+# произошло». Один и тот же формат каждый день читают неделю, потом
+# перестают — канал, в котором нечего вспомнить, отписывают.
+#
+# Здесь только арифметика по ряду. Ни языка, ни Telegram.
+
+def itog_perioda(istoriya, dney):
+    """Что случилось с курсом за последние `dney` дней.
+
+    Возвращает None, если точек меньше трёх: «максимум и минимум» по двум
+    дням — это не итог периода, а два числа, и выдавать их за обзор
+    значит врать формой.
+
+    Даты лучшего и худшего дня возвращаются нарочно. «Курс ходил от 141
+    до 155» — это статистика; «лучший день был 3 августа» — это то, что
+    человек соотносит со своей зарплатой и своим переводом.
+    """
+    if not istoriya:
+        return None
+
+    ryad = sorted(istoriya, key=lambda x: x["date"])[-dney:]
+    if len(ryad) < 3:
+        return None
+
+    kursy = [x["rub_uzs"] for x in ryad]
+    nachalo, konec = kursy[0], kursy[-1]
+
+    luchshiy = max(ryad, key=lambda x: x["rub_uzs"])
+    hudshiy = min(ryad, key=lambda x: x["rub_uzs"])
+
+    izmenenie = (konec - nachalo) / nachalo * 100 if nachalo else 0.0
+
+    return {
+        "dney": len(ryad),
+        "nachalo": round(nachalo, 2),
+        "konec": round(konec, 2),
+        "izmenenie_percent": round(izmenenie, 2),
+        "max": round(luchshiy["rub_uzs"], 2),
+        "min": round(hudshiy["rub_uzs"], 2),
+        "max_data": luchshiy["date"],
+        "min_data": hudshiy["date"],
+        # Разница между лучшим и худшим днём периода на переводе 50 000 ₽.
+        # Это и есть цена вопроса: ради неё пост пересылают.
+        "razmah_na_50k": round((luchshiy["rub_uzs"] - hudshiy["rub_uzs"]) * 50000),
+        # Сколько стоил бы сегодняшний перевод против лучшего дня периода.
+        # Ноль означает, что лучший день — сегодня.
+        "upushcheno_na_50k": round((luchshiy["rub_uzs"] - konec) * 50000),
+    }
+
+
+# Насколько курс должен дёрнуться за сутки, чтобы об этом стоило сказать
+# отдельным постом. Обычный дневной шаг рубля к суму — доли процента;
+# процент за день это уже событие, о котором человек хочет знать в тот же
+# день, а не завтра утром.
+PORAG_RYVKA = 1.0
+
+
+def rezkoe_dvizhenie(istoriya, porog=PORAG_RYVKA):
+    """Дёрнулся ли курс за сутки настолько, что это отдельная новость.
+
+    Возвращает None, когда ничего не произошло, — и это основной случай.
+    Молчание здесь важнее срабатывания: канал, который каждый день кричит
+    «важно», перестают читать быстрее, чем канал, который молчит.
+    """
+    if not istoriya or len(istoriya) < 2:
+        return None
+
+    ryad = sorted(istoriya, key=lambda x: x["date"])
+    vchera, segodnya = ryad[-2]["rub_uzs"], ryad[-1]["rub_uzs"]
+    if not vchera:
+        return None
+
+    izmenenie = (segodnya - vchera) / vchera * 100
+    if abs(izmenenie) < porog:
+        return None
+
+    return {
+        "percent": round(izmenenie, 2),
+        "napravlenie": "vverh" if izmenenie > 0 else "vniz",
+        "vchera": round(vchera, 2),
+        "segodnya": round(segodnya, 2),
+        "na_50k": round((segodnya - vchera) * 50000),
+        "data": ryad[-1]["date"],
+        # Дата предыдущей точки. «Вчера» здесь было бы неправдой: между
+        # двумя публикациями ЦБ могут лежать выходные, и предыдущий курс
+        # окажется трёхдневной давности.
+        "data_vchera": ryad[-2]["date"],
+    }

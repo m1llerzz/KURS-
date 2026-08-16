@@ -47,10 +47,72 @@ API = "https://api.telegram.org/bot" + TOKEN
 PRILOZHENIE = "https://m1llerzz.github.io/KURS-/"
 
 # Ссылка на мини-апп для КАНАЛА. В канале кнопка web_app не работает —
-# Telegram разрешает там только обычный адрес. Метка kanal нужна, чтобы
-# в цифрах было видно, сколько людей приходит из канала: без неё нельзя
+# Telegram разрешает там только обычный адрес. Метка нужна, чтобы в
+# цифрах было видно, сколько людей приходит из канала: без неё нельзя
 # понять, окупается ли он вообще.
 PRILOZHENIE_SSYLKA = "https://t.me/QanchaYetadi_bot/call?startapp=kanal"
+
+
+def ssylka(metka="kanal"):
+    """Ссылка на приложение со своей меткой источника.
+
+    Разные виды постов получают разные метки — kanal_den, kanal_nedelya,
+    kanal_mesyac, kanal_ryvok. Через месяц по цифрам будет видно не просто
+    «канал работает», а какой именно формат поста приводит людей, а какой
+    только занимает ленту. Без этого пришлось бы гадать.
+    """
+    chisto = "".join(z for z in str(metka).lower()
+                     if z.isalnum() and z.isascii() or z in "_-")[:32]
+    return "https://t.me/QanchaYetadi_bot/call?startapp=" + (chisto or "kanal")
+
+
+# Месяцы для дат в постах. Голая дата 2026-08-03 читается как машинная
+# запись; «3 августа» человек соотносит со своим днём зарплаты.
+MESYACY = {
+    "uz": ["yanvar", "fevral", "mart", "aprel", "may", "iyun",
+           "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"],
+    "ru": ["января", "февраля", "марта", "апреля", "мая", "июня",
+           "июля", "августа", "сентября", "октября", "ноября", "декабря"],
+}
+
+
+def data_slovom(iso, lang="ru"):
+    """2026-08-03 -> «3 августа» / «3 avgust». Кривую дату отдаём как есть."""
+    try:
+        d = datetime.strptime(str(iso)[:10], "%Y-%m-%d")
+    except Exception:
+        return str(iso)
+    return "%d %s" % (d.day, MESYACY.get(lang, MESYACY["ru"])[d.month - 1])
+
+
+def segodnya_li(iso, teper=None):
+    """Сегодняшняя ли это дата по узбекскому времени."""
+    teper = teper or (datetime.now(timezone.utc) + timedelta(hours=5))
+    return str(iso)[:10] == teper.strftime("%Y-%m-%d")
+
+
+def podpis_kursa(iso, lang="ru", teper=None):
+    """«Сегодняшний курс» или «Курс на 14 августа».
+
+    Зачем так подробно. ЦБ Узбекистана не публикует курс по выходным и
+    праздникам, и в понедельник утром свежайшая точка истории — за
+    пятницу. Пост, который называет её сегодняшней, врёт три дня в
+    неделю, и первый же человек, сверивший с cbu.uz, поймает нас на
+    этом. Продукт про честность цифр не может позволить себе такое
+    ради одного слова.
+    """
+    if segodnya_li(iso, teper):
+        return "Bugungi kurs" if lang == "uz" else "Сегодняшний курс"
+    if lang == "uz":
+        return "%s kursi" % data_slovom(iso, "uz")
+    return "Курс на %s" % data_slovom(iso, "ru")
+
+
+def podpis_dnya(iso, lang="ru", teper=None):
+    """«Сегодня» или «14 августа» — для строк, где речь про день."""
+    if segodnya_li(iso, teper):
+        return "Bugun" if lang == "uz" else "Сегодня"
+    return data_slovom(iso, lang)
 
 # Как часто пересобираем курсы. ЦБ меняет курс раз в рабочий день, но
 # курсы сервисов на bank.uz двигаются в течение дня, и час — разумная
@@ -109,20 +171,25 @@ def fonovoe_obnovlenie():
 
 VYBOR_YAZYKA = "Tilni tanlang\nВыберите язык"
 
+# Вердикт описывает КУРС, а не день, и потому обходится без слова
+# «сегодня». Раньше оно здесь стояло — и три дня в неделю это была
+# неправда: ЦБ не публикует курс по выходным, в понедельник свежайшая
+# точка за пятницу, а текст называл её сегодняшней. Дату курса теперь
+# несёт заголовок поста, и вердикт читается в её контексте.
 VERDIKTY = {
     "uz": {
-        "otlichno":       "Bugun kurs oydagi odatdagidan sezilarli yaxshi",
-        "horosho":        "Bugun kurs odatdagidan yaxshiroq",
-        "obychno":        "Bugun kurs odatdagidek",
-        "nize_obychnogo": "Bugun kurs odatdagidan pastroq",
-        "ploho":          "Bugun kurs oydagi odatdagidan sezilarli yomon",
+        "otlichno":       "Kurs oydagi odatdagidan sezilarli yaxshi",
+        "horosho":        "Kurs odatdagidan yaxshiroq",
+        "obychno":        "Kurs odatdagidek",
+        "nize_obychnogo": "Kurs odatdagidan pastroq",
+        "ploho":          "Kurs oydagi odatdagidan sezilarli yomon",
     },
     "ru": {
-        "otlichno":       "Сегодня курс заметно лучше обычного",
-        "horosho":        "Сегодня курс лучше обычного",
-        "obychno":        "Сегодня курс обычный",
-        "nize_obychnogo": "Сегодня курс ниже обычного",
-        "ploho":          "Сегодня курс заметно хуже обычного",
+        "otlichno":       "Курс заметно лучше обычного",
+        "horosho":        "Курс лучше обычного",
+        "obychno":        "Курс обычный",
+        "nize_obychnogo": "Курс ниже обычного",
+        "ploho":          "Курс заметно хуже обычного",
     },
 }
 
@@ -814,7 +881,7 @@ def razoslat_uvedomleniya():
 
 POST_KANALA = {
     "uz": (
-        "<b>Bugungi rubl kursi</b>\n\n"
+        "<b>Rubl kursi — {den}</b>\n\n"
         "1 ₽ = <b>{kurs}</b> so‘m\n"
         "Oyda o‘rtacha: {srednee}\n"
         "{verdikt}\n\n"
@@ -824,7 +891,7 @@ POST_KANALA = {
         "{sovet}"
     ),
     "ru": (
-        "<b>Курс рубля сегодня</b>\n\n"
+        "<b>Курс рубля — {den}</b>\n\n"
         "1 ₽ = <b>{kurs}</b> сум\n"
         "В среднем за месяц: {srednee}\n"
         "{verdikt}\n\n"
@@ -832,6 +899,108 @@ POST_KANALA = {
         "между лучшим и худшим днём — <b>{razmah} сум</b>.\n\n"
         "{sovet}"
     ),
+}
+
+# Пост недели, по пятницам. Другой формат намеренно: один и тот же вид
+# поста каждый день читают неделю, потом перестают замечать. Итог недели
+# отвечает на другой вопрос — не «что делать сегодня», а «что вообще
+# было», и его пересылают тем, кто собирается отправлять на выходных.
+POST_NEDELI = {
+    "uz": (
+        "<b>Hafta yakuni</b>\n\n"
+        "Rubl kursi: {nachalo} → {konec} ({izmenenie}%)\n"
+        "Eng yaxshi kun — {max_data}, kurs {mx}\n"
+        "Eng yomon kun — {min_data}, kurs {mn}\n\n"
+        "50 000 rublda shu ikki kun orasidagi farq — <b>{razmah} so‘m</b>.\n\n"
+        "{upushcheno}\n\n"
+        "{sovet}"
+    ),
+    "ru": (
+        "<b>Итог недели</b>\n\n"
+        "Курс рубля: {nachalo} → {konec} ({izmenenie}%)\n"
+        "Лучший день — {max_data}, курс {mx}\n"
+        "Худший день — {min_data}, курс {mn}\n\n"
+        "На переводе 50 000 ₽ разница между этими днями — "
+        "<b>{razmah} сум</b>.\n\n"
+        "{upushcheno}\n\n"
+        "{sovet}"
+    ),
+}
+
+UPUSHCHENO = {
+    "uz": {
+        "est": "{kurs} haftaning eng yaxshi kunidan {skolko} so‘mga "
+               "past (50 000 rublda).",
+        "net": "{den} — haftaning eng yaxshi kuni.",
+    },
+    "ru": {
+        "est": "{kurs} на {skolko} сум хуже лучшего дня недели — "
+               "это на переводе 50 000 ₽.",
+        "net": "{den} — лучший день недели.",
+    },
+}
+
+# Пост месяца, первого числа. Ровно та цифра, на которой стоит весь
+# продукт: сколько стоит выбор дня. Раз в месяц её стоит показать целиком.
+POST_MESYACA = {
+    "uz": (
+        "<b>Oxirgi 30 kun</b>\n\n"
+        "Kurs {mn} dan {mx} gacha yurdi — bu {razmah_percent}%.\n"
+        "Eng yaxshi kun {max_data}, eng yomon {min_data}.\n\n"
+        "50 000 rubl yuborganda shu ikki kun orasidagi farq — "
+        "<b>{razmah} so‘m</b>.\n\n"
+        "Servis tanlash bunchalik farq bermaydi. Eng ko‘p pulni "
+        "yuborish KUNI hal qiladi — buni hech kim aytmaydi.\n\n"
+        "{sovet}"
+    ),
+    "ru": (
+        "<b>Последние 30 дней</b>\n\n"
+        "Курс ходил от {mn} до {mx} — это {razmah_percent}%.\n"
+        "Лучший день {max_data}, худший {min_data}.\n\n"
+        "На переводе 50 000 ₽ разница между этими днями — "
+        "<b>{razmah} сум</b>.\n\n"
+        "Выбор сервиса столько не даёт. Больше всего решает ДЕНЬ "
+        "отправки, и об этом не говорит никто.\n\n"
+        "{sovet}"
+    ),
+}
+
+# Внеочередной пост: курс дёрнулся за сутки сильнее обычного. Выходит
+# редко и потому читается. Канал, который каждый день кричит «важно»,
+# перестают открывать быстрее, чем канал, который молчит.
+POST_RYVOK = {
+    "uz": {
+        "vverh": (
+            "<b>Kurs keskin ko‘tarildi</b>\n\n"
+            "{data_vchera}: {vchera}\n"
+            "{data}: <b>{segodnya}</b> — {percent}%\n\n"
+            "50 000 rublda bu <b>{na_50k} so‘m</b> ko‘proq.\n\n"
+            "{sovet}"
+        ),
+        "vniz": (
+            "<b>Kurs keskin tushdi</b>\n\n"
+            "{data_vchera}: {vchera}\n"
+            "{data}: <b>{segodnya}</b> — {percent}%\n\n"
+            "50 000 rublda bu <b>{na_50k} so‘m</b> kam.\n\n"
+            "{sovet}"
+        ),
+    },
+    "ru": {
+        "vverh": (
+            "<b>Курс резко вырос</b>\n\n"
+            "{data_vchera}: {vchera}\n"
+            "{data}: <b>{segodnya}</b> — {percent}%\n\n"
+            "На переводе 50 000 ₽ это <b>{na_50k} сум</b> больше.\n\n"
+            "{sovet}"
+        ),
+        "vniz": (
+            "<b>Курс резко упал</b>\n\n"
+            "{data_vchera}: {vchera}\n"
+            "{data}: <b>{segodnya}</b> — {percent}%\n\n"
+            "На переводе 50 000 ₽ это <b>{na_50k} сум</b> меньше.\n\n"
+            "{sovet}"
+        ),
+    },
 }
 
 # Совет говорит, что ДЕЛАТЬ, и учитывает направление курса. Раньше здесь
@@ -868,24 +1037,123 @@ def opublikovat_v_kanale():
     Пишем один раз в сутки. Адрес канала — в переменной CHANNEL_ID
     (@imya_kanala или числовой id). Нет переменной — молчим.
     """
-    kanal = os.environ.get("CHANNEL_ID", "").strip()
-    if not kanal:
-        return False
+    return _opublikovat(vid_posta_na_segodnya())
 
-    ocenka = (svezhie_dannye() or {}).get("sovet")
+
+def procent_znakom(z):
+    """+1,23 или -1,23. Знак обязателен: «1,23%» не говорит, куда."""
+    if z is None:
+        return "—"
+    return ("+" if z > 0 else "") + chislo(z)
+
+
+def vid_posta_na_segodnya(teper=None):
+    """Какой пост идёт сегодня. Отдельной функцией — чтобы проверялась.
+
+    Первое число месяца перебивает пятницу: итог тридцати дней бывает раз
+    в месяц, а итог недели — четыре раза, и терять редкий ради частого
+    незачем.
+    """
+    teper = teper or (datetime.now(timezone.utc) + timedelta(hours=5))
+    if teper.day == 1:
+        return "mesyac"
+    if teper.weekday() == 4:      # пятница: на выходных отправляют чаще
+        return "nedelya"
+    return "den"
+
+
+def sobrat_post(vid, dannye):
+    """Текст поста и метка ссылки. Чистая функция: ни сети, ни Telegram.
+
+    Возвращает (текст, метка) или None, если данных на такой пост не
+    хватает. Молчание здесь лучше поста с прочерками вместо чисел.
+    """
+    ocenka = (dannye or {}).get("sovet")
     if not ocenka:
-        print("[канал] вердикта нет, пост не публикую", flush=True)
-        return False
-
-    # Размах месяца на переводе 50 000 ₽ — цифра, ради которой пост
-    # пересылают. Берём именно её, а не проценты: проценты не чувствуют.
-    razmah = int(round((ocenka["max_30"] - ocenka["min_30"]) * 50000))
-
+        return None
+    istoriya = (dannye or {}).get("history") or []
     kluch_soveta = ocenka.get("deystvie") or "obychno"
 
+    # Дата последнего курса. ЦБ молчит по выходным, и называть пятничный
+    # курс сегодняшним — значит врать три дня в неделю.
+    #
+    # Берём из вердикта, а если его считала старая версия бота — из самой
+    # истории. Нет ни там, ни там — пост не выходит вовсе: строка
+    # «Курс рубля — None» в публичном канале хуже, чем день молчания,
+    # и остаётся там навсегда.
+    data_kursa = ocenka.get("data") or (
+        max((z.get("date") or "") for z in istoriya) if istoriya else None)
+    if not data_kursa:
+        return None
+
     bloki = []
+
+    if vid == "nedelya":
+        itog = sovet.itog_perioda(istoriya, 7)
+        if not itog:
+            return None
+        for lang in ("uz", "ru"):
+            if itog["upushcheno_na_50k"] > 0:
+                upushcheno = UPUSHCHENO[lang]["est"].format(
+                    kurs=podpis_kursa(data_kursa, lang),
+                    skolko=summa_slovom(itog["upushcheno_na_50k"]))
+            else:
+                upushcheno = UPUSHCHENO[lang]["net"].format(
+                    den=podpis_dnya(data_kursa, lang))
+            bloki.append(POST_NEDELI[lang].format(
+                nachalo=chislo(itog["nachalo"]), konec=chislo(itog["konec"]),
+                izmenenie=procent_znakom(itog["izmenenie_percent"]),
+                mn=chislo(itog["min"]), mx=chislo(itog["max"]),
+                min_data=data_slovom(itog["min_data"], lang),
+                max_data=data_slovom(itog["max_data"], lang),
+                razmah=summa_slovom(itog["razmah_na_50k"]),
+                upushcheno=upushcheno,
+                sovet=DEYSTVIYA[lang][kluch_soveta],
+            ))
+        return "\n\n· · ·\n\n".join(bloki), "kanal_nedelya"
+
+    if vid == "mesyac":
+        itog = sovet.itog_perioda(istoriya, 30)
+        if not itog:
+            return None
+        # Размах в процентах от худшего дня: именно так его проверит
+        # любой, кто решит нас поймать на цифре.
+        razmah_percent = ((itog["max"] - itog["min"]) / itog["min"] * 100
+                          if itog["min"] else 0)
+        for lang in ("uz", "ru"):
+            bloki.append(POST_MESYACA[lang].format(
+                mn=chislo(itog["min"]), mx=chislo(itog["max"]),
+                razmah_percent=chislo(razmah_percent),
+                min_data=data_slovom(itog["min_data"], lang),
+                max_data=data_slovom(itog["max_data"], lang),
+                razmah=summa_slovom(itog["razmah_na_50k"]),
+                sovet=DEYSTVIYA[lang][kluch_soveta],
+            ))
+        return "\n\n· · ·\n\n".join(bloki), "kanal_mesyac"
+
+    if vid == "ryvok":
+        dvizhenie = sovet.rezkoe_dvizhenie(istoriya)
+        if not dvizhenie:
+            return None
+        for lang in ("uz", "ru"):
+            bloki.append(POST_RYVOK[lang][dvizhenie["napravlenie"]].format(
+                data_vchera=data_slovom(dvizhenie["data_vchera"], lang),
+                data=data_slovom(dvizhenie["data"], lang),
+                vchera=chislo(dvizhenie["vchera"]),
+                segodnya=chislo(dvizhenie["segodnya"]),
+                percent=procent_znakom(dvizhenie["percent"]),
+                # В тексте уже сказано «больше» или «меньше», знак минуса
+                # рядом с этим читался бы как ошибка.
+                na_50k=summa_slovom(abs(dvizhenie["na_50k"])),
+                sovet=DEYSTVIYA[lang][kluch_soveta],
+            ))
+        return "\n\n· · ·\n\n".join(bloki), "kanal_ryvok"
+
+    # Обычный день.
+    razmah = int(round((ocenka["max_30"] - ocenka["min_30"]) * 50000))
     for lang in ("uz", "ru"):
         bloki.append(POST_KANALA[lang].format(
+            den=podpis_dnya(data_kursa, lang).lower(),
             kurs=chislo(ocenka["segodnya"]),
             srednee=chislo(ocenka["srednee_30"]),
             verdikt=VERDIKTY[lang][ocenka["verdikt"]],
@@ -893,26 +1161,50 @@ def opublikovat_v_kanale():
             razmah=summa_slovom(razmah),
             sovet=DEYSTVIYA[lang][kluch_soveta],
         ))
+    return "\n\n· · ·\n\n".join(bloki), "kanal_den"
 
-    tekst = "\n\n· · ·\n\n".join(bloki)
 
+def _opublikovat(vid):
+    """Собрать пост нужного вида и отправить в канал."""
+    kanal = os.environ.get("CHANNEL_ID", "").strip()
+    if not kanal:
+        return False
+
+    dannye = svezhie_dannye() or {}
+    sobrano = sobrat_post(vid, dannye)
+    if not sobrano:
+        print("[канал] данных на пост «%s» не хватает, молчу" % vid, flush=True)
+        return False
+
+    tekst, metka = sobrano
     otvet = vyzov("sendMessage", {
         "chat_id": kanal,
         "text": tekst,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
         "reply_markup": {"inline_keyboard": [[
-            {"text": "Hisoblash · Посчитать", "url": PRILOZHENIE_SSYLKA}
+            {"text": "Hisoblash · Посчитать", "url": ssylka(metka)}
         ]]},
     })
 
     if otvet and otvet.get("ok"):
-        print("[канал] опубликовано, вердикт", ocenka["verdikt"], flush=True)
-        hranilishche.sobytie(None, "post_v_kanal", {"verdikt": ocenka["verdikt"]})
+        verdikt = (dannye.get("sovet") or {}).get("verdikt")
+        print("[канал] опубликовано «%s», вердикт %s" % (vid, verdikt), flush=True)
+        hranilishche.sobytie(None, "post_v_kanal", {"vid": vid, "verdikt": verdikt})
         return True
 
     print("[канал] опубликовать не удалось", flush=True)
     return False
+
+
+def opublikovat_ryvok():
+    """Внеочередной пост, когда курс дёрнулся за сутки сильнее обычного.
+
+    Выходит редко и потому читается. Здесь важнее не срабатывать, а
+    молчать: канал, который каждый день объявляет событие, перестают
+    открывать быстрее, чем канал, в котором ничего не происходит.
+    """
+    return _opublikovat("ryvok")
 
 
 def svodka_dlya_svoih():
@@ -941,6 +1233,16 @@ def svodka_dlya_svoih():
         stroki.append("<b>За 7 дней</b>")
         for s in sobytiya:
             stroki.append("%s: %d" % (s["tip"], s["skolko"]))
+
+        # Откуда пришли. Это главная строка всей сводки: денег на рекламу
+        # нет, значит вопрос не «сколько людей», а «что из сделанного их
+        # привело». Без разбивки на неё не ответить.
+        istochniki = hranilishche.svodka_istochnikov(7)
+        if istochniki:
+            stroki.append("")
+            stroki.append("<b>Откуда пришли</b>")
+            for i in istochniki:
+                stroki.append("%s: %d" % (i["otkuda"], i["skolko"]))
     else:
         stroki.append("")
         stroki.append("Событий за неделю нет.")
@@ -995,6 +1297,7 @@ def chasovoy_uvedomleniy():
     posledniy_den = None
     posledniaya_svodka = None
     posledniy_post = None
+    posledniy_ryvok = None
     while True:
         try:
             teper = datetime.now(timezone.utc) + timedelta(hours=5)
@@ -1013,6 +1316,15 @@ def chasovoy_uvedomleniy():
             if teper.hour >= 9 and den != posledniy_post:
                 if opublikovat_v_kanale():
                     posledniy_post = den
+
+            # Внеочередной пост про резкое движение курса — после обеда и
+            # только если утренний уже вышел. Два поста подряд читаются
+            # как спам даже в канале, а разнесённые по времени — как две
+            # разные новости. Один за сутки, не больше.
+            if (teper.hour >= 13 and den == posledniy_post
+                    and den != posledniy_ryvok):
+                if opublikovat_ryvok():
+                    posledniy_ryvok = den
             if 10 <= teper.hour <= 20 and den != posledniy_den:
                 # Сначала личные цели, потом общая рассылка. Порядок важен:
                 # человек, дождавшийся своего курса, не должен получить
@@ -1063,6 +1375,10 @@ class Stranica(BaseHTTPRequestHandler):
                 "podpischikov": vsego,
                 "s_uvedomleniyami": podpisano,
                 "sobytiya_7d": hranilishche.svodka_sobytiy(7),
+                # Откуда приходили за неделю и за месяц. Неделя показывает,
+                # что работает сейчас; месяц — что не разовая случайность.
+                "istochniki_7d": hranilishche.svodka_istochnikov(7),
+                "istochniki_30d": hranilishche.svodka_istochnikov(30),
                 "kursy_obnovleny": _dannye["obnovleno"],
             }, ensure_ascii=False).encode("utf-8")
             self.wfile.write(self._otvetit(telo, "application/json; charset=utf-8"))
