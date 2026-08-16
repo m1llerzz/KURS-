@@ -159,6 +159,75 @@ def proverit_bom():
     return "proshlo"
 
 
+# Таблица «символ -> байт» ровно как у Windows: в CP1251 позиция 0x98 не
+# назначена, Python на ней падает, а Windows отдаёт управляющий U+0098.
+# Именно он и лежал в index.html сто семьдесят раз.
+_V_BAYT = {}
+for _bayt in range(256):
+    try:
+        _simvol = bytes([_bayt]).decode("cp1251")
+    except UnicodeDecodeError:
+        _simvol = chr(_bayt)
+    _V_BAYT.setdefault(_simvol, _bayt)
+
+
+def _krakozyabry(tekst):
+    """Похоже ли, что текст прочитали как CP1251 и сохранили как UTF-8.
+
+    Признак точный, а не на глаз. Разворачиваем перекодировку назад: если
+    получилось и вышла кириллица, которой раньше не было, — текст испорчен.
+    Обычный русский так не разворачивается: его байты в CP1251 почти
+    никогда не образуют правильный UTF-8. Файл из одной латиницы
+    разворачивается сам в себя, и разницы не возникает.
+    """
+    try:
+        syroe = bytes(_V_BAYT[s] for s in tekst)
+        razvernuto = syroe.decode("utf-8")
+    except (KeyError, UnicodeDecodeError):
+        return None
+    if razvernuto == tekst:
+        return None
+    if not any("А" <= s <= "я" for s in razvernuto):
+        return None
+    return razvernuto
+
+
+def proverit_krakozyabry():
+    """Ни одного файла, испорченного двойной перекодировкой.
+
+    Наступили на живом продукте: index.html пролежал таким неизвестно
+    сколько. Байты при этом остаются правильным UTF-8, редактор не ругается,
+    ни одна проверка не краснеет — испорчен только смысл. А лежали там
+    `<title>`, `description` и `og:description`, то есть подпись в поисковой
+    выдаче и карточка при пересылке ссылки в чат.
+    """
+    plohie = []
+    for papka, _, fayly in os.walk(KORNI):
+        if "node_modules" in papka or "__pycache__" in papka or ".git" in papka:
+            continue
+        for imya in fayly:
+            if not imya.endswith((".py", ".js", ".html", ".json", ".txt", ".md")):
+                continue
+            put = os.path.join(papka, imya)
+            try:
+                with open(put, "r", encoding="utf-8") as f:
+                    tekst = f.read()
+            except (OSError, UnicodeDecodeError):
+                continue
+            if _krakozyabry(tekst):
+                plohie.append(os.path.relpath(put, KORNI))
+
+    imya_nabora = "перекодировка"
+    if plohie:
+        print("%s- %-28s текст испорчен CP1251%s" % (KRASNY, imya_nabora, SBROS))
+        for p in plohie:
+            print("      " + p)
+        return "upalo"
+
+    print("%s+ %-28s кракозябр нет%s" % (ZELYONY, imya_nabora, SBROS))
+    return "proshlo"
+
+
 def main():
     print("Проверки проекта Qancha yetadi")
     print("=" * 58)
@@ -168,6 +237,7 @@ def main():
 
     itogi = [
         proverit_bom(),
+        proverit_krakozyabry(),
         zapustit("сбор курсов (rates.py)", [sys.executable, "test_rates.py"], BOT),
         zapustit("вердикт (sovet.py)", [sys.executable, "test_sovet.py"], BOT),
         zapustit("бот и /api/rates", [sys.executable, "test_bot.py"], BOT),
