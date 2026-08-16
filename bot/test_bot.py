@@ -351,17 +351,32 @@ bot.poslat = perehvat
 
 # Курс, который бот считает сегодняшним. Ставим свой, чтобы прогон
 # не зависел от того, что там сегодня у ЦБ.
-istoriya = [{"date": "2026-08-%02d" % (i + 1), "rub_uzs": 140.0} for i in range(20)]
+#
+# Даты СЧИТАЕМ ОТ СЕГОДНЯ, а не пишем константами. С фиксированным
+# «2026-09-01» прогон был бы зелёным ровно до тех пор, пока эта дата не
+# станет старше пяти дней: тогда бот перестал бы советовать по такому
+# ряду — совершенно правильно — и половина проверок про советы покраснела
+# бы в календарный срок, без единой правки кода.
+from datetime import date as _data, timedelta as _delta      # noqa: E402
+
+
+def _den_nazad(n):
+    return (_data.today() - _delta(days=n)).isoformat()
+
+
+istoriya = [{"date": _den_nazad(20 - i), "rub_uzs": 140.0} for i in range(20)]
 
 
 def podmenit_kurs(segodnyashniy):
-    ryad = istoriya + [{"date": "2026-09-01", "rub_uzs": segodnyashniy}]
+    ryad = istoriya + [{"date": _den_nazad(0), "rub_uzs": segodnyashniy}]
     import sovet as _s
     with bot._zamok:
-        bot._dannye["snimok"] = {"ok": True, "cbu": {"rub_uzs": segodnyashniy,
-                                 "usd_uzs": 12000, "date": "01.09.2026"},
-                                 "services": [], "banks": [], "history": ryad,
-                                 "sovet": _s.analiz(ryad)}
+        bot._dannye["snimok"] = {
+            "ok": True,
+            "cbu": {"rub_uzs": segodnyashniy, "usd_uzs": 12000,
+                    "date": _data.today().strftime("%d.%m.%Y")},
+            "services": [], "banks": [], "history": ryad,
+            "sovet": _s.analiz(ryad)}
         bot._dannye["obnovleno"] = __import__("time").time()
 
 
@@ -688,9 +703,13 @@ for lang in ("uz", "ru"):
 
 # Ряд, на котором собираются все виды постов: месяц данных, курс ходил
 # вверх-вниз, последний день заметно ниже вчерашнего.
+#
+# Даты от сегодня: с фиксированными пост однажды начал бы выходить с
+# советом «данные устарели» вместо настоящего — правильно по сути, но
+# проверки про совет покраснели бы в календарный срок.
 _kursy = [150 + (i % 5) - (i * 0.3) for i in range(29)] + [130.0]
-_istoriya = [{"date": "2026-07-%02d" % (i + 1) if i < 31 else "2026-08-01",
-              "rub_uzs": v} for i, v in enumerate(_kursy)]
+_istoriya = [{"date": _den_nazad(len(_kursy) - 1 - i), "rub_uzs": v}
+             for i, v in enumerate(_kursy)]
 _dannye_posta = {"sovet": sovet.analiz(_istoriya), "history": _istoriya}
 
 for vid in ("den", "nedelya", "mesyac", "ryvok"):
