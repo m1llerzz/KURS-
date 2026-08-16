@@ -138,6 +138,10 @@ window.I18N = (function () {
       // yozilgan edi — ya'ni «ikki kundan beri yangilanmagan» degandek
       // o‘qilardi, holbuki hammasi joyida edi.
       'src.upd':         'Har soatda yig‘amiz. Markaziy bank kursi — {d} holatiga',
+      // Odam ro‘yxatni to‘liq deb o‘ylamasligi kerak. Koridorda Zolotaya
+      // Korona, Contact, Unistream va banklar ham ishlaydi — lekin ular
+      // kurslarini ochiq e’lon qilmaydi, shuning uchun bizda yo‘q.
+      'src.chastichno':  'Kurslarini ochiq e’lon qiladiganlarni ko‘rsatamiz. Koridorda boshqa servislar ham bor.',
       'src.no':          'Biz pul o‘tkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz.',
 
       // ── Servis kursi rasmiy kursga nisbatan ──────────────────────
@@ -300,6 +304,11 @@ window.I18N = (function () {
       // «обновляется каждый час, последний раз 14.08» — и это читалось
       // как «два дня не обновлялось», хотя всё работало исправно.
       'src.upd':         'Собираем каждый час. Курс ЦБ — на {d}',
+      // Человек не должен считать список полным. В коридоре работают ещё
+      // Золотая Корона, Contact, Юнистрим и банки — но они не публикуют
+      // курсы открыто, поэтому их у нас нет. Умолчать об этом значит
+      // выдать два сервиса за весь рынок.
+      'src.chastichno':  'Показываем тех, кто публикует курс открыто. В коридоре есть и другие сервисы.',
       'src.no':          'Мы не переводим и не принимаем деньги. Только считаем.',
 
       // ── Курс сервиса против официального ─────────────────────────
