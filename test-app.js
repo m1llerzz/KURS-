@@ -343,6 +343,45 @@ function dozhdatsya() {
   proverka('узбекский не подменён русским', odinakovye.length === 0,
     'совпали: ' + odinakovye.join(', '));
 
+  /* У каждого вердикта и совета, какие умеет выдавать calc.js, обязана
+   * быть подпись в словаре. Иначе человек увидит на главном экране
+   * служебное имя вроде «v.novyy» — и это будет выглядеть поломкой,
+   * потому что поломкой и является.
+   *
+   * Имена вычитываем из самого calc.js: список, набранный здесь руками,
+   * отстанет от кода ровно тогда, когда появится шестой вердикт. */
+  const istochnikCalc = fs.readFileSync(path.join(KORNI, 'calc.js'), 'utf8');
+
+  const verdiktyIzKoda = Array.from(new Set(
+    (istochnikCalc.match(/verdikt = '([a-z_]+)'/g) || [])
+      .map(function (s) { return s.replace(/.*'([a-z_]+)'.*/, '$1'); })));
+  proverka('вердикты вычитаны из calc.js', verdiktyIzKoda.length === 5,
+    'нашлось: ' + verdiktyIzKoda.join(', '));
+
+  const bezPodpisi = verdiktyIzKoda.filter(function (v) {
+    return w.I18N.t('v.' + v, null, 'uz') === 'v.' + v
+      || w.I18N.t('v.' + v, null, 'ru') === 'v.' + v;
+  });
+  proverka('у каждого вердикта есть подпись на обоих языках',
+    bezPodpisi.length === 0,
+    'без подписи: ' + bezPodpisi.join(', ') +
+      ' — человек увидит служебное имя на главном экране');
+
+  /* Ищем по всему файлу, а не по `return '…'`: половина советов
+   * возвращается тернарным оператором, и на нём проверка находила три
+   * из четырёх — то есть один совет мог остаться без подписи незаметно. */
+  const sovetyIzKoda = Array.from(new Set(
+    (istochnikCalc.match(/'(otpravlyat|mozhno_zhdat|ne_zhdat|obychno)'/g)
+      || []).map(function (s) { return s.replace(/'/g, ''); })));
+  const sovetyBezPodpisi = sovetyIzKoda.filter(function (d) {
+    return w.I18N.t('v.do.' + d, null, 'uz') === 'v.do.' + d
+      || w.I18N.t('v.do.' + d, null, 'ru') === 'v.do.' + d;
+  });
+  proverka('у каждого совета есть подпись на обоих языках',
+    sovetyIzKoda.length === 4 && sovetyBezPodpisi.length === 0,
+    'найдено советов ' + sovetyIzKoda.length +
+      ', без подписи: ' + sovetyBezPodpisi.join(', '));
+
   /* ── 2. Расчёт ─────────────────────────────────────────────────── */
 
   w.document.getElementById('schitat').click();
