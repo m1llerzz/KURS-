@@ -169,6 +169,41 @@ try:
                  all(-20 < s["nacenka_percent"] < 30 for s in telo["services"]),
                  str([(s["name"], s["nacenka_percent"]) for s in telo["services"]]))
 
+    # Медленный запрос не должен вставать поперёк остальных.
+    #
+    # Обычный HTTPServer обрабатывает по одному: пока один человек ждёт,
+    # остальные стоят в очереди. А ответ бывает долгим — если кеш курсов
+    # устарел, обработчик собирает данные сам. В такую минуту встало бы
+    # всё сразу, включая пинг UptimeRobot, и монитор решил бы, что
+    # сервис упал.
+    _medlenno = []
+
+    def _dolgiy_zapros():
+        _bylo = bot.svezhie_dannye
+        bot.svezhie_dannye = lambda *a, **k: (
+            __import__("time").sleep(1.2) or _bylo(*a, **k))
+        try:
+            with urllib.request.urlopen(
+                    "http://127.0.0.1:18081/api/rates", timeout=15) as r:
+                r.read()
+        finally:
+            bot.svezhie_dannye = _bylo
+        _medlenno.append(True)
+
+    _potok = threading.Thread(target=_dolgiy_zapros)
+    _potok.start()
+    __import__("time").sleep(0.3)             # даём медленному начаться
+
+    _nachalo = __import__("time").time()
+    with urllib.request.urlopen("http://127.0.0.1:18081/", timeout=10) as r:
+        r.read()
+    _zanyalo = __import__("time").time() - _nachalo
+    _potok.join(timeout=15)
+
+    proverka("быстрый запрос не ждёт медленного", _zanyalo < 0.8,
+             "занял %.1f с — сервер обрабатывает запросы по одному, и в "
+             "такую минуту встаёт всё, включая пинг монитора" % _zanyalo)
+
     with urllib.request.urlopen("http://127.0.0.1:18081/api/stats", timeout=10) as r:
         stat = json.loads(r.read().decode("utf-8"))
         proverka("api/stats отвечает", "podpischikov" in stat)

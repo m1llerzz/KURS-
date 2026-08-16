@@ -35,7 +35,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import hranilishche
 import rates
@@ -2167,8 +2167,25 @@ class Stranica(BaseHTTPRequestHandler):
 
 
 def podnyat_stranicu():
+    """Поднимает /api/rates, /api/event и страницу живости.
+
+    Сервер потоковый, и это не запас на будущее. Обычный HTTPServer
+    обрабатывает запросы по одному: пока один человек ждёт ответа, все
+    остальные стоят в очереди. А ответ бывает долгим — если кеш курсов
+    устарел, обработчик собирает данные сам, а это несколько запросов к
+    чужим серверам.
+
+    В такую минуту вставало бы всё сразу: приложение у второго человека,
+    учёт событий и пинг UptimeRobot. Последнее особенно неприятно —
+    монитор решил бы, что сервис упал, и начал слать письма о поломке
+    при живом сервисе.
+
+    Общие данные защищены замком, а psycopg2 открывает соединение на
+    каждый запрос, так что потоки друг другу не мешают.
+    """
     port = int(os.environ.get("PORT", "10000"))
-    server = HTTPServer(("0.0.0.0", port), Stranica)
+    server = ThreadingHTTPServer(("0.0.0.0", port), Stranica)
+    server.daemon_threads = True     # не держим выход из процесса
     threading.Thread(target=server.serve_forever, daemon=True).start()
     print("страница живости и /api/rates на порту", port, flush=True)
 
