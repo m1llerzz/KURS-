@@ -128,7 +128,10 @@ window.I18N = (function () {
       // ── Raqamlar qayerdan ────────────────────────────────────────
       'src.t':           'Raqamlar qayerdan',
       'src.cb':          'Rasmiy kurs — O‘zbekiston Markaziy bankining ochiq API si',
-      'src.svc':         'O‘tkazma kurslari — bank.uz, pul o‘tkazmalari sahifasi',
+      // bank.uz o‘z sahifasida kurs QAY KUNGI ekanini yozmaydi. Biz faqat
+      // qachon o‘qiganimizni bilamiz — buni aytib qo‘yish kerak, chunki
+      // «sana yo‘q raqam — bu yolg‘on» qoidasi bizga ham tegishli.
+      'src.svc':         'O‘tkazma kurslari — bank.uz (u yerda e’lon sanasi ko‘rsatilmagan)',
       // Ikki xil narsani chalkashtirmaslik kerak: MA'LUMOT har soatda
       // yig‘iladi, KURS esa Markaziy bank e'lon qilgan kunga tegishli.
       // Ilgari bu yerda «har soatda yangilanadi, oxirgi marta 14.08» deb
@@ -288,7 +291,10 @@ window.I18N = (function () {
       // всему остальному. Источники называем поимённо и проверяемо.
       'src.t':           'Откуда цифры',
       'src.cb':          'Официальный курс — открытый API Центрального банка Узбекистана',
-      'src.svc':         'Курсы переводов — bank.uz, страница денежных переводов',
+      // bank.uz не пишет, на какой день курс. Мы знаем только, когда сами
+      // его прочитали, и обязаны это сказать: правило «цифра без даты —
+      // это ложь» распространяется и на нас самих.
+      'src.svc':         'Курсы переводов — bank.uz (дата публикации там не указана)',
       // Здесь смешивались две разные вещи: ДАННЫЕ собираются каждый час,
       // а КУРС относится к тому дню, когда его опубликовал ЦБ. Стояло
       // «обновляется каждый час, последний раз 14.08» — и это читалось
