@@ -1750,6 +1750,40 @@ def svezhest_stranicy_poiska():
     return (datetime.now(timezone.utc) - byla).days
 
 
+def vozrast_oblozhki_dney():
+    """Сколько дней числу на картинке карточки. None — не удалось узнать.
+
+    Обложка — первое, что видит человек, которому переслали ссылку: на
+    ней крупное число, ради которого пост и пересылают. Устарев, она не
+    ломается и не подаёт признаков — просто показывает прошлый месяц.
+
+    Дату берём из адреса: `oblozhka.png?v=20260814`. Версия ставится
+    сборщиком по дате курса, так что расхождение видно точно, а не по
+    возрасту файла.
+    """
+    try:
+        zapros = urllib.request.Request(
+            "https://m1llerzz.github.io/KURS-/",
+            headers={"User-Agent": "qy-svodka/1"})
+        with urllib.request.urlopen(zapros, timeout=30) as o:
+            stranica = o.read().decode("utf-8", "replace")
+    except Exception:
+        return None
+
+    najdeno = re.search(r"oblozhka\.png\?v=(\d{8})", stranica)
+    if not najdeno:
+        return None
+
+    syroe = najdeno.group(1)
+    try:
+        byla = datetime(int(syroe[:4]), int(syroe[4:6]), int(syroe[6:8]),
+                        tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+    return (datetime.now(timezone.utc) - byla).days
+
+
 def svodka_dlya_svoih():
     """Еженедельная сводка тому, кто ведёт проект.
 
@@ -1860,6 +1894,16 @@ def svodka_dlya_svoih():
             "  py obnovit_zapas.py\n"
             "  py sobrat_oblozhku.py\n"
             "  cd .. && py proverit.py" % vozrast_stranicy)
+
+    # Обложка стареет отдельно от страницы, а видят её чаще: это первое,
+    # что показывается человеку, которому переслали ссылку.
+    vozrast_kartinki = vozrast_oblozhki_dney()
+    if vozrast_kartinki is not None and vozrast_kartinki > 30 \
+            and (vozrast_stranicy is None or vozrast_stranicy <= 30):
+        predupredit.append(
+            "ЧИСЛУ НА КАРТИНКЕ КАРТОЧКИ %d дней — её видят все, кому "
+            "переслали ссылку. Пересобери:\n"
+            "  cd app/bot && py sobrat_oblozhku.py" % vozrast_kartinki)
 
     if predupredit:
         stroki.append("")
