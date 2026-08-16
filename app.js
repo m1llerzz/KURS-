@@ -216,6 +216,31 @@
   }
 
   /**
+   * Дата словами: 2026-08-14 → «14 августа» / «14 avgust».
+   *
+   * Машинное «2026-08-14» под курсом читается как отладочный вывод, а не
+   * как подпись к числу, которому человек должен поверить. А поверить он
+   * должен: дата здесь — половина доказательства, что цифра настоящая.
+   *
+   * Кривую дату отдаём как есть: показать что-то честнее, чем ничего.
+   */
+  const MESYACY = {
+    uz: ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+         'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'],
+    ru: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+         'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+  };
+
+  function dataSlovom(iso, lang) {
+    const chasti = String(iso || '').slice(0, 10).split('-');
+    if (chasti.length !== 3) return String(iso || '');
+    const spisok = MESYACY[lang] || MESYACY[window.I18N.get()] || MESYACY.ru;
+    const mesyac = spisok[parseInt(chasti[1], 10) - 1];
+    if (!mesyac) return String(iso);
+    return parseInt(chasti[2], 10) + ' ' + mesyac;
+  }
+
+  /**
    * Срок доставки словами. Число подставляется внутрь строки языка,
    * а не приклеивается к ней: по-узбекски время требует окончания.
    */
@@ -645,10 +670,10 @@
     el.disclaimer.classList.remove('hidden');
 
     el.kursDate.textContent = dannyeUstareli
-      ? t('err.net', { d: dannyeUstareli })
+      ? t('err.net', { d: dataSlovom(dannyeUstareli) })
       : (kursy.zapas || !kursy.date)
         ? t('kurs.fail')
-        : t('kurs.date', { d: kursy.date });
+        : t('kurs.date', { d: dataSlovom(kursy.date) });
 
     narisovatRazbor(luchshiy, kursy);
 
@@ -777,8 +802,31 @@
 
     if (ocenkaDnya) {
       stroki.push(t('v.' + ocenkaDnya.verdikt, null, lang));
-      stroki.push(t('v.rate', { r: ocenkaDnya.segodnya.toFixed(2) }, lang)
-        + ' · ' + t('v.avg', { r: ocenkaDnya.srednee_30.toFixed(2) }, lang));
+
+      // Числа через запятую. Здесь стоял голый toFixed, и в чужие чаты
+      // уходило «141.76» — точка в дробной части не пишется ни по-русски,
+      // ни по-узбекски. На экране запятая была, а в самом видимом тексте
+      // продукта — нет.
+      stroki.push(t('v.rate', { r: chislo(ocenkaDnya.segodnya) }, lang)
+        + ' · ' + t('v.avg', { r: chislo(ocenkaDnya.srednee_30) }, lang));
+
+      // Дата курса. Без неё сообщение, попавшее в чат, через неделю
+      // становится неправдой, а поправить его там уже нельзя.
+      if (ocenkaDnya.data) {
+        stroki.push(t('share.date', { d: dataSlovom(ocenkaDnya.data, lang) }, lang));
+      }
+
+      // Цена вопроса. Ради этого числа сообщение и пересылают: за месяц
+      // курс ходит на 9% с лишним, и это больше, чем даёт выбор сервиса.
+      // Раньше в пересылке не было ни одной денежной цифры — то есть не
+      // было и причины её пересылать.
+      const razmah = ocenkaDnya.max_30 - ocenkaDnya.min_30;
+      if (razmah > 0 && ocenkaDnya.min_30 > 0) {
+        stroki.push(t('share.spread', {
+          p: chislo(razmah / ocenkaDnya.min_30 * 100, 1),
+          n: sum(Math.round(razmah * 50000)),
+        }, lang));
+      }
     } else {
       stroki.push(t('share.title', { sum: sum(el.summa.value) }, lang));
     }

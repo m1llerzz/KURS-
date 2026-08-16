@@ -90,11 +90,15 @@ window.I18N = (function () {
       // ── Verdikt: bugun yubormoqmi yoki kutmoqmi ──────────────────
       // Mahsulotning asosiy ekrani. Oyda kurs 9,5% ga o‘zgardi — bu
       // servis tanlashdan ham, bank tanlashdan ham ko‘proq pul.
-      'v.otlichno':       'Bugun kurs odatdagidan sezilarli yaxshi',
-      'v.horosho':        'Bugun kurs odatdagidan yaxshiroq',
-      'v.obychno':        'Bugun kurs odatdagidek',
-      'v.nize_obychnogo': 'Bugun kurs odatdagidan pastroq',
-      'v.ploho':          'Bugun kurs odatdagidan sezilarli yomon',
+      // Verdikt KURSNI tasvirlaydi, kunni emas — shuning uchun «bugun»
+      // so‘zisiz. Markaziy bank dam olish kunlari kurs e’lon qilmaydi, va
+      // dushanba kuni eng yangi kurs — juma kuniniki. «Bugungi kurs»
+      // deyish haftada uch kun yolg‘on bo‘lardi. Sana yonida turadi.
+      'v.otlichno':       'Kurs odatdagidan sezilarli yaxshi',
+      'v.horosho':        'Kurs odatdagidan yaxshiroq',
+      'v.obychno':        'Kurs odatdagidek',
+      'v.nize_obychnogo': 'Kurs odatdagidan pastroq',
+      'v.ploho':          'Kurs odatdagidan sezilarli yomon',
 
       'v.rate':          '1 ₽ = {r} so’m',
       'v.avg':           'oydagi o’rtacha {r}',
@@ -151,6 +155,14 @@ window.I18N = (function () {
       // не только цифры: нужна строка, объясняющая чужому человеку, что он видит.
       'share.title':     '{sum} ₽ yuboryapman — avval kursni tekshirdim.',
       'share.diff':      'Usullar orasidagi farq {p}% chiqdi.',
+      // Xabar ketadigan raqam. Bu — mahsulotning butun ma’nosi: kunni
+      // tanlash servisni tanlashdan ko‘proq pul hal qiladi. Ilgari bu yerda
+      // birorta ham pul raqami yo‘q edi, ya’ni xabarni uzatishga sabab
+      // ham yo‘q edi.
+      'share.spread':    'Oy davomida kurs {p}% ga o‘zgardi — 50 000 rublda bu {n} so‘m.',
+      // Sana majburiy: raqam sanasiz — bu yolg‘on, va bu xabar begona
+      // chatlarga ketadi, u yerda uni tuzatib bo‘lmaydi.
+      'share.date':      'Markaziy bank kursi, {d}',
       'share.cta':       'Yuborishdan oldin kursga qarang.',
     },
 
@@ -222,11 +234,15 @@ window.I18N = (function () {
       // ── Вердикт: отправлять сегодня или подождать ────────────────
       // Главный экран продукта. За месяц курс прошёл 9,5% — это больше
       // денег, чем выбор сервиса и выбор банка вместе взятые.
-      'v.otlichno':       'Сегодня курс заметно лучше обычного',
-      'v.horosho':        'Сегодня курс лучше обычного',
-      'v.obychno':        'Сегодня курс обычный',
-      'v.nize_obychnogo': 'Сегодня курс ниже обычного',
-      'v.ploho':          'Сегодня курс заметно хуже обычного',
+      // Вердикт описывает КУРС, а не день, и потому обходится без слова
+      // «сегодня». ЦБ не публикует курс по выходным: в понедельник
+      // свежайшая точка — за пятницу, и «сегодня курс такой-то» было бы
+      // неправдой три дня в неделю. Дата стоит рядом с числом.
+      'v.otlichno':       'Курс заметно лучше обычного',
+      'v.horosho':        'Курс лучше обычного',
+      'v.obychno':        'Курс обычный',
+      'v.nize_obychnogo': 'Курс ниже обычного',
+      'v.ploho':          'Курс заметно хуже обычного',
 
       'v.rate':          '1 ₽ = {r} сум',
       'v.avg':           'в среднем за месяц {r}',
@@ -288,6 +304,14 @@ window.I18N = (function () {
 
       'share.title':     'Отправляю {sum} ₽ — сначала проверил курс.',
       'share.diff':      'Разница между способами вышла {p}%.',
+      // Число, ради которого пересылают. В нём весь смысл продукта: день
+      // отправки решает больше денег, чем выбор сервиса. Раньше в
+      // пересылке не было ни одной денежной цифры — то есть не было и
+      // причины её пересылать.
+      'share.spread':    'За месяц курс менялся на {p}% — это {n} сум на переводе 50 000 ₽.',
+      // Дата обязательна: число без даты — ложь, а это сообщение уходит
+      // в чужие чаты, где его уже не поправишь.
+      'share.date':      'Курс ЦБ на {d}',
       'share.cta':       'Посмотри курс, прежде чем отправлять.',
     },
 
