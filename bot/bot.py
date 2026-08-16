@@ -2419,6 +2419,87 @@ NASTROYKI = [
 ]
 
 
+# ── Вывеска бота ─────────────────────────────────────────────────────
+#
+# Имя бота — не название, а вывеска под поиск. Внутренний поиск Telegram
+# это поисковая система на десятки миллионов человек, за место в которой
+# никто не борется: человек набирает «kurs», «сум», «курс рубля» — и
+# видит тех, у кого эти слова в имени. `Qancha yetadi` не ловит ни одного
+# запроса, и красивое имя бренда — роскошь для тех, у кого есть бюджет на
+# рекламу.
+#
+# Раньше это значилось в списке ручных дел Семёна: BotFather, /setname,
+# /setdescription. Устарело — у Telegram есть методы, и бот ставит себе
+# вывеску сам. Руками остаётся только аватарка: API для фото бота нет.
+VITRINA = {
+    # До 64 знаков.
+    "name": "Kurs bugun · Курс рубля к суму",
+    # До 512. Это человек читает ДО первого запуска, в пустом чате.
+    "description": (
+        "Bugun yubormoqmi yoki kutmoqmi. Kurs va kartaga qancha yetib "
+        "borishi.\n"
+        "Отправлять сегодня или подождать — курс и сколько дойдёт."
+    ),
+    # До 120. Показывается в профиле бота.
+    "short_description": (
+        "Kurs bugun yaxshimi? Hisoblab beraman. "
+        "Курс сегодня хороший? Посчитаю."
+    ),
+}
+
+# Метод, поле в ответе и предел длины — по каждой части вывески.
+VITRINA_METODY = {
+    "name": ("getMyName", "setMyName", "name", 64),
+    "description": ("getMyDescription", "setMyDescription",
+                    "description", 512),
+    "short_description": ("getMyShortDescription", "setMyShortDescription",
+                          "short_description", 120),
+}
+
+
+def nastroit_vitrinu():
+    """Ставит имя и описания бота, если они отличаются от нужных.
+
+    Возвращает список того, что поменяли.
+
+    Только при отличии — и это не бережливость, а необходимость: Telegram
+    ограничивает частоту смены имени, а Render перезапускает сервис
+    постоянно. Ставить одно и то же при каждом запуске значит однажды
+    упереться в ограничение и не поставить ничего.
+
+    **Вызывать до подъёма запасной памяти.** Память живёт в описании на
+    чужом языке, а здесь мы трогаем описание на языке по умолчанию. Это
+    разные поля, но порядок выбран так, чтобы даже при неверном
+    предположении отметки не оказались стёртыми уже после того, как на
+    них положились.
+    """
+    pomenyali = []
+    for kluch, nuzhno in VITRINA.items():
+        sprosit, postavit, pole, predel = VITRINA_METODY[kluch]
+        if len(nuzhno) > predel:
+            print("[вывеска] «%s» длиннее %d знаков — не ставлю"
+                  % (kluch, predel), flush=True)
+            continue
+
+        seychas = vyzov(sprosit)
+        if not seychas or not seychas.get("ok"):
+            print("[вывеска] не удалось спросить «%s», пропускаю" % kluch,
+                  flush=True)
+            continue
+        if str((seychas.get("result") or {}).get(pole) or "") == nuzhno:
+            continue
+
+        otvet = vyzov(postavit, {kluch: nuzhno})
+        if otvet and otvet.get("ok"):
+            pomenyali.append(kluch)
+            print("[вывеска] поставлено «%s»" % kluch, flush=True)
+        else:
+            print("[вывеска] Telegram не принял «%s»: %s"
+                  % (kluch, (otvet or {}).get("description") or "нет ответа"),
+                  flush=True)
+    return pomenyali
+
+
 def soobshchit_o_nastroykah():
     """Список того, что не задано, и что из-за этого не работает.
 
@@ -2471,6 +2552,9 @@ def main():
     # База есть — забираем из запасной памяти то, что там успело
     # накопиться. Иначе в день, когда DATABASE_URL наконец задан, пустая
     # база решила бы, что сегодняшний курс ещё не освещали.
+    # Вывеска — строго до памяти: см. объяснение в nastroit_vitrinu.
+    nastroit_vitrinu()
+
     _kanal_pri_zapuske = os.environ.get("CHANNEL_ID", "").strip()
     if hranilishche.na_postgres():
         hranilishche.perenesti_otmetki(vyzov, _kanal_pri_zapuske)

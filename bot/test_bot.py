@@ -1441,6 +1441,65 @@ proverka("заданное не попадает в список пропуще�
 proverka("незаданное остаётся в списке", "CHANNEL_ID" in _chastichno)
 
 
+# ── Вывеска бота: имя и описания под поиск ───────────────────────────
+#
+# Внутренний поиск Telegram — поисковая система на десятки миллионов
+# человек, и место в ней даёт имя. Раньше это стояло в списке ручных дел
+# Семёна (BotFather), то есть не делалось вовсе.
+
+for _kluch, _tekst in bot.VITRINA.items():
+    _predel = bot.VITRINA_METODY[_kluch][3]
+    proverka("вывеска «%s» влезает в %d знаков" % (_kluch, _predel),
+             len(_tekst) <= _predel,
+             "длина %d — Telegram отвергнет целиком" % len(_tekst))
+    proverka("вывеска «%s» на обоих языках" % _kluch,
+             any("а" <= z <= "я" for z in _tekst.lower())
+             and any(z in _tekst for z in "aeiou"),
+             "аудитория читает и по-узбекски, и по-русски")
+
+proverka("имя бота ловит поисковый запрос",
+         "kurs" in bot.VITRINA["name"].lower()
+         and "курс" in bot.VITRINA["name"].lower(),
+         "имя — вывеска под поиск, а не бренд")
+
+_byl_vyzov_vitriny = bot.vyzov
+try:
+    _stoit = {"name": "Qancha yetadi", "description": "",
+              "short_description": ""}
+    _postavleno = []
+
+    def _vyzov_vitriny(metod, telo=None, popytok=2):
+        telo = telo or {}
+        for _k, (_sp, _po, _pole, _pr) in bot.VITRINA_METODY.items():
+            if metod == _sp:
+                return {"ok": True, "result": {_pole: _stoit[_k]}}
+            if metod == _po:
+                _stoit[_k] = telo.get(_k)
+                _postavleno.append(_k)
+                return {"ok": True, "result": True}
+        return {"ok": True, "result": True}
+
+    bot.vyzov = _vyzov_vitriny
+    _pervyy_raz = bot.nastroit_vitrinu()
+    proverka("вывеска ставится, когда стоит не то",
+             sorted(_pervyy_raz) == sorted(bot.VITRINA),
+             str(_pervyy_raz))
+
+    _postavleno[:] = []
+    _vtoroy_raz = bot.nastroit_vitrinu()
+    proverka("при перезапуске вывеска не переставляется",
+             _vtoroy_raz == [] and _postavleno == [],
+             "Telegram ограничивает частоту смены имени, а Render "
+             "перезапускает сервис постоянно")
+
+    # Telegram отказал — не падаем и не считаем поставленным.
+    bot.vyzov = lambda metod, telo=None, popytok=2: (
+        {"ok": False, "error_code": 429, "description": "Too Many Requests"})
+    proverka("отказ Telegram не роняет запуск", bot.nastroit_vitrinu() == [])
+finally:
+    bot.vyzov = _byl_vyzov_vitriny
+
+
 # ── Свои выводятся из администраторов канала ─────────────────────────
 #
 # Узкое место продукта — не код, а пять минут человека, у которого их
