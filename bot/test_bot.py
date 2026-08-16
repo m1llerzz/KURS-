@@ -804,6 +804,18 @@ try:
              len(_poslannoe_v_kanal) == 0,
              "ушло сообщений: %d — а перезапуск повторил бы это десятки раз"
              % len(_poslannoe_v_kanal))
+
+    # То же для личных оповещений, и там последствия тяжелее: обе защиты
+    # от повторов — пауза в трое суток и прошлый вердикт — живут в
+    # профиле, то есть в том же стираемом файле. В канале за повторы
+    # отписываются, в личных сообщениях блокируют бота, и это навсегда.
+    _poslannoe_v_kanal.clear()
+    hranilishche.zapisat_cheloveka(-777003, lang="ru", uvedomlyat=True)
+    bot.razoslat_uvedomleniya()
+    proverka("без базы оповещения не рассылаются",
+             len(_poslannoe_v_kanal) == 0,
+             "ушло сообщений: %d — блокировка бота необратима"
+             % len(_poslannoe_v_kanal))
 finally:
     bot.vyzov = _byl_vyzov_pub
     os.environ.pop("CHANNEL_ID", None)
