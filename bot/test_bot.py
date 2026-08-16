@@ -1371,6 +1371,34 @@ proverka("воронка считает все три шага",
 proverka("без базы воронка пустая, а не падает",
          _hr.voronka_istochnikov(7) == [])
 
+# Синтаксис запросов разбираем без базы.
+#
+# Postgres при разработке негде поднять, и до сих пор SQL проверялся
+# только тем, что он «выглядит правильно» — то есть не проверялся. Ошибка
+# в нём вылезла бы на боевом и молча: `_vypolnit` ловит исключение, а
+# сводка показала бы пустую разбивку.
+#
+# sqlglot умеет разбирать диалект Postgres. Это не выполнение запроса и
+# не гарантия, что он вернёт нужное, — но опечатку, лишнюю скобку и
+# незакрытую кавычку он ловит, а именно они и ломают такие строки.
+try:
+    import sqlglot as _sqlglot                             # noqa: E402
+except ImportError:
+    _sqlglot = None
+    preduprezhdenie("синтаксис SQL не проверен",
+                    "нет sqlglot: py -m pip install sqlglot")
+
+if _sqlglot:
+    for _imya_sql, _tekst_sql in (
+            ("воронка по источникам", _hr.SQL_VORONKA % {"d": 7}),
+            ("разбивка источников", _hr.SQL_ISTOCHNIKI % {"d": 7})):
+        try:
+            _razobrano = _sqlglot.parse_one(_tekst_sql, dialect="postgres")
+            proverka("SQL «%s» разбирается" % _imya_sql, _razobrano is not None)
+        except Exception as _oshibka_sql:
+            proverka("SQL «%s» разбирается" % _imya_sql, False,
+                     repr(_oshibka_sql)[:160])
+
 # Пустой список и «не выполнилось» — разные вещи. Запрос сложный, а базы
 # при разработке нет: синтаксис проверяется только на боевом. Упадёт —
 # сводка покажет «источников нет», и это прочтётся как «людей не было».
