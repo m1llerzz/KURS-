@@ -634,6 +634,64 @@ function dozhdatsya() {
   proverka('канонический адрес указан',
     !!kd.querySelector('link[rel="canonical"]'));
 
+  /* Дорога поисковика до страницы под поиск.
+   *
+   * robots.txt читается роботами только из корня домена, а наш лежит в
+   * папке проекта — значит директива Sitemap оттуда не работает вовсе.
+   * Пока Search Console не подана, единственный путь на kurs.html — это
+   * ссылка с корня. Без неё страница написана в пустоту. */
+  const indexHtml = fs.readFileSync(path.join(KORNI, 'index.html'), 'utf8');
+  const indexDom = new JSDOM(indexHtml);
+  const naKurs = indexDom.window.document.querySelector('a[href="kurs.html"]');
+  proverka('с приложения есть ссылка на страницу поиска', !!naKurs,
+    'иначе робот дойдёт до kurs.html только через sitemap, о котором ему никто не сказал');
+  if (naKurs) {
+    /* Слова в ссылке — это то, по каким запросам страницу находят. Пустая
+     * ссылка или «читать далее» не значат для поисковика ничего, и текст
+     * обязан лежать в разметке: подставленный скриптом робот не увидит. */
+    const slova = naKurs.textContent.trim();
+    proverka('в ссылке есть слова, а не пустота', slova.length > 10, slova);
+    proverka('ссылка названа обоими языками',
+      /kurs/i.test(slova) && /курс/i.test(slova), slova);
+  }
+
+  /* Карта сайта: дата обязана совпадать с датой курса на странице.
+   *
+   * lastmod — единственная отметка, по которой поисковик решает, стоит ли
+   * заходить снова; changefreq он считает пожеланием. Дата, обогнавшая
+   * числа на странице, — это обещание свежести, которого страница не
+   * выполняет, а отставшая означает, что робот не придёт за новыми. */
+  const sitemap = fs.readFileSync(path.join(KORNI, 'sitemap.xml'), 'utf8');
+  const datyKarty = (sitemap.match(/<lastmod>([^<]+)<\/lastmod>/g) || [])
+    .map(function (s) { return s.replace(/<\/?lastmod>/g, ''); });
+  proverka('в карте сайта есть даты обновления', datyKarty.length > 0,
+    'без lastmod страницу переобходят раз в несколько недель');
+  proverka('все адреса карты помечены датой',
+    datyKarty.length === (sitemap.match(/<loc>/g) || []).length,
+    datyKarty.length + ' дат на ' + (sitemap.match(/<loc>/g) || []).length + ' адресов');
+
+  const dataNaStranice = kd.querySelector('[data-zapas="data_ru"]');
+  if (dataNaStranice && datyKarty.length) {
+    /* «14 августа 2026» -> «2026-08-14». Сверяем по-настоящему: карта и
+     * страница обновляются одним скриптом, и разойтись они могут только
+     * если кто-то правил одно из двух руками. */
+    const MES = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля',
+                 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    const kuski = dataNaStranice.textContent.trim().split(/\s+/);
+    const nomer = MES.indexOf(kuski[1]) + 1;
+    const iso = kuski.length === 3 && nomer
+      ? kuski[2] + '-' + String(nomer).padStart(2, '0')
+        + '-' + String(parseInt(kuski[0], 10)).padStart(2, '0')
+      : null;
+    proverka('дата на странице разбирается', !!iso,
+      dataNaStranice.textContent);
+    if (iso) {
+      proverka('дата карты сайта совпадает с датой курса',
+        datyKarty.every(function (d) { return d === iso; }),
+        datyKarty.join(', ') + ' против ' + iso);
+    }
+  }
+
   /* Картинка карточки. Ссылка на приложение уходит в каждой пересылке, а
    * пересылка — единственный бесплатный источник роста, который у нас
    * есть. Карточка без картинки выглядит в чате бледной строкой, и её

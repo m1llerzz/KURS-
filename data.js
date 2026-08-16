@@ -62,7 +62,7 @@ window.SERVICES = [
     "limit_per_operation": 1000000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T09:57:39+00:00",
+    "checked_at": "2026-08-16T10:16:30+00:00",
     "verified_by_receipt": false,
     "fee_unknown": true,
     "nacenka_percent": 4.06
@@ -81,7 +81,7 @@ window.SERVICES = [
     "limit_per_operation": 1000000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T09:57:39+00:00",
+    "checked_at": "2026-08-16T10:16:30+00:00",
     "verified_by_receipt": false,
     "fee_unknown": true,
     "nacenka_percent": 4.06

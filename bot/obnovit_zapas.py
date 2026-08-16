@@ -30,6 +30,10 @@ DATA_JS = os.path.normpath(os.path.join(
 KURS_HTML = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "kurs.html"))
 
+# Карта сайта. Дата в ней говорит поисковику, стоит ли заходить снова.
+SITEMAP = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "sitemap.xml"))
+
 MESYACY_RU = ["января", "февраля", "марта", "апреля", "мая", "июня",
               "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 MESYACY_UZ = ["yanvar", "fevral", "mart", "aprel", "may", "iyun",
@@ -182,6 +186,34 @@ def _obnovit_stranicu_poiska(snimok):
               flush=True)
 
 
+def _obnovit_sitemap(data_iso):
+    """Ставит в карту сайта дату последнего обновления страниц.
+
+    Дата берётся из данных, а не с часов машины: пересобрать запас можно
+    и в понедельник, а курс на странице будет за пятницу. Отметка о
+    свежести, которая свежее самих чисел, — это обещание, которого
+    страница не выполняет.
+    """
+    if not os.path.exists(SITEMAP):
+        print("  sitemap.xml не найден — пропускаю", flush=True)
+        return
+
+    with open(SITEMAP, "r", encoding="utf-8") as f:
+        tekst = f.read()
+
+    tekst, skolko = re.subn(r"<lastmod>[^<]*</lastmod>",
+                            "<lastmod>%s</lastmod>" % data_iso, tekst)
+
+    if not skolko:
+        print("  ВНИМАНИЕ: в sitemap.xml нет ни одного <lastmod>", flush=True)
+        return
+
+    with open(SITEMAP, "w", encoding="utf-8") as f:
+        f.write(tekst)
+    print("  sitemap.xml: дата обновлена в %d местах — %s" % (skolko, data_iso),
+          flush=True)
+
+
 def main():
     print("собираю живые данные…", flush=True)
     snimok = rates.snimok(s_istoriey=True)
@@ -229,6 +261,7 @@ def main():
     print("data.js обновлён настоящими числами.", flush=True)
 
     _obnovit_stranicu_poiska(snimok)
+    _obnovit_sitemap(str(istoriya[-1]["date"])[:10])
 
     print("Не забудь поднять ?v= у скриптов в index.html — иначе Telegram "
           "будет отдавать старую версию из кеша.", flush=True)

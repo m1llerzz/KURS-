@@ -132,8 +132,10 @@ def main():
 
     kartinka.save(KUDA, "PNG", optimize=True)
     print("готово:", KUDA, flush=True)
-    print("  число на обложке:", summa_slovom(razmah_sum), "сум за",
-          ocenka["tochek"], "дней", flush=True)
+    # «Публикаций», а не «дней»: ЦБ печатает курс по рабочим дням, и за
+    # месячное окно их около двадцати одной.
+    print("  число на обложке:", summa_slovom(razmah_sum), "сум по",
+          ocenka["tochek"], "публикациям ЦБ", flush=True)
     print("Залей и проверь, как выглядит карточка при пересылке в чат.",
           flush=True)
 
