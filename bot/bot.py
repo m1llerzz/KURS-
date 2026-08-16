@@ -572,6 +572,8 @@ KOMANDY_UVED = ("/uved", "/xabar")
 KOMANDY_YAZYK = ("/lang", "/til", "/yazyk")
 KOMANDY_POMOSHCH = ("/help", "/pomoshch", "/yordam")
 KOMANDY_CEL = ("/cel", "/maqsad", "/target")
+# Только для своих: выдаёт готовые тексты для посева с живыми числами.
+KOMANDY_TEKST = ("/tekst", "/matn")
 
 # Курс рубля к суму живёт примерно в этих границах. Цель вне их — это
 # опечатка (148 набрали как 1480), а не желание; принять такое значит
@@ -662,6 +664,13 @@ def obrabotat_soobshchenie(soobshchenie):
             pokazat_kurs(chat_id, lang)
         else:
             poslat(chat_id, TEKSTY[lang]["summa_ne_ponyal"], html=False)
+        return
+
+    if nizhniy.startswith(KOMANDY_TEKST):
+        # Метка чата приходит хвостом: «/tekst moskva1».
+        chasti_t = tekst.split(None, 1)
+        vydat_teksty_dlya_poseva(
+            chat_id, chasti_t[1].strip() if len(chasti_t) > 1 else "")
         return
 
     if nizhniy.startswith(KOMANDY_KURS):
@@ -1231,6 +1240,169 @@ def _opublikovat(vid):
 
     print("[канал] опубликовать не удалось", flush=True)
     return False
+
+
+def svoi(chat_id):
+    """Свой ли это человек — тот, кому доступны служебные команды.
+
+    Список в переменной `SVOI`, через запятую; `ADMIN_CHAT_ID` входит
+    всегда. Нет переменных — служебных команд нет ни у кого, включая
+    случайного прохожего: команда просто молчит, как будто её не бывает.
+    """
+    razresheno = set()
+    for imya in ("ADMIN_CHAT_ID", "SVOI"):
+        for kusok in os.environ.get(imya, "").replace(" ", "").split(","):
+            if kusok:
+                razresheno.add(kusok)
+    return str(chat_id) in razresheno
+
+
+# Готовые тексты для посева. Живут в коде, а не в документе, ровно по той
+# же причине, по которой BOT-TEXTS.md стал указателем: копия в документе
+# расходится с настоящим за два дня.
+#
+# Числа подставляются сегодняшние. Это не удобство, а требование: правило
+# проекта — не публиковать число без даты, а Видадий, копирующий пост из
+# файла месячной давности, опубликует позапрошлый курс и будет пойман на
+# этом первым же человеком, решившим нас проверить.
+TEKSTY_POSEVA = {
+    "otkrytie": {
+        "uz": (
+            "Hisoblab ko‘rdim va o‘zim ham hayron qoldim.\n\n"
+            "Oxirgi 30 kunda rubl kursi {mx} dan {mn} gacha yurdi. "
+            "Bu {razmah_percent}%.\n"
+            "50 000 rublda — {razmah} so‘m.\n\n"
+            "Komissiya-yu servis tanlash bunga nisbatan mayda gap.\n"
+            "Eng ko‘p pulni yuborish KUNI hal qiladi, lekin buni hech kim "
+            "aytmaydi.\n\n"
+            "Bugungi kurs oyning o‘rtachasidan qanday farq qilishini shu "
+            "yerda ko‘rsatyapti: {ssylka}"
+        ),
+        "ru": (
+            "Посчитал и сам удивился.\n\n"
+            "За последние 30 дней курс рубля прошёл от {mx} до {mn}. "
+            "Это {razmah_percent}%.\n"
+            "На переводе 50 000 ₽ — {razmah} сум.\n\n"
+            "Комиссия и выбор сервиса рядом с этим — мелочь.\n"
+            "Больше всего решает ДЕНЬ отправки, но об этом не говорит никто.\n\n"
+            "Вот тут показывает, чем сегодняшний курс отличается от среднего "
+            "за месяц: {ssylka}"
+        ),
+    },
+    "otvet": {
+        "uz": (
+            "Ochig‘ini aytsam, servislar orasidagi farq deyarli yo‘q — "
+            "tekshirdim, kurs bir xil.\n\n"
+            "Haqiqiy farq boshqa joyda: qaysi KUNI yuborasiz.\n"
+            "Oy ichida kurs {razmah_percent}% ga o‘zgardi. Servis tanlash "
+            "bunchalik bermaydi.\n\n"
+            "Men bugungi kurs odatdagidan yaxshimi yoki yomonmi — shu yerdan "
+            "qarayman: {ssylka}"
+        ),
+        "ru": (
+            "Если честно — разницы между сервисами почти нет, "
+            "проверял, курс у них одинаковый.\n\n"
+            "Настоящая разница в другом: в какой ДЕНЬ отправляешь.\n"
+            "За месяц курс менялся на {razmah_percent}%. Выбор сервиса "
+            "столько не даёт.\n\n"
+            "Я смотрю здесь, лучше сегодня курс обычного или хуже: {ssylka}"
+        ),
+    },
+    "nacenka": {
+        "uz": (
+            "Yana bir narsa, buni hech kim ko‘rsatmaydi.\n\n"
+            "Markaziy bank kursi {data} holatiga {kurs}. Pul o‘tkazma esa "
+            "{kurs_servisa} bo‘yicha o‘tadi.\n"
+            "Farqi {nacenka_percent}% — 50 000 rublda {nacenka} so‘m.\n\n"
+            "Bu komissiya emas. Bu kurs. Va u hech qayerda yozilmagan.\n\n"
+            "{ssylka}"
+        ),
+        "ru": (
+            "И ещё одно, чего не показывает никто.\n\n"
+            "Официальный курс ЦБ на {data} — {kurs}. А перевод идёт по "
+            "{kurs_servisa}.\n"
+            "Разница {nacenka_percent}% — это {nacenka} сум на 50 000 ₽.\n\n"
+            "Это не комиссия. Это курс. И его нигде не пишут.\n\n"
+            "{ssylka}"
+        ),
+    },
+}
+
+
+def vydat_teksty_dlya_poseva(chat_id, metka=""):
+    """Готовые посты для чатов, с сегодняшними числами и меткой чата.
+
+    Зачем команда, а не файл. Тексты в документе устаревают молча: числа
+    в них остаются от того дня, когда документ писали. Человек копирует
+    пост, публикует — и первый же читатель сверяет с cbu.uz и ловит нас
+    на неправде. Здесь числа всегда сегодняшние, а у каждого чата своя
+    метка, без которой посев превращается в гадание.
+    """
+    if not svoi(chat_id):
+        return                       # чужому команды просто не существует
+
+    ocenka = (svezhie_dannye() or {}).get("sovet")
+    d = svezhie_dannye() or {}
+    if not ocenka:
+        poslat(chat_id, "Данных нет — тексты с выдуманными числами "
+                        "не выдаю.", html=False)
+        return
+
+    chistaya = "".join(z for z in metka.lower()
+                       if (z.isalnum() and z.isascii()) or z in "_-")[:24]
+    ssylka_posta = ("https://t.me/QanchaYetadi_bot?start=chat_" + chistaya
+                    if chistaya else "https://t.me/QanchaYetadi_bot?start=chat")
+
+    razmah_percent = ((ocenka["max_30"] - ocenka["min_30"])
+                      / ocenka["min_30"] * 100)
+    razmah = (ocenka["max_30"] - ocenka["min_30"]) * 50000
+
+    servisy = [s for s in (d.get("services") or []) if s.get("rate_rub_uzs")]
+    luchshiy = max(servisy, key=lambda s: s["rate_rub_uzs"]) if servisy else None
+    kurs_cb = (d.get("cbu") or {}).get("rub_uzs") or ocenka["segodnya"]
+
+    obshchee = {
+        "mn": chislo(ocenka["min_30"]), "mx": chislo(ocenka["max_30"]),
+        "razmah_percent": chislo(razmah_percent),
+        "razmah": summa_slovom(razmah),
+        "kurs": chislo(kurs_cb),
+        "ssylka": ssylka_posta,
+    }
+
+    zagolovki = {
+        "otkrytie": "ПОСТ 1 — открытие",
+        "otvet": "ПОСТ 2 — ответ на «через что дешевле»",
+        "nacenka": "ПОСТ 3 — про скрытую наценку, через неделю после первого",
+    }
+
+    for vid in ("otkrytie", "otvet", "nacenka"):
+        if vid == "nacenka":
+            if not luchshiy:
+                continue
+            polya = dict(obshchee,
+                         data=data_slovom(ocenka.get("data"), "ru"),
+                         kurs_servisa=chislo(luchshiy["rate_rub_uzs"]),
+                         nacenka_percent=chislo(
+                             (kurs_cb - luchshiy["rate_rub_uzs"]) / kurs_cb * 100),
+                         nacenka=summa_slovom(
+                             (kurs_cb - luchshiy["rate_rub_uzs"]) * 50000))
+            polya_uz = dict(polya, data=data_slovom(ocenka.get("data"), "uz"))
+        else:
+            polya = polya_uz = obshchee
+
+        # Каждый пост отдельным сообщением: их копируют по одному, и
+        # склеенные в кучу пришлось бы разбирать руками.
+        poslat(chat_id, "<b>%s · UZ</b>\n\n<code>%s</code>" % (
+            zagolovki[vid], TEKSTY_POSEVA[vid]["uz"].format(**polya_uz)))
+        poslat(chat_id, "<b>%s · RU</b>\n\n<code>%s</code>" % (
+            zagolovki[vid], TEKSTY_POSEVA[vid]["ru"].format(**polya)))
+
+    poslat(chat_id,
+           "Числа на %s. Метка чата: <code>%s</code> — по ней будет видно, "
+           "сколько людей пришло именно оттуда.\n\n"
+           "Метку задавать так: <code>/tekst moskva1</code>"
+           % (data_slovom(ocenka.get("data"), "ru"), chistaya or "нет"))
+    hranilishche.sobytie(chat_id, "teksty_vydany", {"metka": chistaya})
 
 
 def opublikovat_ryvok():

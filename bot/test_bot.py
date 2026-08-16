@@ -707,6 +707,71 @@ finally:
         os.environ["CHANNEL_ID"] = _byl_kanal
 
 
+# ── Тексты для посева ────────────────────────────────────────────────
+#
+# Тексты в документе устаревают молча: числа в них остаются от того дня,
+# когда документ писали. Человек копирует пост, публикует — и первый же
+# читатель сверяет с cbu.uz и ловит нас на неправде.
+
+_poslannye_teksty = []
+
+
+def _perehvat_tekstov(metod, telo=None):
+    if metod == "sendMessage":
+        _poslannye_teksty.append((telo or {}).get("text", ""))
+    return {"ok": True, "result": {}}
+
+
+_byl_svoi = os.environ.get("SVOI")
+_byl_vyzov2 = bot.vyzov
+bot.vyzov = _perehvat_tekstov
+try:
+    os.environ.pop("SVOI", None)
+    os.environ.pop("ADMIN_CHAT_ID", None)
+    _poslannye_teksty.clear()
+    bot.vydat_teksty_dlya_poseva(777)
+    proverka("чужому команда не отвечает вовсе", len(_poslannye_teksty) == 0,
+             "служебной команды для постороннего просто не существует")
+
+    os.environ["SVOI"] = "777"
+    _poslannye_teksty.clear()
+    bot.vydat_teksty_dlya_poseva(777, "moskva1")
+    _vse = "\n".join(_poslannye_teksty)
+    proverka("своему тексты выданы", len(_poslannye_teksty) >= 4,
+             "прислано сообщений: " + str(len(_poslannye_teksty)))
+    proverka("тексты на обоих языках",
+             "· UZ" in _vse and "· RU" in _vse)
+    proverka("в текстах нет незаполненных мест",
+             "{" not in _vse and "}" not in _vse,
+             "фигурная скобка уедет прямо в чужой чат")
+    proverka("метка чата попала в ссылку", "start=chat_moskva1" in _vse,
+             "без метки непонятно, какой чат сработал")
+    import re as _re                                   # noqa: E402
+    proverka("курс в тексте написан через запятую",
+             bool(_re.search(r"\d+,\d{2}", _vse)),
+             "точка в дробной части читается как чужой формат")
+    proverka("суммы разделены пробелами по три знака",
+             bool(_re.search(r"\d{1,3} \d{3}", _vse)),
+             "673000 без пробелов человек не прочитает с первого взгляда")
+    proverka("ссылка ведёт на бота, а не на приложение",
+             "t.me/QanchaYetadi_bot?start=" in _vse,
+             "в чате ссылка на бота: он и метку запишет, и в приложение отправит")
+    proverka("дата названа", "августа" in _vse or "avgust" in _vse
+             or any(m in _vse for m in bot.MESYACY["ru"]),
+             "число без даты — ложь, а этот текст уйдёт в чужой чат")
+
+    _poslannye_teksty.clear()
+    bot.vydat_teksty_dlya_poseva(777, "чат <script>алерт")
+    proverka("мусор из метки вычищен",
+             "<script>" not in "\n".join(_poslannye_teksty),
+             "чужой текст не должен доезжать до ссылки как есть")
+finally:
+    bot.vyzov = _byl_vyzov2
+    os.environ.pop("SVOI", None)
+    if _byl_svoi is not None:
+        os.environ["SVOI"] = _byl_svoi
+
+
 # ── Разбивка «откуда пришли» ─────────────────────────────────────────
 #
 # Денег на рекламу нет, значит каждый человек пришёл из какого-то одного
