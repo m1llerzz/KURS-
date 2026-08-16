@@ -590,6 +590,57 @@ function dozhdatsya() {
     'ЦБ не публикует по выходным: в понедельник свежайший курс — ' +
       'за пятницу, и «сегодня» было бы неправдой три дня в неделю');
 
+  /* ── 4а. Кеш не заслоняет свежие данные ────────────────────────── */
+  //
+  // Здесь стоял ранний возврат: есть кеш моложе суток — берём его и в
+  // сеть не идём вовсе. Человек, открывший приложение вечером, наутро
+  // видел вчерашний курс, хотя ЦБ уже опубликовал новый. Продукт,
+  // отвечающий на вопрос «какой курс СЕГОДНЯ», показывал вчерашний.
+
+  const vcherashniy = {
+    ok: true,
+    cbu: { usd_uzs: 11900, rub_uzs: 130.00, date: '2026-08-10' },
+    services: [{
+      id: 'yubor', name: 'Yubor', route: 'A', corridors: ['RU-UZ'],
+      fee_fixed: 0, fee_percent: 0, rate_rub_uzs: 125.0,
+      limit_per_operation: 1000000, delivery_minutes: 60, incoming_fee: 0,
+      checked_at: new Date().toISOString(), fee_unknown: true,
+      nacenka_percent: 3.8,
+    }],
+    banks: [],
+    history: (function () {
+      const r = [];
+      for (let i = 29; i >= 0; i--) {
+        r.push({
+          date: new Date(Date.now() - i * 86400000).toISOString().slice(0, 10),
+          rub_uzs: 130.0,
+        });
+      }
+      return r;
+    })(),
+    sovet: null,
+    saved_at: Date.now() - 3600000,     // час назад: кеш заведомо «свежий»
+  };
+
+  const svezhiy = JSON.parse(JSON.stringify(vcherashniy));
+  svezhiy.cbu.rub_uzs = 160.00;
+  svezhiy.cbu.date = '2026-08-16';
+  svezhiy.history[svezhiy.history.length - 1].rub_uzs = 160.0;
+  delete svezhiy.saved_at;
+
+  const wKesh = podnyat(svezhiy, {
+    intro_pokazan: '1',
+    dannye: JSON.stringify(vcherashniy),
+  });
+  await dozhdatsya();
+
+  proverka('свежий курс перебивает кеш',
+    /160/.test(tekst(wKesh, 'vRate')),
+    tekst(wKesh, 'vRate') + ' — кеш моложе суток не должен отменять запрос');
+  proverka('в кеше лежал другой курс',
+    JSON.parse(wKesh.localStorage.getItem('dannye')).cbu.rub_uzs === 160,
+    'после ответа бота кеш обязан обновиться');
+
   /* ── 4б. Обещания, которых мы не даём ──────────────────────────── */
   //
   // Пункты чек-листа приёмки, которые до сих пор проверялись глазами.

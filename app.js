@@ -382,10 +382,22 @@
   }
 
   function zagruzitDannye() {
+    /* Кеш рисует экран мгновенно, но НЕ отменяет запрос.
+     *
+     * Здесь стоял ранний возврат: есть кеш моложе суток — берём его и в
+     * сеть не идём вовсе. На часах это выглядело так: человек открыл
+     * приложение в восемь вечера, наутро ЦБ опубликовал новый курс, а он
+     * заходит в десять — и видит вчерашний. Кеш моложе суток, запрос не
+     * ушёл. Продукт, который отвечает на вопрос «какой курс СЕГОДНЯ»,
+     * показывал вчерашний, и заметить это можно было только сверив с
+     * cbu.uz.
+     *
+     * Теперь кеш — это первый кадр, а не ответ. Свежие данные приходят
+     * следом и перерисовывают экран. */
     const kesh = izKesha();
-    if (kesh) { primenit(kesh); return Promise.resolve(kesh); }
+    if (kesh) primenit(kesh);
 
-    if (!window.API_URL) return Promise.resolve(zapasnoy());
+    if (!window.API_URL) return Promise.resolve(kesh || zapasnoy());
 
     return fetch(window.API_URL, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
