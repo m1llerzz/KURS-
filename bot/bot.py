@@ -111,6 +111,40 @@ def podpis_kursa(iso, lang="ru", teper=None):
     return "Курс на %s" % data_slovom(iso, "ru")
 
 
+# Сколько дней данные могут быть старыми, прежде чем мы перестанем
+# советовать. Мягче правила про курсы сервисов (трое суток) намеренно:
+# ЦБ не публикует по выходным и в праздники, длинные каникулы — норма.
+PREDEL_SOVETA_DNEY = 5
+
+
+def sovet_ustarel(ocenka, teper=None):
+    """Слишком ли стары данные, чтобы что-то советовать.
+
+    Приложение при таких данных прячет курсы сервисов целиком, а совет
+    продолжал бодро говорить «сегодня хороший день» — по курсу
+    многодневной давности. Это тот же класс вреда, что и совет ждать в
+    падающем рынке: человек послушает и потеряет.
+
+    Не смогли разобрать дату — считаем свежим: промолчать из-за
+    непонятой строки хуже, чем дать совет.
+    """
+    if not ocenka:
+        return False
+    try:
+        byla = datetime.strptime(str(ocenka.get("data"))[:10], "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return False
+    teper = teper or (datetime.now(timezone.utc) + timedelta(hours=5))
+    return (teper.date() - byla.date()).days > PREDEL_SOVETA_DNEY
+
+
+def kakoy_sovet(ocenka):
+    """Какой совет давать: обычный или «данные старые»."""
+    if sovet_ustarel(ocenka):
+        return "stale"
+    return (ocenka or {}).get("deystvie") or "obychno"
+
+
 def podpis_dnya(iso, lang="ru", teper=None):
     """«Сегодня» или «14 августа» — для строк, где речь про день."""
     if segodnya_li(iso, teper):
@@ -557,7 +591,7 @@ def pokazat_kurs(chat_id, lang):
 
     # Что делать — отдельной строкой и последней. Человек читает курс,
     # а уходит с решением; без этой строки он уходит только с цифрой.
-    stroki += ["", DEYSTVIYA[lang][ocenka.get("deystvie") or "obychno"]]
+    stroki += ["", DEYSTVIYA[lang][kakoy_sovet(ocenka)]]
 
     # Кнопка цели стоит рядом с курсом не случайно: человек видит цифру,
     # решает «мало» — и тут же может сказать, при какой напомнить.
@@ -898,7 +932,7 @@ def razoslat_uvedomleniya():
             stroka_summy=_stroka_summy(lang, ocenka, c.get("summa_rub")),
             # Совет берём из общей таблицы, а не пишем в шаблоне: иначе
             # оповещение однажды скажет одно, а приложение другое.
-            sovet=DEYSTVIYA[lang][ocenka.get("deystvie") or "obychno"],
+            sovet=DEYSTVIYA[lang][kakoy_sovet(ocenka)],
         )
         otvet = poslat(chat_id, tekst, [
             [{"text": t["knopka"], "web_app": {"url": PRILOZHENIE}}],
@@ -1060,12 +1094,18 @@ DEYSTVIYA = {
         "mozhno_zhdat": "Kurs past, lekin ko‘tarilmoqda — kutish ma’noli.",
         "ne_zhdat":     "Kurs tushmoqda — qancha kutsangiz, shuncha kam yetadi.",
         "obychno":      "Kurs odatdagidek.",
+        # Ma'lumotlar eski bo'lsa — maslahat yo'q. Ko'p kunlik kurs
+        # bo'yicha «bugun yaxshi kun» deyish odamga pulga tushadi.
+        "stale":        "Ma’lumotlar eski — bugun uchun maslahat bermayman.",
     },
     "ru": {
         "otpravlyat":   "Если собирались отправлять — сегодня хороший день.",
         "mozhno_zhdat": "Курс ниже обычного и растёт — есть смысл подождать.",
         "ne_zhdat":     "Курс падает — чем дольше ждёте, тем меньше дойдёт.",
         "obychno":      "Курс обычный.",
+        # По старым данным советов не даём: «сегодня хороший день» по
+        # курсу недельной давности — это совет потерять деньги.
+        "stale":        "Данные устарели — совет на сегодня не даю.",
     },
 }
 
@@ -1137,7 +1177,10 @@ def sobrat_post(vid, dannye):
     if not ocenka:
         return None
     istoriya = (dannye or {}).get("history") or []
-    kluch_soveta = ocenka.get("deystvie") or "obychno"
+    # Совет в посте — по тем же правилам, что везде: на старых данных
+    # его не даём. Пост выходит на новый курс, так что срабатывать это
+    # почти не будет, — но «почти» в денежном продукте не считается.
+    kluch_soveta = kakoy_sovet(ocenka)
 
     # Дата последнего курса. ЦБ молчит по выходным, и называть пятничный
     # курс сегодняшним — значит врать три дня в неделю.

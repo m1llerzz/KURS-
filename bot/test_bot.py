@@ -61,11 +61,13 @@ for lang in ("uz", "ru"):
 # оповещение упадёт на KeyError у живого человека.
 VSE_VERDIKTY = {"otlichno", "horosho", "obychno", "nize_obychnogo", "ploho"}
 for lang in ("uz", "ru"):
+    # «stale» — не решение советника, а отказ советовать по старым
+    # данным. Он обязан быть на обоих языках наравне с остальными:
+    # KeyError здесь означает молчание бота у живого человека.
+    _vse_sovety = {"otpravlyat", "mozhno_zhdat", "ne_zhdat", "obychno", "stale"}
     proverka("совет покрыт на " + lang,
-             set(bot.DEYSTVIYA[lang]) == {"otpravlyat", "mozhno_zhdat",
-                                          "ne_zhdat", "obychno"},
-             "не хватает: " + str({"otpravlyat", "mozhno_zhdat", "ne_zhdat",
-                                   "obychno"} - set(bot.DEYSTVIYA[lang])))
+             set(bot.DEYSTVIYA[lang]) == _vse_sovety,
+             "не хватает: " + str(_vse_sovety - set(bot.DEYSTVIYA[lang])))
     proverka("сдвиг за неделю есть на " + lang,
              "kurs_nedelya_up" in bot.TEKSTY[lang]
              and "kurs_nedelya_down" in bot.TEKSTY[lang])
@@ -768,6 +770,45 @@ finally:
         os.environ.pop("CHANNEL_ID", None)
     else:
         os.environ["CHANNEL_ID"] = _byl_kanal
+
+
+# ── По старым данным советов не даём ─────────────────────────────────
+#
+# Приложение при таких данных прячет курсы сервисов целиком, а совет
+# продолжал говорить «сегодня хороший день» — по курсу многодневной
+# давности. Тот же класс вреда, что и совет ждать в падающем рынке.
+
+from datetime import datetime as _dtt, timedelta as _tdd   # noqa: E402
+
+
+def _ocenka_vozrasta(dney):
+    """Оценка, у которой дата курса — столько-то дней назад."""
+    kogda = (_dtt.now() - _tdd(days=dney)).strftime("%Y-%m-%d")
+    return {"deystvie": "otpravlyat", "data": kogda}
+
+
+proverka("свежие данные — совет обычный",
+         bot.kakoy_sovet(_ocenka_vozrasta(0)) == "otpravlyat")
+proverka("вчерашние данные — совет ещё даём",
+         bot.kakoy_sovet(_ocenka_vozrasta(1)) == "otpravlyat")
+proverka("длинные выходные не отменяют совет",
+         bot.kakoy_sovet(_ocenka_vozrasta(4)) == "otpravlyat",
+         "ЦБ не публикует по выходным и в праздники — это норма, не сбой")
+proverka("данные старше пяти дней — совета нет",
+         bot.kakoy_sovet(_ocenka_vozrasta(8)) == "stale",
+         "совет по курсу недельной давности — это совет потерять деньги")
+proverka("без даты совет всё равно даём",
+         bot.kakoy_sovet({"deystvie": "ne_zhdat"}) == "ne_zhdat",
+         "промолчать из-за непонятой строки хуже, чем дать совет")
+proverka("кривая дата не отменяет совет",
+         bot.kakoy_sovet({"deystvie": "ne_zhdat", "data": "не дата"}) == "ne_zhdat")
+proverka("без оценки совет обычный", bot.kakoy_sovet(None) == "obychno")
+
+for lang in ("uz", "ru"):
+    _staryy = bot.DEYSTVIYA[lang]["stale"]
+    proverka("отказ советовать написан на " + lang, bool(_staryy.strip()))
+    proverka("в отказе на %s не сказано «хороший день»" % lang,
+             "yaxshi kun" not in _staryy and "хороший день" not in _staryy)
 
 
 # ── Свежесть страницы под поиск ──────────────────────────────────────
