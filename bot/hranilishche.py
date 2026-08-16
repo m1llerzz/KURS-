@@ -276,6 +276,31 @@ def svodka_sobytiy(dney=7):
     return [{"tip": s[0], "skolko": s[1]} for s in (stroki or [])]
 
 
+# Запрос вынесен из функции нарочно: без базы под рукой его никак не
+# проверить, а собрать строку и посмотреть на неё — можно. Проверка в
+# test_bot.py следит, чтобы двойные проценты свернулись и интервал
+# подставился в обе половины.
+SQL_ISTOCHNIKI = (
+    "SELECT otkuda, SUM(skolko) FROM ("
+    "  SELECT COALESCE(NULLIF(dannye::json->>'istochnik', ''), 'напрямую')"
+    "         AS otkuda, COUNT(*) AS skolko"
+    "  FROM sobytiya"
+    "  WHERE tip = 'otkryt' AND sozdano_v > NOW() - INTERVAL '%(d)s days'"
+    # Событие без данных — это тоже «напрямую», а не повод уронить запрос.
+    # Кастуем только то, что заведомо json.
+    "    AND (dannye IS NULL OR dannye LIKE '{%%')"
+    "  GROUP BY 1"
+    "  UNION ALL"
+    "  SELECT COALESCE(NULLIF(dannye::json->>'start', ''), 'напрямую')"
+    "         AS otkuda, COUNT(*) AS skolko"
+    "  FROM sobytiya"
+    "  WHERE tip = 'novyy' AND sozdano_v > NOW() - INTERVAL '%(d)s days'"
+    "    AND (dannye IS NULL OR dannye LIKE '{%%')"
+    "  GROUP BY 1"
+    ") AS vse GROUP BY otkuda ORDER BY SUM(skolko) DESC"
+)
+
+
 def svodka_istochnikov(dney=7):
     """Откуда приходили люди: канал, чат, чужая пересылка, напрямую.
 
@@ -284,17 +309,20 @@ def svodka_istochnikov(dney=7):
     в том, чтобы понять, из какого именно. Без этой разбивки видно только
     «пришло сорок человек» — и непонятно, повторять посев или бросать.
 
-    Метку кладёт приложение в поле `istochnik` события «открыл». Пустая
-    метка — человек открыл приложение сам, не по нашей ссылке.
+    Метка приходит из двух мест, и считать надо оба:
+
+        otkryt.istochnik — человек открыл приложение по нашей ссылке
+                           (канал, поиск, чужая пересылка);
+        novyy.start      — человек написал БОТУ по ссылке с меткой.
+                           Так помечаются чаты при посеве: у каждого чата
+                           своя ссылка вида t.me/бот?start=chat_moskva.
+
+    Без второго половина посева была бы не видна: в чатах ссылку дают на
+    бота, а не на приложение, и эти люди не попадали в счёт вовсе.
+
+    Пустая метка — человек пришёл сам, не по нашей ссылке.
     """
     if not na_postgres():
         return []
-    stroki = _vypolnit(
-        "SELECT COALESCE(dannye::json->>'istochnik', 'напрямую') AS otkuda, "
-        "COUNT(*) FROM sobytiya "
-        "WHERE tip = 'otkryt' AND sozdano_v > NOW() - INTERVAL '%s days' "
-        # Событие без данных — это тоже «напрямую», а не повод уронить
-        # запрос. Кастуем только то, что заведомо json.
-        "AND (dannye IS NULL OR dannye LIKE '{%%') "
-        "GROUP BY 1 ORDER BY COUNT(*) DESC" % int(dney), vernut=True)
-    return [{"otkuda": s[0], "skolko": s[1]} for s in (stroki or [])]
+    stroki = _vypolnit(SQL_ISTOCHNIKI % {"d": int(dney)}, vernut=True)
+    return [{"otkuda": s[0], "skolko": int(s[1])} for s in (stroki or [])]
