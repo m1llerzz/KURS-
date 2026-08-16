@@ -351,6 +351,44 @@ proverka("рывок берёт последние два дня, а не люб
          "скачок в середине ряда — не сегодняшняя новость")
 
 
+# ── Списки вердиктов и советов не отстают от логики ──────────────────
+#
+# По ним бот и приложение подписывают вердикты словами. Разойдётся
+# список с тем, что реально выдаёт analiz(), — и на живом человеке
+# случится KeyError вместо сообщения.
+
+proverka("список вердиктов не пуст", len(sovet.VSE_VERDIKTY) == 5,
+         str(sovet.VSE_VERDIKTY))
+proverka("список советов не пуст", len(sovet.VSE_SOVETY) == 5,
+         str(sovet.VSE_SOVETY))
+
+# Гоняем логику по рядам, дающим все пять вердиктов, и проверяем, что
+# ничего сверх списка не появилось.
+_vydannye_verdikty = set()
+_vydannye_sovety = set()
+for _proba in ([140] * 10,                    # обычно
+               [140] * 9 + [150],             # отлично
+               [150] * 9 + [140],             # плохо
+               [140] * 9 + [143.1],           # хорошо: около +2%
+               [140] * 9 + [137],             # ниже обычного: около −2%
+               [160, 160, 160, 135, 136, 137, 140, 141, 142],
+               [140] * 6 + [152, 151, 150]):
+    _o = sovet.analiz(ryad(_proba))
+    if _o:
+        _vydannye_verdikty.add(_o["verdikt"])
+        _vydannye_sovety.add(_o["deystvie"])
+
+proverka("все выданные вердикты есть в списке",
+         _vydannye_verdikty <= set(sovet.VSE_VERDIKTY),
+         "лишние: " + str(_vydannye_verdikty - set(sovet.VSE_VERDIKTY)))
+proverka("все выданные советы есть в списке",
+         _vydannye_sovety <= set(sovet.VSE_SOVETY),
+         "лишние: " + str(_vydannye_sovety - set(sovet.VSE_SOVETY)))
+proverka("списком покрыты все пять вердиктов",
+         len(_vydannye_verdikty) == 5,
+         "на пробах вышло только: " + str(sorted(_vydannye_verdikty)))
+
+
 # ── Итог ─────────────────────────────────────────────────────────────
 
 print("Пройдено:", len(provereno))

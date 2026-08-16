@@ -59,12 +59,11 @@ for lang in ("uz", "ru"):
 
 # Каждый вердикт советника должен иметь подпись на обоих языках, иначе
 # оповещение упадёт на KeyError у живого человека.
-VSE_VERDIKTY = {"otlichno", "horosho", "obychno", "nize_obychnogo", "ploho"}
+# Списки берём из sovet.py, где они и порождаются. Перечисленные здесь
+# отставали бы: добавят шестой вердикт — проверка о нём не узнает.
+VSE_VERDIKTY = set(sovet.VSE_VERDIKTY)
 for lang in ("uz", "ru"):
-    # «stale» — не решение советника, а отказ советовать по старым
-    # данным. Он обязан быть на обоих языках наравне с остальными:
-    # KeyError здесь означает молчание бота у живого человека.
-    _vse_sovety = {"otpravlyat", "mozhno_zhdat", "ne_zhdat", "obychno", "stale"}
+    _vse_sovety = set(sovet.VSE_SOVETY)
     proverka("совет покрыт на " + lang,
              set(bot.DEYSTVIYA[lang]) == _vse_sovety,
              "не хватает: " + str(_vse_sovety - set(bot.DEYSTVIYA[lang])))
