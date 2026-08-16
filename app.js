@@ -126,7 +126,21 @@
       if (u && u.id) chatId = u.id;
     } catch (e) {}
 
-    const telo = JSON.stringify({ tip: tip, chat_id: chatId, dannye: dannye || null });
+    /* Метку источника кладём в КАЖДОЕ событие, а не только в «открыл».
+     *
+     * Иначе видно «из этого чата пришло сорок человек» — и всё. А вопрос
+     * другой: сколько из них дошли до расчёта. Чат с двумя сотнями
+     * переходов и нулём расчётов хуже, чем чат с двадцатью переходами и
+     * пятнадцатью расчётами, — и по одним переходам их не различить.
+     * Ради этой разницы посев и ведётся по одному чату за раз. */
+    const otkuda = istochnik();
+    const polya = dannye ? Object.assign({}, dannye) : {};
+    if (otkuda) polya.istochnik = otkuda;
+
+    const telo = JSON.stringify({
+      tip: tip, chat_id: chatId,
+      dannye: Object.keys(polya).length ? polya : null,
+    });
 
     try {
       // sendBeacon переживает закрытие приложения — обычный fetch на

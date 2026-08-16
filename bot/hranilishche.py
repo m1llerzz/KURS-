@@ -364,6 +364,38 @@ SQL_ISTOCHNIKI = (
 )
 
 
+# Воронка по источникам: пришёл — посчитал. Метка лежит в каждом
+# событии, а не только в «открыл», поэтому считать можно оба шага.
+#
+# Зачем именно так. По одним переходам источники не различить: чат с
+# двумя сотнями заходов и нулём расчётов хуже, чем чат с двадцатью
+# заходами и пятнадцатью расчётами. Первый — случайные зеваки, второй —
+# люди с деньгами в руках. Ради этой разницы посев и ведётся по одному
+# чату за раз, и без второго столбца весь труд насмарку.
+SQL_VORONKA = (
+    "SELECT COALESCE(NULLIF(dannye::json->>'istochnik', ''), 'напрямую')"
+    "       AS otkuda,"
+    "       COUNT(*) FILTER (WHERE tip = 'otkryt')  AS prishli,"
+    "       COUNT(*) FILTER (WHERE tip = 'raschet') AS poschitali,"
+    "       COUNT(*) FILTER (WHERE tip = 'share')   AS pereslali"
+    "  FROM sobytiya"
+    " WHERE sozdano_v > NOW() - INTERVAL '%(d)s days'"
+    "   AND tip IN ('otkryt', 'raschet', 'share')"
+    "   AND (dannye IS NULL OR dannye LIKE '{%%')"
+    " GROUP BY 1 ORDER BY 2 DESC"
+)
+
+
+def voronka_istochnikov(dney=7):
+    """По каждому источнику: пришли, посчитали, переслали."""
+    if not na_postgres():
+        return []
+    stroki = _vypolnit(SQL_VORONKA % {"d": int(dney)}, vernut=True)
+    return [{"otkuda": s[0], "prishli": int(s[1]),
+             "poschitali": int(s[2]), "pereslali": int(s[3])}
+            for s in (stroki or [])]
+
+
 def svodka_istochnikov(dney=7):
     """Откуда приходили люди: канал, чат, чужая пересылка, напрямую.
 

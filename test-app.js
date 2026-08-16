@@ -41,7 +41,7 @@ function proverka(imya, uslovie, podskazka) {
  * pamyat — что лежит в localStorage ДО запуска: у каждого окна jsdom своё
  * хранилище, и без этого прошлый визит человека не воспроизвести.
  */
-function podnyat(otvet, pamyat) {
+function podnyat(otvet, pamyat, startParam) {
   const html = fs.readFileSync(path.join(KORNI, 'index.html'), 'utf8')
     // Внешний скрипт Telegram в проверке не нужен и тянуть его неоткуда.
     .replace(/<script src="https:\/\/telegram[^<]*<\/script>/, '');
@@ -66,6 +66,20 @@ function podnyat(otvet, pamyat) {
   Object.keys(pamyat || {}).forEach(function (k) {
     w.localStorage.setItem(k, pamyat[k]);
   });
+
+  /* Метка источника кладётся ДО запуска приложения — так же, как её
+   * кладёт Telegram при переходе по ссылке из чата или канала.
+   * Поставить её после значит поднять приложение второй раз поверх
+   * первого и мерить не то. */
+  if (startParam) {
+    w.Telegram = {
+      WebApp: {
+        initDataUnsafe: { start_param: startParam },
+        ready: function () {}, expand: function () {},
+        MainButton: { hide: function () {} }, themeParams: {},
+      },
+    };
+  }
 
   ['i18n.js', 'data.js', 'calc.js', 'app.js'].forEach(function (f) {
     w.eval(fs.readFileSync(path.join(KORNI, f), 'utf8'));
@@ -654,6 +668,34 @@ function dozhdatsya() {
     sobytiya.every(function (s) { return s.telo.indexOf('"summa":100000') === -1
                                      && s.telo.indexOf('"summa":50000') === -1; }),
     'отправляем только порядок суммы, не саму сумму');
+
+  /* Метка источника — в КАЖДОМ событии, а не только в «открыл».
+   *
+   * По одним переходам источники не различить: чат с двумя сотнями
+   * заходов и нулём расчётов хуже, чем чат с двадцатью заходами и
+   * пятнадцатью расчётами. Первое — зеваки, второе — люди с деньгами
+   * в руках, и ради этой разницы посев ведётся по одному чату за раз. */
+  const sMetkoy = [];
+  const wMetka = podnyat(null, { intro_pokazan: '1' }, 'chat_moskva1');
+  wMetka.navigator.sendBeacon = function (adres, telo) {
+    sMetkoy.push(String(telo)); return true;
+  };
+  wMetka.Blob = function (chasti) {
+    return { toString: function () { return chasti.join(''); } };
+  };
+  await dozhdatsya();
+  wMetka.document.getElementById('summa').value = '50000';
+  wMetka.document.getElementById('schitat').click();
+  await dozhdatsya();
+
+  const sRaschetom = sMetkoy.filter(function (s) {
+    return s.indexOf('raschet') !== -1;
+  });
+  proverka('расчёт учтён при переходе из чата', sRaschetom.length > 0,
+    'событий: ' + sMetkoy.length);
+  proverka('метка источника есть и в расчёте, а не только в открытии',
+    sRaschetom.every(function (s) { return s.indexOf('chat_moskva1') !== -1; }),
+    sRaschetom.join(' | ').slice(0, 200));
 
   /* ── 6. Живой ответ бота перекрывает запас ─────────────────────── */
 

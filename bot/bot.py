@@ -1541,15 +1541,21 @@ def svodka_dlya_svoih():
         for s in sobytiya:
             stroki.append("%s: %d" % (s["tip"], s["skolko"]))
 
-        # Откуда пришли. Это главная строка всей сводки: денег на рекламу
-        # нет, значит вопрос не «сколько людей», а «что из сделанного их
-        # привело». Без разбивки на неё не ответить.
-        istochniki = hranilishche.svodka_istochnikov(7)
-        if istochniki:
+        # Откуда пришли и что там делали. Это главная часть всей сводки:
+        # денег на рекламу нет, значит вопрос не «сколько людей», а «что
+        # из сделанного их привело».
+        #
+        # Три числа, а не одно: чат с двумя сотнями заходов и нулём
+        # расчётов хуже, чем чат с двадцатью заходами и пятнадцатью
+        # расчётами. По одним переходам их не различить.
+        voronka = hranilishche.voronka_istochnikov(7)
+        if voronka:
             stroki.append("")
             stroki.append("<b>Откуда пришли</b>")
-            for i in istochniki:
-                stroki.append("%s: %d" % (i["otkuda"], i["skolko"]))
+            stroki.append("<i>источник: зашли / посчитали / переслали</i>")
+            for i in voronka:
+                stroki.append("%s: %d / %d / %d" % (
+                    i["otkuda"], i["prishli"], i["poschitali"], i["pereslali"]))
     else:
         stroki.append("")
         stroki.append("Событий за неделю нет.")
@@ -1804,6 +1810,11 @@ class Stranica(BaseHTTPRequestHandler):
                 # не разовая случайность.
                 otvet["istochniki_7d"] = hranilishche.svodka_istochnikov(7)
                 otvet["istochniki_30d"] = hranilishche.svodka_istochnikov(30)
+                # Воронка: пришли — посчитали — переслали. Отвечает не на
+                # «сколько людей», а на «какой источник даёт тех, кому
+                # правда надо», — а это разные вопросы.
+                otvet["voronka_7d"] = hranilishche.voronka_istochnikov(7)
+                otvet["voronka_30d"] = hranilishche.voronka_istochnikov(30)
             else:
                 otvet["podrobnosti"] = "закрыто: нужен ?key="
 
