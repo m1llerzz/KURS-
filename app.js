@@ -248,10 +248,52 @@
     } catch (e) { return null; }
   }
 
+  /* Ссылка на канал. Появляется, только если канал заведён: пустой адрес
+   * — нормальное рабочее состояние, а не недоделка.
+   *
+   * Вызывается дважды: при запуске (адрес мог лежать в data.js) и когда
+   * пришёл ответ бота. Второй раз обработчик вешать нельзя — иначе на
+   * одно нажатие уходило бы два события, и клики по каналу считались бы
+   * вдвое. Такое искажение в цифрах не видно ничем, кроме удивления
+   * через месяц.
+   */
+  let kanalPokazan = false;
+
+  function pokazatKanal() {
+    if (kanalPokazan || !el.chLink || !window.CHANNEL_LINK) return;
+    kanalPokazan = true;
+
+    el.chLink.href = window.CHANNEL_LINK;
+    el.chLink.classList.remove('hidden');
+    el.chLink.addEventListener('click', function (e) {
+      sobytie('kanal_klik');
+      // Внутри Telegram ссылку надо открывать его же средствами,
+      // иначе она уходит во внешний браузер и человек теряется.
+      if (tg && tg.openTelegramLink) {
+        e.preventDefault();
+        tg.openTelegramLink(window.CHANNEL_LINK);
+      }
+    });
+  }
+
   function primenit(d) {
     if (d.services && d.services.length) SERVISY = d.services;
     if (d.banks) BANKI = d.banks;
     if (d.history && d.history.length) ISTORIYA = d.history;
+
+    /* Адрес канала приходит от бота, а не лежит в data.js.
+     *
+     * Иначе после создания канала пришлось бы править код, поднимать
+     * версию скриптов и заливать заново — три шага, из которых забудут
+     * хотя бы один, и ссылка не появится вообще. Так достаточно задать
+     * переменную на Render.
+     *
+     * Вписанное руками в data.js имеет приоритет: если однажды понадобится
+     * увести людей на другой канал, это должно работать без бота. */
+    if (d.channel && !window.CHANNEL_LINK) {
+      window.CHANNEL_LINK = String(d.channel);
+      pokazatKanal();
+    }
     if (d.cbu) {
       posledniyKurs = {
         usd_uzs: d.cbu.usd_uzs,
@@ -1005,22 +1047,7 @@
   el.share.addEventListener('click', otpravitVChat);
   if (el.subBtn) el.subBtn.addEventListener('click', otkrytPodpisku);
 
-  // Ссылка на канал появляется, только если канал заведён. Пустая
-  // строка в CHANNEL_LINK — блок просто не показывается, и это
-  // нормальное рабочее состояние, а не недоделка.
-  if (el.chLink && window.CHANNEL_LINK) {
-    el.chLink.href = window.CHANNEL_LINK;
-    el.chLink.classList.remove('hidden');
-    el.chLink.addEventListener('click', function (e) {
-      sobytie('kanal_klik');
-      // Внутри Telegram ссылку надо открывать его же средствами,
-      // иначе она уходит во внешний браузер и человек теряется.
-      if (tg && tg.openTelegramLink) {
-        e.preventDefault();
-        tg.openTelegramLink(window.CHANNEL_LINK);
-      }
-    });
-  }
+  pokazatKanal();
   el.summa.addEventListener('keydown', function (e) { if (e.key === 'Enter') poschitat(); });
 
   // Пока человек правит сумму, ошибку показываем сразу, но расчёт не

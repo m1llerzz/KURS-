@@ -1040,6 +1040,23 @@ def opublikovat_v_kanale():
     return _opublikovat(vid_posta_na_segodnya())
 
 
+def ssylka_na_kanal():
+    """Публичный адрес канала — или пусто, если канала ещё нет.
+
+    `CHANNEL_ID` бывает двух видов: `@imya_kanala` и числовой id. Ссылку
+    можно построить только из первого; числовой id публичного адреса не
+    даёт, и выдумывать его нельзя — получилась бы битая ссылка в
+    приложении, что хуже, чем её отсутствие.
+    """
+    kanal = os.environ.get("CHANNEL_ID", "").strip()
+    if not kanal.startswith("@") or len(kanal) < 3:
+        return ""
+    imya = kanal[1:]
+    if not all(z.isalnum() or z == "_" for z in imya):
+        return ""
+    return "https://t.me/" + imya
+
+
 def procent_znakom(z):
     """+1,23 или -1,23. Знак обязателен: «1,23%» не говорит, куда."""
     if z is None:
@@ -1364,7 +1381,15 @@ class Stranica(BaseHTTPRequestHandler):
         put = self.path.split("?")[0].rstrip("/") or "/"
 
         if put == "/api/rates":
-            d = svezhie_dannye() or {"ok": False}
+            d = dict(svezhie_dannye() or {"ok": False})
+            # Адрес канала едет вместе с данными, а не лежит в data.js.
+            # Иначе после создания канала пришлось бы править код, поднимать
+            # версию скриптов и заливать заново — три шага, из которых
+            # забудут хотя бы один. Задал переменную на Render — ссылка
+            # появилась в приложении сама.
+            kanal = ssylka_na_kanal()
+            if kanal:
+                d["channel"] = kanal
             telo = json.dumps(d, ensure_ascii=False).encode("utf-8")
             self.wfile.write(self._otvetit(telo, "application/json; charset=utf-8"))
             return

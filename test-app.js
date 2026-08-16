@@ -544,6 +544,59 @@ function dozhdatsya() {
   proverka('объяснение не повторяется тому, кто его закрыл',
     !vidno(w3, 'intro'));
 
+  /* ── Канал приходит от бота ──────────────────────────────────────
+   *
+   * Адрес канала едет в ответе /api/rates. Иначе после создания канала
+   * пришлось бы править data.js, поднимать версию скриптов и заливать
+   * заново — три шага, из которых забудут хотя бы один, и ссылки не
+   * будет вообще.
+   */
+
+  const otvetSKanalom = Object.assign({}, otvetBota, {
+    channel: 'https://t.me/rublkursi',
+  });
+  const wk = podnyat(otvetSKanalom, { intro_pokazan: '1' });
+  await dozhdatsya();
+
+  const ssylkaOtBota = wk.document.getElementById('chLink');
+  proverka('ссылка на канал появилась из ответа бота',
+    !!ssylkaOtBota && !ssylkaOtBota.classList.contains('hidden'),
+    'задать CHANNEL_ID на Render должно быть достаточно');
+  proverka('адрес канала взят из ответа',
+    ssylkaOtBota && ssylkaOtBota.getAttribute('href') === 'https://t.me/rublkursi',
+    ssylkaOtBota ? ssylkaOtBota.getAttribute('href') : 'нет');
+
+  // Обработчик вешается один раз. Иначе на одно нажатие уходило бы два
+  // события, и переходы в канал считались бы вдвое — искажение, которое
+  // не видно ничем, кроме удивления через месяц.
+  let klikovPoKanalu = 0;
+  const bylOtpravitel = wk.navigator.sendBeacon;
+  wk.navigator.sendBeacon = function (adres, telo) {
+    if (String(telo) .indexOf('kanal_klik') !== -1) klikovPoKanalu++;
+    return true;
+  };
+  // Blob в jsdom не отдаёт содержимое строкой — подменяем на прозрачную
+  // обёртку, как в проверке учёта выше.
+  wk.Blob = function (chasti) {
+    return { toString: function () { return chasti.join(''); } };
+  };
+  ssylkaOtBota.click();
+  await dozhdatsya();
+  proverka('переход в канал считается один раз', klikovPoKanalu === 1,
+    'засчитано: ' + klikovPoKanalu);
+  wk.navigator.sendBeacon = bylOtpravitel;
+
+  // Вписанное руками имеет приоритет: увести людей на другой канал должно
+  // быть можно и без бота.
+  const wkRuchnoy = podnyat(otvetSKanalom, { intro_pokazan: '1' });
+  wkRuchnoy.eval("window.CHANNEL_LINK = 'https://t.me/svoy_kanal';"
+    + fs.readFileSync(path.join(KORNI, 'app.js'), 'utf8'));
+  await dozhdatsya();
+  proverka('вписанный руками канал не затирается ботом',
+    wkRuchnoy.document.getElementById('chLink').getAttribute('href')
+      === 'https://t.me/svoy_kanal',
+    wkRuchnoy.document.getElementById('chLink').getAttribute('href'));
+
   /* ── Страница под поиск: kurs.html ───────────────────────────────
    *
    * Её никто не открывает — и именно поэтому она сломается молча.
