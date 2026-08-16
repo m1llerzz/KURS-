@@ -852,13 +852,17 @@ finally:
 # трое суток начинала идти. Он не получал ничего, пропускал хороший курс,
 # а в наших цифрах всё выглядело отправленным.
 
-_bylo_pravilo = bot.mozhno_pisat_naruzhu
+_bylo_pravilo = bot.mozhno_pisat_lyudyam
 _bylo_poslat_uved = bot.poslat
 _bylo_svezh = bot.svezhie_dannye
 try:
     # Подменяем ПРАВИЛО, а не признак базы: na_postgres переключает и
     # само хранилище, и тогда проверки перестают видеть свои же записи.
-    bot.mozhno_pisat_naruzhu = lambda: True
+    #
+    # Правило здесь именно «писать людям»: у рассылки защита от повтора
+    # лежит в профиле человека, и запасная память у Telegram её не
+    # заменяет — там несколько отметок, а не сотни профилей.
+    bot.mozhno_pisat_lyudyam = lambda: True
 
     _horoshiy_ryad = [{"date": "2026-08-%02d" % (i + 1), "rub_uzs": v}
                       for i, v in enumerate([140] * 9 + [150])]
@@ -927,12 +931,12 @@ try:
              is True,
              "второй раз тот же вопрос — это давление, а не предложение")
 finally:
-    bot.mozhno_pisat_naruzhu = _bylo_pravilo
+    bot.mozhno_pisat_lyudyam = _bylo_pravilo
     bot.poslat = _bylo_poslat_uved
     bot.svezhie_dannye = _bylo_svezh
 
 
-# ── Без базы в канал не пишем ────────────────────────────────────────
+# ── Без всякой памяти в канал не пишем ───────────────────────────────
 #
 # Отметка «этот пост уже публиковали» лежит в хранилище. Без
 # DATABASE_URL хранилище — файл на диске Render, а диск там эфемерный:
@@ -942,6 +946,10 @@ finally:
 # 16 августа это дало семнадцать одинаковых постов подряд с интервалом
 # в две-три минуты, в канале с четырьмя подписчиками. Проверки идут в
 # файловом режиме — значит именно здесь и ловится.
+#
+# С 17 августа у отметки появился второй дом — список команд канала у
+# Telegram. Здесь он намеренно не поднят: проверяется поведение, когда
+# памяти нет НИКАКОЙ. Что бывает, когда она есть, — ниже, отдельно.
 
 _byl_kanal_pub = os.environ.get("CHANNEL_ID")
 _poslannoe_v_kanal = []
@@ -1431,6 +1439,224 @@ _chastichno = _chto_skazhet_pro_nastroyki({"DATABASE_URL": "postgres://x"})
 proverka("заданное не попадает в список пропущенного",
          "DATABASE_URL" not in _chastichno, _chastichno.replace("\n", " | ")[:160])
 proverka("незаданное остаётся в списке", "CHANNEL_ID" in _chastichno)
+
+
+# ── Запасная память у Telegram ───────────────────────────────────────
+#
+# Здесь проверяется единственное, ради чего она есть: канал публикует без
+# базы и НЕ повторяется после перезапуска. Плюс все способы, которыми эта
+# память может подвести, — и в каждом из них ответ обязан быть «молчим».
+#
+# Настоящего Telegram тут нет, и это не недостаток проверки: сам API
+# проверяет себя на боевом при каждом запуске, записывая случайную метку
+# и читая её обратно. Здесь проверяется наше поведение при каждом его
+# ответе, включая те, которых мы не увидим, пока не станет поздно.
+
+import pamyat_kanala   # noqa: E402
+
+
+class _FeykTelegrama(object):
+    """Telegram, который помнит. И умеет ломаться всеми способами."""
+
+    def __init__(self):
+        self.lezhit = {}
+        self.chtenie_slomano = False
+        self.zapis_slomana = False
+        self.otdavat_staroe = None   # отдаёт это вместо записанного
+        self.postov = 0
+
+    def vyzov(self, metod, telo=None, popytok=2):
+        telo = telo or {}
+        if metod == "getMyCommands":
+            if self.chtenie_slomano:
+                return None
+            istochnik = (self.lezhit if self.otdavat_staroe is None
+                         else self.otdavat_staroe)
+            return {"ok": True, "result": [
+                {"command": k, "description": z}
+                for k, z in sorted(istochnik.items())]}
+        if metod == "setMyCommands":
+            if self.zapis_slomana:
+                return {"ok": False, "error_code": 400}
+            self.lezhit = {k["command"]: k["description"]
+                           for k in (telo.get("commands") or [])}
+            return {"ok": True, "result": True}
+        if metod == "sendMessage":
+            self.postov += 1
+            return {"ok": True, "result": {"message_id": self.postov}}
+        return {"ok": True, "result": True}
+
+
+# Ключи, которыми пользуется планировщик. Если хоть один не пройдёт
+# правила Telegram, тот отвергнет запись ЦЕЛИКОМ — вместе с остальными
+# отметками. Проверка дешёвая, а находка была бы дорогой.
+for _kluch in ("post_den", "post_nedelya", "post_mesyac", "post_ryvok",
+               "kurs_osveshchen", "svodka", pamyat_kanala.KLUCH_PROVERKI):
+    proverka("ключ «%s» годится для хранилища Telegram" % _kluch,
+             pamyat_kanala.prigoden(_kluch, "2026-08-17"))
+
+proverka("пустое значение не пишем",
+         not pamyat_kanala.prigoden("post_den", ""),
+         "Telegram отвергнет всю запись из-за пустого описания")
+proverka("ключ с заглавными и точками не пишем",
+         not pamyat_kanala.prigoden("Post.Den", "2026-08-17"))
+
+# Память работает: записали — прочитали.
+_tg = _FeykTelegrama()
+_pamyat = pamyat_kanala.PamyatTelegrama(_tg.vyzov, "@kanal")
+proverka("память поднимается, когда Telegram отвечает", _pamyat.podnyat())
+proverka("проверка оставила свой след у Telegram",
+         pamyat_kanala.KLUCH_PROVERKI in _tg.lezhit)
+proverka("записанное читается обратно",
+         _pamyat.zapisat("post_den", "2026-08-14")
+         and _pamyat.vse().get("post_den") == "2026-08-14")
+
+# Перезапуск: наш процесс начался заново, у Telegram всё на месте.
+_posle = pamyat_kanala.PamyatTelegrama(_tg.vyzov, "@kanal")
+proverka("после перезапуска отметка на месте",
+         _posle.podnyat() and _posle.vse().get("post_den") == "2026-08-14",
+         "ради этого всё и затевалось")
+proverka("проверка при запуске не съела отметку",
+         _tg.lezhit.get("post_den") == "2026-08-14",
+         "иначе каждый перезапуск стирал бы память тем, что её проверяет")
+
+# Дальше — все способы подвести. В каждом ответ один: памяти нет.
+_slomannoe = _FeykTelegrama()
+_slomannoe.chtenie_slomano = True
+proverka("не читает — памяти нет",
+         not pamyat_kanala.PamyatTelegrama(_slomannoe.vyzov, "@kanal").podnyat())
+
+_slomannoe = _FeykTelegrama()
+_slomannoe.zapis_slomana = True
+proverka("не пишет — памяти нет",
+         not pamyat_kanala.PamyatTelegrama(_slomannoe.vyzov, "@kanal").podnyat())
+
+# Самый тихий случай: пишет, отвечает «ок», а отдаёт старое. Именно он
+# вернул бы нас к повторным постам, и заметить его иначе нечем.
+_ustarevshee = _FeykTelegrama()
+_ustarevshee.otdavat_staroe = {"post_den": "2026-08-01"}
+proverka("отдаёт старое вместо записанного — памяти нет",
+         not pamyat_kanala.PamyatTelegrama(_ustarevshee.vyzov, "@kanal").podnyat(),
+         "иначе «уже публиковали» тоже читалось бы устаревшим")
+
+proverka("без адреса канала памяти нет",
+         not pamyat_kanala.PamyatTelegrama(_tg.vyzov, "").podnyat())
+
+# Чтение сломалось уже после подъёма: «не знаю» — это не «не публиковали».
+_tg_zhivoy = _FeykTelegrama()
+_pamyat_zhivaya = pamyat_kanala.PamyatTelegrama(_tg_zhivoy.vyzov, "@kanal")
+_pamyat_zhivaya.podnyat()
+_tg_zhivoy.chtenie_slomano = True
+proverka("сбой чтения даёт «не знаю», а не пустоту",
+         _pamyat_zhivaya.vse() is None)
+_tg_zhivoy.chtenie_slomano = False
+
+# ── Как это ведёт себя внутри бота ───────────────────────────────────
+
+_bylo_telegrama = bot.hranilishche._telegram
+_byl_kanal_pamyati = os.environ.get("CHANNEL_ID")
+_byl_vyzov_pamyati = bot.vyzov
+try:
+    _tg = _FeykTelegrama()
+    bot.vyzov = _tg.vyzov
+    os.environ["CHANNEL_ID"] = "@testovyy_kanal"
+
+    proverka("без базы и без памяти наружу не пишем",
+             not bot.mozhno_pisat_naruzhu(),
+             "это состояние до 17 августа: канал молчит")
+
+    proverka("память поднимается через хранилище",
+             bot.hranilishche.pamyat_na_telegrame(_tg.vyzov, "@testovyy_kanal"))
+    proverka("теперь наружу писать можно", bot.mozhno_pisat_naruzhu())
+    proverka("но людям в личные — по-прежнему нет",
+             not bot.mozhno_pisat_lyudyam(),
+             "защита от повтора там лежит в профиле человека, а профилей "
+             "без базы нет; за повтор в личных бота блокируют навсегда")
+
+    # Пост дня уходит один раз — и не повторяется после перезапуска.
+    bot._dannye["snimok"] = _dannye_pyatnicy
+    bot._dannye["obnovleno"] = __import__("time").time()
+    _data_posta = bot.data_kursa_seychas()
+
+    bot.odnazhdy("post_den", _data_posta, lambda: bot._opublikovat("den"))
+    proverka("без базы пост в канал всё-таки ушёл", _tg.postov == 1,
+             "%d — канал молчал бы и дальше" % _tg.postov)
+
+    # Перезапуск Render: процесс новый, память у Telegram та же.
+    bot.hranilishche._telegram = None
+    bot.hranilishche.pamyat_na_telegrame(_tg.vyzov, "@testovyy_kanal")
+    bot.odnazhdy("post_den", _data_posta, lambda: bot._opublikovat("den"))
+    bot.hranilishche._telegram = None
+    bot.hranilishche.pamyat_na_telegrame(_tg.vyzov, "@testovyy_kanal")
+    bot.odnazhdy("post_den", _data_posta, lambda: bot._opublikovat("den"))
+    proverka("после двух перезапусков пост не повторился", _tg.postov == 1,
+             "%d копий — ровно то, что случилось 16 августа" % _tg.postov)
+
+    # Чтение отметки сломалось. Молчим: «не знаю» не разрешение.
+    _tg.chtenie_slomano = True
+    bot.odnazhdy("post_ryvok", "2026-08-14", lambda: bot._opublikovat("den"))
+    proverka("при сбое чтения отметки пост не уходит", _tg.postov == 1,
+             "%d — после любой икоты сети пост ушёл бы вторым разом"
+             % _tg.postov)
+    _tg.chtenie_slomano = False
+
+    _tg.chtenie_slomano = True
+    _otvet_pri_sboe = bot.hranilishche.sostoyanie("post_den")
+    _tg.chtenie_slomano = False
+    proverka("сбой чтения виден как НЕИЗВЕСТНО, а не как пустота",
+             _otvet_pri_sboe is bot.hranilishche.NEIZVESTNO,
+             repr(_otvet_pri_sboe))
+    proverka("НЕИЗВЕСТНО не притворяется правдой в условии",
+             not bot.hranilishche.NEIZVESTNO,
+             "иначе «if otmetka:» где-нибудь однажды прочтёт его как значение")
+
+    # Настоящая база всегда главнее: две памяти — это две правды о том,
+    # что уже опубликовано.
+    bot.hranilishche._telegram = None
+    _byla_baza_pamyati = bot.hranilishche.na_postgres
+    _bylo_sost = bot.hranilishche.sostoyanie
+    _bylo_zap_sost = bot.hranilishche.zapisat_sostoyanie
+    bot.hranilishche.na_postgres = lambda: True
+    try:
+        proverka("при живой базе запасную не поднимаем",
+                 not bot.hranilishche.pamyat_na_telegrame(_tg.vyzov, "@kanal"))
+
+        # Переезд на базу. Она пустая, а у Telegram лежит «сегодняшний
+        # курс уже освещён». Не перенести — значит опубликовать его
+        # второй раз в тот самый день, когда всё наконец настроено.
+        _baza = {}
+        bot.hranilishche.sostoyanie = lambda k, po_umolchaniyu=None: (
+            _baza.get(k, po_umolchaniyu))
+        bot.hranilishche.zapisat_sostoyanie = lambda k, z: (
+            _baza.__setitem__(k, str(z)) or True)
+
+        _perenes = bot.hranilishche.perenesti_otmetki(_tg.vyzov,
+                                                      "@testovyy_kanal")
+        proverka("при переезде на базу отметки перенеслись", _perenes >= 1,
+                 "перенесено: %d" % _perenes)
+        proverka("перенеслась именно отметка о посте",
+                 _baza.get("post_den") == _data_posta,
+                 str(_baza))
+        proverka("метка самопроверки в базу не поехала",
+                 pamyat_kanala.KLUCH_PROVERKI not in _baza,
+                 "она служебная и в базе только мешает")
+
+        _baza["post_den"] = "2026-08-01"
+        bot.hranilishche.perenesti_otmetki(_tg.vyzov, "@testovyy_kanal")
+        proverka("уже записанное в базе не затирается",
+                 _baza["post_den"] == "2026-08-01",
+                 "база всегда главнее запасной памяти")
+    finally:
+        bot.hranilishche.na_postgres = _byla_baza_pamyati
+        bot.hranilishche.sostoyanie = _bylo_sost
+        bot.hranilishche.zapisat_sostoyanie = _bylo_zap_sost
+finally:
+    bot.hranilishche._telegram = _bylo_telegrama
+    bot.vyzov = _byl_vyzov_pamyati
+    if _byl_kanal_pamyati is None:
+        os.environ.pop("CHANNEL_ID", None)
+    else:
+        os.environ["CHANNEL_ID"] = _byl_kanal_pamyati
 
 # Список берём из самого бота, а не переписываем сюда руками: копия
 # разошлась с оригиналом в тот же день, когда добавилась пятая переменная,

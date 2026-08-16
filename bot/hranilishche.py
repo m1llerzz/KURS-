@@ -23,6 +23,8 @@ import threading
 import time
 from datetime import datetime, timezone
 
+import pamyat_kanala
+
 URL_BAZY = os.environ.get("DATABASE_URL", "").strip()
 PAPKA = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,6 +35,34 @@ FAYL = os.environ.get("HRANILISHCHE_FAYL") or os.path.join(PAPKA, "podpischiki.j
 
 _zamok = threading.Lock()
 _pg = None
+
+# Запасная память для отметок — на серверах Telegram. Появляется только
+# после того, как докажет боем, что помнит (см. pamyat_kanala). Пока её
+# нет, здесь None, и всё работает ровно как раньше.
+_telegram = None
+
+
+class _Neizvestno(object):
+    """Ответ «прочитать не удалось». Это НЕ «записи нет».
+
+    Зачем отдельное слово. Раньше сбой запроса возвращал то же, что и
+    пустая таблица, — None. То есть после любой икоты базы бот читал
+    «этот пост ещё не публиковали» и публиковал его заново. Ровно этот
+    класс ошибки уже стоил каналу семнадцати копий одного поста, только
+    тогда причиной был стёртый файл, а не сбой чтения.
+
+    Разница между «не публиковали» и «не знаю» — это разница между
+    «публикуем» и «молчим до следующего часа».
+    """
+
+    def __repr__(self):
+        return "НЕИЗВЕСТНО"
+
+    def __bool__(self):
+        return False
+
+
+NEIZVESTNO = _Neizvestno()
 
 if URL_BAZY:
     try:
@@ -50,6 +80,74 @@ def _teper():
 
 def na_postgres():
     return bool(URL_BAZY and _pg)
+
+
+def na_telegrame():
+    """Есть ли запасная память для отметок — та, что у Telegram."""
+    return _telegram is not None
+
+
+def pamyat_perezhivet_perezapusk():
+    """Переживёт ли перезапуск отметка «это уже сделано».
+
+    Ровно от этого зависит право продукта делать что-либо само и наружу.
+    Домов у такой памяти два: Postgres — полноценный, и список команд
+    канала у Telegram — на несколько отметок. Второй появляется только
+    после того, как докажет боем, что помнит.
+    """
+    return na_postgres() or na_telegrame()
+
+
+def pamyat_na_telegrame(vyzov, kanal):
+    """Пробует поднять запасную память. Возвращает True, если получилось.
+
+    Вызывать только когда Postgres нет: настоящая база лучше во всём, а
+    две памяти сразу — это две правды о том, что уже опубликовано.
+    """
+    global _telegram
+    if na_postgres() or not kanal:
+        return False
+
+    zapas = pamyat_kanala.PamyatTelegrama(vyzov, kanal)
+    if not zapas.podnyat():
+        return False
+    _telegram = zapas
+    return True
+
+
+def perenesti_otmetki(vyzov, kanal):
+    """Забирает отметки из запасной памяти в базу. Сколько забрал.
+
+    Зачем. Пока базы не было, «этот пост уже публиковали» лежало у
+    Telegram. В день, когда `DATABASE_URL` задан, база пустая — и бот
+    честно решил бы, что сегодняшний курс ещё не освещал, и опубликовал
+    бы его второй раз. Переезд на базу не должен стоить читателю
+    повторного поста: ради того, чтобы повторов не было, всё это и
+    делалось.
+
+    Переносим только то, чего в базе ещё нет: база всегда главнее.
+    """
+    if not na_postgres() or not kanal:
+        return 0
+
+    zapas = pamyat_kanala.PamyatTelegrama(vyzov, kanal)
+    bylo = zapas.vse()
+    if not bylo:
+        return 0
+
+    perenesli = []
+    for kluch, znachenie in sorted(bylo.items()):
+        if kluch == pamyat_kanala.KLUCH_PROVERKI or not znachenie:
+            continue
+        if sostoyanie(kluch) is not None:
+            continue
+        if zapisat_sostoyanie(kluch, znachenie):
+            perenesli.append("%s=%s" % (kluch, znachenie))
+
+    if perenesli:
+        print("[хранилище] отметки перенесены из запасной памяти в базу: "
+              + ", ".join(perenesli), flush=True)
+    return len(perenesli)
 
 
 # ── Postgres ─────────────────────────────────────────────────────────
@@ -163,7 +261,8 @@ def podnyat():
         if os.environ.get("RENDER"):
             print("[хранилище] ВНИМАНИЕ: на хостинге нет DATABASE_URL. "
                   "Подписчики будут стёрты при первом же перезапуске, "
-                  "а посты в канал и оповещения не будут выходить вовсе.",
+                  "события не пишутся, оповещения не рассылаются. Для "
+                  "канала сейчас попробую запасную память у Telegram.",
                   flush=True)
         else:
             print("[хранилище] файл:", FAYL, flush=True)
@@ -177,13 +276,26 @@ def podnyat():
 # ── Служебная память ─────────────────────────────────────────────────
 
 def sostoyanie(kluch, po_umolchaniyu=None):
-    """Что записано под этим ключом. Нет записи — `po_umolchaniyu`."""
+    """Что записано под этим ключом. Нет записи — `po_umolchaniyu`.
+
+    **Прочитать не удалось — `NEIZVESTNO`**, и это не то же самое, что
+    «записи нет». Вызывающий обязан различать: по отметке решается,
+    публиковать ли, а «не знаю» — не разрешение.
+    """
     if na_postgres():
         ryady = _vypolnit("SELECT znachenie FROM sostoyanie WHERE kluch = %s",
                           (kluch,), vernut=True)
+        if ryady is None:
+            return NEIZVESTNO
         if ryady:
             return ryady[0][0]
         return po_umolchaniyu
+
+    if _telegram is not None:
+        dannye = _telegram.vse()
+        if dannye is None:
+            return NEIZVESTNO
+        return dannye.get(kluch, po_umolchaniyu)
 
     return (_chitat_fayl().get("sostoyanie") or {}).get(kluch, po_umolchaniyu)
 
@@ -204,6 +316,9 @@ def zapisat_sostoyanie(kluch, znachenie):
             "ON CONFLICT (kluch) DO UPDATE SET "
             "znachenie = EXCLUDED.znachenie, obnovleno = NOW()",
             (kluch, znachenie)))
+
+    if _telegram is not None:
+        return _telegram.zapisat(kluch, znachenie)
 
     try:
         dannye = _chitat_fayl()
