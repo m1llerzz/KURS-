@@ -17,7 +17,9 @@ import json
 import re
 import ssl
 import sys
+import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -199,14 +201,31 @@ elif kod == 200:
     upalo.append("бот отдаёт данные приложению  << работает СТАРЫЙ код: "
                  "Render не подхватил заливку. Render -> Manual Deploy")
 
-# Учёт и живость
-kod, telo, _ = skachat(BOT + "/api/stats")
+# Учёт и живость.
+#
+# Разбивка событий закрыта ключом: адрес открыт всему интернету, а список
+# сработавших чатов — это карта нашего посева. Ключ берём из окружения,
+# как на Render:  $env:STATS_KEY = "..."  и прогнать снова.
+KLUCH_STATS = os.environ.get("STATS_KEY", "").strip()
+adres_stats = BOT + "/api/stats"
+if KLUCH_STATS:
+    adres_stats += "?key=" + urllib.parse.quote(KLUCH_STATS)
+
+kod, telo, _ = skachat(adres_stats)
 if kod == 200 and telo.startswith("{"):
     s = json.loads(telo)
     proverka("учёт отвечает", "podpischikov" in s)
     print("\n  Людей: %s · с оповещениями: %s"
           % (s.get("podpischikov"), s.get("s_uvedomleniyami")))
-    if not (s.get("sobytiya_7d") or []):
+
+    if "podrobnosti" in s:
+        # Без ключа сказать «событий нет» нельзя: мы их просто не видим.
+        # Ложное предупреждение хуже отсутствующего — оно приучает
+        # пролистывать жёлтые строки.
+        preduprezhdenie("события не проверены",
+                        "разбивка закрыта ключом. Задай STATS_KEY в окружении "
+                        "тем же значением, что на Render, и прогони снова")
+    elif not (s.get("sobytiya_7d") or []):
         preduprezhdenie("событий за неделю нет",
                         "либо никто не приходил, либо не задан DATABASE_URL "
                         "и события никуда не пишутся — это разные вещи")

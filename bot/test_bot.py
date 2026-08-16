@@ -167,6 +167,49 @@ try:
         stat = json.loads(r.read().decode("utf-8"))
         proverka("api/stats отвечает", "podpischikov" in stat)
 
+    # Разбивка «откуда пришли» — это карта нашего посева, собранная
+    # неделями и руками. Адрес открыт всему интернету без пароля, и
+    # отдавать её любому желающему незачем: у конкурента с бюджетом на
+    # рекламу это готовый список чатов, которые работают.
+    proverka("без ключа карта посева не отдаётся",
+             "istochniki_7d" not in stat and "sobytiya_7d" not in stat,
+             str(sorted(stat)))
+    proverka("без ключа сказано, что закрыто", "podrobnosti" in stat)
+    proverka("общие числа открыты и без ключа",
+             "podpischikov" in stat and "s_uvedomleniyami" in stat,
+             "по ним видно, что учёт жив, и ничего чужого они не выдают")
+
+    _byl_stats_key = os.environ.get("STATS_KEY")
+    try:
+        os.environ["STATS_KEY"] = "prover-ka-1"
+
+        with urllib.request.urlopen(
+                "http://127.0.0.1:18081/api/stats?key=nevernyy", timeout=10) as r:
+            chuzhoy = json.loads(r.read().decode("utf-8"))
+        proverka("неверный ключ карту посева не открывает",
+                 "istochniki_7d" not in chuzhoy, str(sorted(chuzhoy)))
+
+        with urllib.request.urlopen(
+                "http://127.0.0.1:18081/api/stats?key=prover-ka-1", timeout=10) as r:
+            svoy = json.loads(r.read().decode("utf-8"))
+        proverka("верный ключ открывает разбивку",
+                 "istochniki_7d" in svoy and "istochniki_30d" in svoy
+                 and "sobytiya_7d" in svoy, str(sorted(svoy)))
+        proverka("с ключом общие числа тоже на месте",
+                 "podpischikov" in svoy)
+
+        # Ключ подставляется в адрес и приходит закодированным.
+        with urllib.request.urlopen(
+                "http://127.0.0.1:18081/api/stats?a=1&key=prover-ka-1&b=2",
+                timeout=10) as r:
+            sredi = json.loads(r.read().decode("utf-8"))
+        proverka("ключ находится среди других параметров",
+                 "istochniki_7d" in sredi, str(sorted(sredi)))
+    finally:
+        os.environ.pop("STATS_KEY", None)
+        if _byl_stats_key is not None:
+            os.environ["STATS_KEY"] = _byl_stats_key
+
     zapros = urllib.request.Request("http://127.0.0.1:18081/api/rates", method="HEAD")
     with urllib.request.urlopen(zapros, timeout=10) as r:
         proverka("HEAD отвечает 200", r.status == 200,
@@ -925,7 +968,7 @@ def _chto_skazhet_pro_nastroyki(zadano):
 
 
 _nichego = _chto_skazhet_pro_nastroyki({})
-proverka("без настроек названы все четыре",
+proverka("без настроек названы все до одной",
          all(imya in _nichego for imya, _ in bot.NASTROYKI),
          _nichego.replace("\n", " | ")[:160])
 proverka("сказано не только имя, но и последствие",
@@ -938,10 +981,15 @@ proverka("заданное не попадает в список пропуще�
          "DATABASE_URL" not in _chastichno, _chastichno.replace("\n", " | ")[:160])
 proverka("незаданное остаётся в списке", "CHANNEL_ID" in _chastichno)
 
-_vsyo = _chto_skazhet_pro_nastroyki({
-    "DATABASE_URL": "postgres://x", "CHANNEL_ID": "@k",
-    "ADMIN_CHAT_ID": "1", "SVOI": "1"})
+# Список берём из самого бота, а не переписываем сюда руками: копия
+# разошлась с оригиналом в тот же день, когда добавилась пятая переменная,
+# и проверка покраснела на здоровом коде.
+_vsyo = _chto_skazhet_pro_nastroyki(
+    {imya: "zadano" for imya, _ in bot.NASTROYKI})
 proverka("когда всё задано, тревоги нет", "НЕ ЗАДАНО" not in _vsyo, _vsyo.strip())
+proverka("названы все переменные, какие есть",
+         all(imya in _nichego for imya, _ in bot.NASTROYKI),
+         "список в проверке не должен отставать от списка в коде")
 
 # Пустая строка — это не заданное значение. На Render переменную легко
 # завести с пустым полем и решить, что дело сделано.

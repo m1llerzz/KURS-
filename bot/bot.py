@@ -24,6 +24,7 @@
     $env:BOT_TOKEN = "токен от BotFather"
     py bot.py
 """
+import hmac
 import json
 import os
 import re
@@ -31,6 +32,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -1713,16 +1715,44 @@ class Stranica(BaseHTTPRequestHandler):
 
         if put == "/api/stats":
             vsego, podpisano = hranilishche.skolko_vsego()
-            telo = json.dumps({
+
+            # Общие числа открыты: по ним видно, что учёт жив, и ничего
+            # чужого они не выдают.
+            otvet = {
                 "podpischikov": vsego,
                 "s_uvedomleniyami": podpisano,
-                "sobytiya_7d": hranilishche.svodka_sobytiy(7),
-                # Откуда приходили за неделю и за месяц. Неделя показывает,
-                # что работает сейчас; месяц — что не разовая случайность.
-                "istochniki_7d": hranilishche.svodka_istochnikov(7),
-                "istochniki_30d": hranilishche.svodka_istochnikov(30),
                 "kursy_obnovleny": _dannye["obnovleno"],
-            }, ensure_ascii=False).encode("utf-8")
+            }
+
+            # А вот разбивка «откуда пришли» — это карта нашего посева.
+            # Адрес открыт всему интернету без пароля, и по нему любой —
+            # включая тех, у кого есть бюджет на рекламу, — прочтёт, какие
+            # чаты нам дают людей, а какие нет. Мы этот список собираем
+            # неделями и руками, и отдавать его даром незачем.
+            #
+            # Ключ в переменной STATS_KEY, спрашивается как ?key=…
+            # Не задан — подробностей не отдаём никому, включая нас самих:
+            # цифры и так приходят еженедельной сводкой в Telegram.
+            kluch = os.environ.get("STATS_KEY", "").strip()
+            sprosheno = ""
+            if "?" in self.path:
+                for kusok in self.path.split("?", 1)[1].split("&"):
+                    if kusok.startswith("key="):
+                        sprosheno = urllib.parse.unquote(kusok[4:])
+
+            # Сравниваем длинным способом: обычное сравнение строк
+            # заканчивается на первом несовпавшем символе, и по времени
+            # ответа ключ подбирается посимвольно.
+            if kluch and hmac.compare_digest(kluch, sprosheno):
+                otvet["sobytiya_7d"] = hranilishche.svodka_sobytiy(7)
+                # Неделя показывает, что работает сейчас; месяц — что это
+                # не разовая случайность.
+                otvet["istochniki_7d"] = hranilishche.svodka_istochnikov(7)
+                otvet["istochniki_30d"] = hranilishche.svodka_istochnikov(30)
+            else:
+                otvet["podrobnosti"] = "закрыто: нужен ?key="
+
+            telo = json.dumps(otvet, ensure_ascii=False).encode("utf-8")
             self.wfile.write(self._otvetit(telo, "application/json; charset=utf-8"))
             return
 
@@ -1814,6 +1844,8 @@ NASTROYKI = [
     ("CHANNEL_ID", "постов в канале не будет, ссылка на канал не появится"),
     ("ADMIN_CHAT_ID", "еженедельная сводка не придёт"),
     ("SVOI", "команда /tekst недоступна даже своим"),
+    ("STATS_KEY", "разбивка «откуда пришли» на /api/stats закрыта — "
+                  "цифры смотреть только в еженедельной сводке"),
 ]
 
 
