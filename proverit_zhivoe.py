@@ -240,6 +240,36 @@ if kod == 200 and telo.startswith("{"):
 else:
     preduprezhdenie("учёт не отвечает", "код " + str(kod))
 
+# ── Что ещё не включено ──────────────────────────────────────────────
+#
+# Бот перечисляет незаданные переменные в журнал при запуске, но журнал
+# лежит в кабинете Render, куда надо зайти и найти. Здесь то же самое
+# видно из ответов боевого — одной командой, не выходя из терминала.
+#
+# Это не проверки: незаданная переменная не поломка, а невключённая
+# часть продукта. Поэтому отдельный список, а не красное.
+
+ne_vklyucheno = []
+
+if not (d.get("channel") if isinstance(d, dict) else None):
+    ne_vklyucheno.append(
+        "CHANNEL_ID — постов в канале нет, ссылка на канал не показывается")
+
+if "podrobnosti" in (s if isinstance(s, dict) else {}):
+    ne_vklyucheno.append(
+        "STATS_KEY — разбивка «откуда пришли» закрыта, посев не посчитать")
+
+if isinstance(s, dict) and not (s.get("sobytiya_7d") or []) \
+        and "podrobnosti" not in s:
+    ne_vklyucheno.append(
+        "похоже, нет DATABASE_URL — события не пишутся, подписчики стираются")
+
+if ne_vklyucheno:
+    print("\n" + "─" * 62)
+    print("ЕЩЁ НЕ ВКЛЮЧЕНО (см. DEYSTVIYA-SEMYONA.md):")
+    for stroka in ne_vklyucheno:
+        print("  · " + stroka)
+
 # ── Итог ─────────────────────────────────────────────────────────────
 
 print("\n" + "=" * 62)
