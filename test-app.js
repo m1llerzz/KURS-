@@ -136,13 +136,37 @@ function dozhdatsya() {
 
   proverka('вердикт виден сразу', vidno(w, 'verdict'),
     'это главный экран продукта, он не должен ждать сети');
-  proverka('в вердикте есть курс', /141[.,]76/.test(tekst(w, 'vRate')),
-    tekst(w, 'vRate'));
+  /* Ожидаемые числа берём из тех же данных, а не пишем в проверке.
+   *
+   * Здесь стояло «в вердикте есть 141,76» — курс из запаса на день,
+   * когда проверку писали. Первое же обновление запаса делает её
+   * красной, хотя код исправен, а красное на исправном коде обесценивает
+   * весь прогон. */
+  /* Берём из ИСТОРИИ, а не из KURSY_ZAPAS: вердикт говорит про ряд, и
+   * курс на нём — последняя точка ряда. Это выяснилось, когда проверку
+   * прогнали на подменённых данных: два источника разошлись, и стало
+   * видно, какой из них на экране. */
+  const kursNaEkrane = String(w.CALC.sovet(w.HISTORY_ZAPAS).segodnya)
+    .replace('.', ',');
+  proverka('в вердикте показан курс из данных',
+    tekst(w, 'vRate').indexOf(kursNaEkrane) !== -1,
+    tekst(w, 'vRate') + ' — ждали ' + kursNaEkrane);
   proverka('в вердикте есть среднее', /1\d\d[.,]\d\d/.test(tekst(w, 'vAvg')),
     tekst(w, 'vAvg'));
-  proverka('вердикт помечен как плохой день',
-    w.document.getElementById('verdict').classList.contains('bad'),
-    'курс 141,76 против среднего 149,83 — это ниже обычного');
+
+  /* Каким должен быть вердикт — тоже считаем, а не помним. Запас
+   * пересобирается из живых курсов, и однажды он окажется не «плохим»
+   * днём, а обычным или хорошим: тогда проверка на класс `bad` начала бы
+   * краснеть на совершенно исправном экране. */
+  const ocenkaDlyaKlassa = w.CALC.sovet(w.HISTORY_ZAPAS);
+  const zhdemKlass = ['ploho', 'nize_obychnogo'].indexOf(ocenkaDlyaKlassa.verdikt) !== -1
+    ? 'bad'
+    : ['otlichno', 'horosho'].indexOf(ocenkaDlyaKlassa.verdikt) !== -1 ? 'good' : '';
+  const klassyVerdikta = w.document.getElementById('verdict').className;
+  proverka('вердикт помечен по своему же расчёту',
+    !zhdemKlass || klassyVerdikta.indexOf(zhdemKlass) !== -1,
+    'вердикт ' + ocenkaDlyaKlassa.verdikt + ' ждёт класс «' + zhdemKlass +
+      '», а стоит «' + klassyVerdikta + '»');
 
   const grafik = w.document.getElementById('vSpark');
   const liniya = grafik.querySelector('polyline');
@@ -255,8 +279,13 @@ function dozhdatsya() {
   // Самая убедительная цифра продукта: что стоит выбор дня, в его деньгах.
   proverka('показан размах месяца в его деньгах',
     /\d{3}\s\d{3}/.test(tekst(w, 'vSpread')), tekst(w, 'vSpread'));
-  proverka('размах около 670 тысяч на 50 000 ₽',
-    /6[0-9]\d\s?\d{3}/.test(tekst(w, 'vSpread')), tekst(w, 'vSpread'));
+  // Тоже из данных, а не «около 670 тысяч»: размах меняется вместе с
+  // курсом, и однажды он выйдет за шестьсот тысяч сам собой.
+  const zhdemRazmah = Math.round(
+    (ocenkaZapasa.max_30 - ocenkaZapasa.min_30) * 50000);
+  proverka('размах месяца совпадает с расчётом по тем же данным',
+    Math.abs(summaIzTeksta(tekst(w, 'vSpread')) - zhdemRazmah) <= 1,
+    tekst(w, 'vSpread') + ' — ждали ' + zhdemRazmah);
   proverka('числа на экране через запятую',
     !/\d\.\d/.test(tekst(w, 'vRate') + tekst(w, 'vAvg') + tekst(w, 'vOsL') + tekst(w, 'vOsR')),
     'по-русски и по-узбекски дробная часть отделяется запятой');
