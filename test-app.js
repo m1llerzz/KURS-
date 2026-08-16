@@ -304,6 +304,38 @@ function dozhdatsya() {
   proverka('в карточке оговорка про комиссию',
     kartochki.length > 0 && kartochki[0].textContent.length > 30);
 
+  /* Одна проверка на ВЕСЬ видимый экран вместо перечисления элементов.
+   *
+   * Точку в дробной части ловили уже трижды и каждый раз в новом месте:
+   * в пересылке, в карточке способа, в разборе. Причина одна — числа
+   * форматируются там, где выводятся, и следующее место найдётся снова.
+   * Проверка по всему тексту закрывает весь класс сразу.
+   *
+   * Дата пропускается отдельно: «14.08.2026» это тоже цифра-точка-цифра,
+   * но формат ЦБ, а не наша небрежность. */
+  function vidimyyTekst(korn) {
+    const kuski = [];
+    (function obhod(el) {
+      for (const d of el.childNodes) {
+        if (d.nodeType === 3) kuski.push(d.textContent);
+        else if (d.nodeType === 1) {
+          if (d.classList && d.classList.contains('hidden')) continue;
+          if (d.hasAttribute && d.hasAttribute('hidden')) continue;
+          obhod(d);
+        }
+      }
+    })(korn);
+    return kuski.join(' ');
+  }
+
+  const vesTekst = vidimyyTekst(w.document.body)
+    .replace(/\d{1,2}\.\d{1,2}\.\d{4}/g, ' ');
+  const sTochkoy = vesTekst.match(/\d+\.\d+/g);
+  proverka('на всём экране числа через запятую',
+    !sTochkoy,
+    'через точку: ' + (sTochkoy || []).join(', ') +
+      ' — дробная часть не пишется точкой ни по-русски, ни по-узбекски');
+
   // Дата под курсом — половина доказательства, что цифра настоящая.
   // Машинное «2026-08-14» читается как отладочный вывод, а не как
   // подпись к числу, которому человек должен поверить.

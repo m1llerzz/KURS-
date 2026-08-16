@@ -601,7 +601,12 @@
       const servis = SERVISY.filter(function (s) { return s.id === r.service_id; })[0];
       if (servis && typeof servis.nacenka_percent === 'number'
           && Math.abs(servis.nacenka_percent) >= 0.1) {
-        detali.push(t('svc.markup', { p: servis.nacenka_percent.toFixed(1) }));
+        // Через запятую, как и все остальные числа на экране. Здесь
+        // стоял голый toFixed, и в карточке способа было «4.1%», когда
+        // в плашке рядом — «4,1%». Два формата в одном экране читаются
+        // как небрежность, а небрежность в денежном продукте — как
+        // повод не верить и числам.
+        detali.push(t('svc.markup', { p: chislo(servis.nacenka_percent, 1) }));
       }
       // Комиссия не объявлена — говорим прямо, что итог это потолок.
       // Молча выдать верхнюю границу за точную цифру нельзя.
@@ -610,8 +615,8 @@
       if (r.ocenochnyi) detali.push(t('detail.est'));
       if (r.nacenka_percent !== null && r.dannye_soglasovany && Math.abs(r.nacenka_percent) >= 0.1) {
         detali.push(r.nacenka_percent > 0
-          ? t('detail.worse',  { p: r.nacenka_percent.toFixed(1) })
-          : t('detail.better', { p: Math.abs(r.nacenka_percent).toFixed(1) }));
+          ? t('detail.worse',  { p: chislo(r.nacenka_percent, 1) })
+          : t('detail.better', { p: chislo(Math.abs(r.nacenka_percent), 1) }));
       } else if (r.nacenka_percent !== null && !r.dannye_soglasovany) {
         detali.push(t('detail.stale'));
       }

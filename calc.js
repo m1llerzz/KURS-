@@ -31,6 +31,18 @@ window.CALC = (function () {
   }
 
   /** Округление ВНИЗ до тысяч. Никогда не вверх. */
+  /**
+   * Дробное число так, как его пишут в обеих странах: 141,76.
+   *
+   * Разбор — единственное место, где calc.js собирает строку с числом,
+   * и точка в дробной части здесь однажды уже разошлась с остальным
+   * экраном. Два формата рядом читаются как небрежность, а небрежность
+   * в денежном продукте — как повод не верить и самим числам.
+   */
+  function zapyataya(n, znakov) {
+    return Number(n).toFixed(znakov === undefined ? 2 : znakov).replace('.', ',');
+  }
+
   function okruglitVniz(summa) {
     return Math.floor(summa / 1000) * 1000;
   }
@@ -87,7 +99,7 @@ window.CALC = (function () {
         ['razbor.sent',      summa + ' ₽'],
         ['razbor.fee',       '− ' + Math.round(summa - baza) + ' ₽'],
         ['razbor.toconv',    Math.round(baza) + ' ₽'],
-        ['razbor.rate_serv', '× ' + servis.rate_rub_uzs],
+        ['razbor.rate_serv', '× ' + zapyataya(servis.rate_rub_uzs)],
       ],
     };
   }
@@ -108,9 +120,9 @@ window.CALC = (function () {
         ['razbor.sent',        summa + ' ₽'],
         ['razbor.fee',         '− ' + Math.round(summa - baza) + ' ₽'],
         ['razbor.toconv',      Math.round(baza) + ' ₽'],
-        ['razbor.rate_rubusd', '÷ ' + kursRubUsd.toFixed(2)],
-        ['razbor.in_currency', vValute.toFixed(2) + ' $'],
-        ['razbor.rate_bank',   '× ' + bank.rate_usd_uzs],
+        ['razbor.rate_rubusd', '÷ ' + zapyataya(kursRubUsd)],
+        ['razbor.in_currency', zapyataya(vValute) + ' $'],
+        ['razbor.rate_bank',   '× ' + zapyataya(bank.rate_usd_uzs)],
       ],
     };
   }
