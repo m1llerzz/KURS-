@@ -870,7 +870,8 @@ def razoslat_uvedomleniya():
 
     for c in lyudi:
         chat_id = c["chat_id"]
-        if not sovet.stoit_uvedomit(ocenka, c.get("posledniy_verdikt")):
+        if not sovet.stoit_uvedomit(ocenka, c.get("posledniy_verdikt"),
+                                    c.get("uvedomlen_v")):
             propushcheno += 1
             continue
 
@@ -896,8 +897,12 @@ def razoslat_uvedomleniya():
             hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=False)
             continue
 
+        # Время отправки записываем обязательно: по нему держится пауза в
+        # трое суток. Без него смены вердикта туда-сюда давали бы человеку
+        # сообщение хоть каждый день.
         hranilishche.zapisat_cheloveka(
-            chat_id, posledniy_verdikt=ocenka["verdikt"])
+            chat_id, posledniy_verdikt=ocenka["verdikt"],
+            uvedomlen_v=datetime.now(timezone.utc).isoformat())
         hranilishche.sobytie(chat_id, "uvedomlenie", {"verdikt": ocenka["verdikt"]})
         otpravleno += 1
         # Telegram ограничивает рассылку примерно тридцатью сообщениями

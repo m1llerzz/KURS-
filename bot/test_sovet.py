@@ -98,6 +98,51 @@ proverka("смена вердикта будит",
          sovet.stoit_uvedomit(vysoko, "obychno") is True)
 proverka("без оценки не будит", sovet.stoit_uvedomit(None) is False)
 
+# Пауза в трое суток. Одной смены вердикта мало: отклонение ходит вокруг
+# порога, «хорошо» и «отлично» сменяют друг друга через день, и формально
+# каждый раз новый вердикт. Человек при этом получает сообщение ежедневно
+# и отключает бота на третий раз. Правило было в документах с самого
+# начала, а в коде появилось только 16 августа.
+
+from datetime import datetime, timedelta, timezone   # noqa: E402
+
+_teper = datetime(2026, 8, 16, 12, 0, tzinfo=timezone.utc)
+
+
+def _chasov_nazad(chasov):
+    return (_teper - timedelta(hours=chasov)).isoformat()
+
+
+proverka("через час после письма молчим",
+         sovet.stoit_uvedomit(vysoko, "obychno", _chasov_nazad(1), _teper) is False,
+         "смена вердикта не отменяет паузы")
+proverka("через сутки ещё молчим",
+         sovet.stoit_uvedomit(vysoko, "obychno", _chasov_nazad(24), _teper) is False)
+proverka("за час до конца паузы молчим",
+         sovet.stoit_uvedomit(vysoko, "obychno", _chasov_nazad(71), _teper) is False)
+proverka("после трёх суток пишем",
+         sovet.stoit_uvedomit(vysoko, "obychno", _chasov_nazad(73), _teper) is True)
+proverka("никогда не писали — пишем сразу",
+         sovet.stoit_uvedomit(vysoko, "obychno", None, _teper) is True,
+         "пауза не должна мешать первому в жизни сообщению")
+proverka("непонятная отметка времени не блокирует навсегда",
+         sovet.stoit_uvedomit(vysoko, "obychno", "позавчера", _teper) is True,
+         "иначе одна кривая запись заткнула бы человека молча")
+
+# Пауза не спасает от плохого курса и от повтора вердикта: эти правила
+# сильнее и проверяются раньше.
+proverka("после паузы плохой курс всё равно молчит",
+         sovet.stoit_uvedomit(nizko, "obychno", _chasov_nazad(500), _teper) is False)
+proverka("после паузы тот же вердикт всё равно молчит",
+         sovet.stoit_uvedomit(vysoko, "otlichno", _chasov_nazad(500), _teper) is False)
+
+# Отметка со смещением часового пояса и без него разбирается одинаково:
+# Postgres отдаёт со смещением, файловое хранилище пишет как придётся.
+proverka("время без часового пояса считается как UTC",
+         sovet.stoit_uvedomit(vysoko, "obychno", "2026-08-16T11:00:00",
+                              _teper) is False,
+         "час назад — пауза ещё идёт")
+
 
 # ── Выгода на сумме ──────────────────────────────────────────────────
 

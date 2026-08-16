@@ -27,7 +27,7 @@
 пятничный курс под субботу и воскресенье, то есть ряд был сплошным ценой
 неправды в датах.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 
 def _granica(posledniy_den, dney):
@@ -212,7 +212,30 @@ def analiz(istoriya):
     }
 
 
-def stoit_uvedomit(ocenka, proshlyy_verdikt=None):
+# Сколько часов молчать после отправленного оповещения. Трое суток: это
+# не про удобство рассылки, а про то, сколько человек готов терпеть от
+# бота, которого он не просил писать часто.
+PAUZA_CHASOV = 72
+
+
+def _chasov_proshlo(kogda, teper=None):
+    """Часы с момента `kogda` (строка ISO). Не разобрали — None."""
+    if not kogda:
+        return None
+    tekst = str(kogda).strip().replace("Z", "+00:00")
+    try:
+        bylo = datetime.fromisoformat(tekst)
+    except ValueError:
+        return None
+    teper = teper or datetime.now(timezone.utc)
+    if bylo.tzinfo is None:
+        bylo = bylo.replace(tzinfo=timezone.utc)
+    if teper.tzinfo is None:
+        teper = teper.replace(tzinfo=timezone.utc)
+    return (teper - bylo).total_seconds() / 3600.0
+
+
+def stoit_uvedomit(ocenka, proshlyy_verdikt=None, uvedomlen_v=None, teper=None):
     """Слать ли оповещение.
 
     Правило жёсткое и намеренно скупое: беспокоим только когда курс
@@ -222,12 +245,25 @@ def stoit_uvedomit(ocenka, proshlyy_verdikt=None):
 
     Второе условие — вердикт должен смениться. Пять дней подряд писать
     «курс хороший» значит стать фоном, который отключают.
+
+    Третье — трое суток тишины после прошлого письма. Одной смены вердикта
+    мало: отклонение ходит вокруг порога, и «хорошо» с «отлично»
+    сменяют друг друга через день. Формально каждый раз новый вердикт, а
+    человек получает сообщение ежедневно и отключает бота на третий раз.
+    Правило это было записано в документах с самого начала, но в коде его
+    не было.
     """
     if not ocenka:
         return False
     if ocenka["verdikt"] not in ("otlichno", "horosho"):
         return False
-    return ocenka["verdikt"] != proshlyy_verdikt
+    if ocenka["verdikt"] == proshlyy_verdikt:
+        return False
+
+    proshlo = _chasov_proshlo(uvedomlen_v, teper)
+    if proshlo is not None and proshlo < PAUZA_CHASOV:
+        return False
+    return True
 
 
 def vygoda_na_summe(ocenka, summa_rub):

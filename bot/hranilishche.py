@@ -264,15 +264,23 @@ def chelovek(chat_id):
 
 
 def podpisannye():
-    """Все, кто согласен получать оповещения."""
+    """Все, кто согласен получать оповещения.
+
+    `uvedomlen_v` отдаётся вместе с остальным: по нему решается, не писали
+    ли человеку слишком недавно. Раньше поле было в таблице, но наружу не
+    выходило — и правило «не чаще раза в трое суток» существовало только
+    в документах.
+    """
     if na_postgres():
         stroki = _vypolnit(
-            "SELECT chat_id, lang, summa_rub, posledniy_verdikt, cel_kurs "
-            "FROM podpischiki WHERE uvedomlyat = TRUE", vernut=True)
+            "SELECT chat_id, lang, summa_rub, posledniy_verdikt, cel_kurs, "
+            "uvedomlen_v FROM podpischiki WHERE uvedomlyat = TRUE", vernut=True)
         if not stroki:
             return []
         return [{"chat_id": s[0], "lang": s[1], "summa_rub": s[2],
-                 "posledniy_verdikt": s[3], "cel_kurs": s[4]} for s in stroki]
+                 "posledniy_verdikt": s[3], "cel_kurs": s[4],
+                 "uvedomlen_v": s[5].isoformat() if s[5] else None}
+                for s in stroki]
     return [c for c in _chitat_fayl().values() if c.get("uvedomlyat")]
 
 
