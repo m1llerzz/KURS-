@@ -667,6 +667,29 @@ try:
              hranilishche.na_postgres()
              or "DATABASE_URL" in otpravleno[0]["text"],
              "«нет событий» без базы значит «мы не считаем», а не «никто не приходил»")
+
+    # Дошла ли сводка — не то же самое, что «мы её собрали». Раньше в
+    # журнал безусловно печаталось «отправлена», а отметка «за эту неделю
+    # сделано» ставилась независимо: сводка пропадала молча, и в журнале
+    # при этом было написано, что всё хорошо. Тот же класс, что дефект 69.
+    otpravleno.clear()
+    proverka("дошедшая сводка засчитана", bot.svodka_dlya_svoih() is True)
+
+    _bylo_poslat_svodki = bot.poslat
+    try:
+        # Самая вероятная причина: бот не может написать первым тому, кто
+        # ему ни разу не писал. Это не поломка, а ответ.
+        bot.poslat = lambda *a, **k: {"ok": False, "error_code": 403}
+        proverka("недошедшая сводка не засчитана",
+                 bot.svodka_dlya_svoih() is False,
+                 "иначе повтора не будет, а в журнале «отправлена»")
+
+        bot.poslat = lambda *a, **k: None
+        proverka("молчание сети тоже не засчитано",
+                 bot.svodka_dlya_svoih() is False)
+    finally:
+        bot.poslat = _bylo_poslat_svodki
+
     os.environ.pop("ADMIN_CHAT_ID", None)
 
 finally:

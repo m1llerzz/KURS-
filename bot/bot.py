@@ -2006,8 +2006,28 @@ def svodka_dlya_svoih():
         stroki.append("")
         stroki += predupredit
 
-    poslat(admin, "\n".join(stroki))
-    print("[сводка] отправлена", flush=True)
+    # Проверяем, ДОШЛА ли. Раньше здесь безусловно печаталось
+    # «отправлена» — тот же класс, что дефект 69: продукт записывает то,
+    # чего не было. И он тут особенно вреден: отметка «сводка за эту
+    # неделю сделана» ставится независимо, второй попытки не будет, а в
+    # журнале написано, что всё хорошо.
+    #
+    # Самая вероятная причина отказа — бот не может написать первым тому,
+    # кто ему ни разу не писал. Это не поломка, это ответ, и он должен
+    # быть прочитан именно так.
+    otvet = poslat(admin, "\n".join(stroki))
+    if otvet and otvet.get("ok"):
+        print("[сводка] отправлена", flush=True)
+        return True
+
+    kod = (otvet or {}).get("error_code")
+    if kod in (400, 403):
+        print("[сводка] НЕ ДОШЛА: получатель %s ни разу не писал боту — "
+              "Telegram не даёт написать первым. Пусть откроет "
+              "t.me/QanchaYetadi_bot и нажмёт «Старт»." % admin, flush=True)
+    else:
+        print("[сводка] НЕ ДОШЛА, код %s" % kod, flush=True)
+    return False
 
 
 def data_kursa_seychas():
@@ -2113,7 +2133,14 @@ def chasovoy_uvedomleniy():
             # Сводка по понедельникам, одна за неделю. Ключ — номер недели,
             # а не дата: иначе при перезапуске в тот же понедельник она
             # ушла бы второй раз.
-            if teper.weekday() == 0 and teper.hour >= 10:
+            #
+            # Получателя проверяем ДО отметки. Иначе понедельничный
+            # проход, случившийся раньше, чем Telegram ответил, кто
+            # создатель канала, помечал бы сводку сделанной — и она
+            # молча пропадала бы на неделю.
+            if teper.weekday() == 0 and teper.hour >= 10 and (
+                    os.environ.get("ADMIN_CHAT_ID", "").strip()
+                    or upravlyayut_kanalom()[0]):
                 odnazhdy("svodka", "%d-%02d" % teper.isocalendar()[:2],
                          svodka_dlya_svoih)
 
