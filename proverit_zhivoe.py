@@ -105,6 +105,47 @@ if kod == 200:
                  "с TEST_DATA = true людям показывать нельзя")
         proverka("в запасе есть история курса", "HISTORY_ZAPAS" in data_js)
 
+# ── Страница под поиск ───────────────────────────────────────────────
+#
+# Её не открывает никто из нас, и именно поэтому она сломается молча.
+# А для поиска молчаливая поломка означает выпадение из выдачи, о котором
+# узнаёшь через три месяца по отсутствию людей.
+
+print("\nСтраница поиска: " + PRILOZHENIE + "kurs.html")
+kod, stranica, _ = skachat(PRILOZHENIE + "kurs.html")
+proverka("страница поиска открывается", kod == 200, "код " + str(kod))
+
+if kod == 200:
+    proverka("заголовок ловит запрос про курс",
+             re.search(r"<title>[^<]*[Кк]урс рубля", stranica) is not None)
+    proverka("описание для выдачи на месте",
+             'name="description"' in stranica)
+    proverka("оба языка на странице",
+             'lang="uz"' in stranica and 'lang="ru"' in stranica)
+    proverka("разметка вопрос-ответ на месте",
+             "FAQPage" in stranica)
+    proverka("ссылка в приложение помечена источником",
+             "startapp=poisk" in stranica,
+             "без метки переходы из поиска не отличить от остальных")
+
+    # Числа на странице переписывает obnovit_zapas.py. Если они застыли,
+    # страница будет годами показывать позапрошлый курс, выглядя исправной.
+    kurs_na_stranice = re.search(r'data-zapas="kurs">([\d,]+)<', stranica)
+    proverka("курс в разметке на месте", kurs_na_stranice is not None)
+
+    data_na_stranice = re.search(r'data-zapas="data_ru">([^<]+)<', stranica)
+    if data_na_stranice:
+        god = re.search(r"(\d{4})", data_na_stranice.group(1))
+        svezhiy = god and int(god.group(1)) >= datetime.now(timezone.utc).year
+        proverka("дата на странице не из прошлого года", bool(svezhiy),
+                 data_na_stranice.group(1) +
+                 " — запусти bot/obnovit_zapas.py и залей заново")
+
+kod_robots, _, _ = skachat(PRILOZHENIE + "robots.txt")
+proverka("robots.txt отдаётся", kod_robots == 200, "код " + str(kod_robots))
+kod_sitemap, _, _ = skachat(PRILOZHENIE + "sitemap.xml")
+proverka("карта сайта отдаётся", kod_sitemap == 200, "код " + str(kod_sitemap))
+
 # ── Бот ──────────────────────────────────────────────────────────────
 
 print("\nБот: " + BOT)
