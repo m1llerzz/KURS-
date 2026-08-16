@@ -62,10 +62,10 @@ window.SERVICES = [
     "limit_per_operation": 100000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T17:30:32+00:00",
+    "checked_at": "2026-08-16T21:16:51+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
-    "nacenka_percent": 4.06,
+    "nacenka_percent": 4.11,
     "url": "https://yubor.ru/",
     "limit_min": 9000,
     "istochnik_uslovij": "yubor.ru, 16.08.2026"
@@ -83,10 +83,10 @@ window.SERVICES = [
     "limit_per_operation": 200000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T17:30:32+00:00",
+    "checked_at": "2026-08-16T21:16:51+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
-    "nacenka_percent": 4.06,
+    "nacenka_percent": 4.11,
     "url": "https://avosend.com/",
     "limit_v_sutki": 380000,
     "limit_v_mesyac": 1500000,
@@ -112,7 +112,7 @@ window.BANKS = [];
  * Флаг zapas заставляет приложение честно предупредить: без свежего
  * курса весь расчёт становится ориентировочным.
  */
-window.KURSY_ZAPAS = {"usd_uzs": 11937.89, "rub_uzs": 141.76, "date": "14.08.2026", "zapas": true};
+window.KURSY_ZAPAS = {"usd_uzs": 11891.18, "rub_uzs": 141.83, "date": "17.08.2026", "zapas": true};
 
 /**
  * Запасная история курса рубля за 30 дней (курсы ЦБ, замер 15.08.2026).
@@ -130,5 +130,5 @@ window.HISTORY_ZAPAS = [
   { date: '2026-08-06', rub_uzs: 146.37 }, { date: '2026-08-07', rub_uzs: 146.19 },
   { date: '2026-08-10', rub_uzs: 145.21 }, { date: '2026-08-11', rub_uzs: 144.64 },
   { date: '2026-08-12', rub_uzs: 143.93 }, { date: '2026-08-13', rub_uzs: 144.29 },
-  { date: '2026-08-14', rub_uzs: 141.76 },
+  { date: '2026-08-14', rub_uzs: 141.76 }, { date: '2026-08-17', rub_uzs: 141.83 },
 ];
