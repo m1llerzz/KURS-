@@ -307,9 +307,28 @@ function dozhdatsya() {
     'svc.lost.t', 'br.t', 'br.cb', 'br.rate', 'br.fee', 'br.fee_unknown', 'br.total',
   ];
 
+  /* Список выше — не источник правды, а страховка на случай, если
+   * разбор словаря однажды сломается. Настоящий список берём из самого
+   * i18n.js: перечисленный руками отстаёт от файла, и новый ключ,
+   * забытый в узбекском, просто не попадёт в проверку. */
+  const istochnikI18n = fs.readFileSync(path.join(KORNI, 'i18n.js'), 'utf8');
+  const klyuchiIzFayla = Array.from(
+    new Set((istochnikI18n.match(/^\s*'([a-z][\w.]*)':/gm) || [])
+      .map(function (s) { return s.trim().replace(/^'|':$/g, ''); }))
+  );
+
+  proverka('ключи вычитаны из самого словаря', klyuchiIzFayla.length > 40,
+    'нашлось ' + klyuchiIzFayla.length + ' — разбор i18n.js сломался');
+  proverka('список в проверке не отстал от файла',
+    KLYUCHI.every(function (k) { return klyuchiIzFayla.indexOf(k) !== -1; }),
+    'в проверке есть ключи, которых нет в i18n.js: ' +
+      KLYUCHI.filter(function (k) {
+        return klyuchiIzFayla.indexOf(k) === -1;
+      }).join(', '));
+
   const zabytye = [];
   const odinakovye = [];
-  KLYUCHI.forEach(function (k) {
+  klyuchiIzFayla.forEach(function (k) {
     const u = w.I18N.t(k, null, 'uz');
     const r = w.I18N.t(k, null, 'ru');
     // t() возвращает сам ключ, если строки нет вовсе.
