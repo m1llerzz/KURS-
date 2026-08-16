@@ -16,6 +16,7 @@
 import json
 import re
 import ssl
+import subprocess
 import sys
 import os
 import urllib.error
@@ -225,6 +226,26 @@ if kod == 200 and telo.startswith("{"):
     proverka("учёт отвечает", "podpischikov" in s)
     print("\n  Людей: %s · с оповещениями: %s"
           % (s.get("podpischikov"), s.get("s_uvedomleniyami")))
+
+    # Какой код там работает на самом деле. Без этого проверка боевого
+    # отвечала на вопрос «работает ли что-то», а не «работает ли то, что
+    # я только что залил»: на бесплатном тарифе заливка доезжает не
+    # мгновенно, и зелёный прогон по старому коду успокаивает зря.
+    if s.get("kod"):
+        try:
+            svoy = subprocess.check_output(
+                ["git", "rev-parse", "--short=7", "HEAD"],
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                stderr=subprocess.DEVNULL).decode().strip()
+        except Exception:
+            svoy = ""
+        if svoy and svoy != s["kod"]:
+            preduprezhdenie(
+                "на боевом другой код: там %s, у меня %s" % (s["kod"], svoy),
+                "заливка ещё не доехала или не пошла — проверено НЕ то, "
+                "что лежит в рабочей копии")
+        elif svoy:
+            proverka("на боевом тот же код, что у меня (%s)" % svoy, True)
 
     if "podrobnosti" in s:
         # Без ключа сказать «событий нет» нельзя: мы их просто не видим.
