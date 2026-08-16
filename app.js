@@ -231,6 +231,27 @@
          'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
   };
 
+  /**
+   * Сколько дней прошло с даты курса. Понимает оба формата дат.
+   * Не смогли разобрать — считаем свежим: молчать о совете из-за
+   * непонятой строки хуже, чем дать его.
+   */
+  function vozrastDannyhDney(data) {
+    const stroka = String(data || '').trim();
+    let god, mesyac, den;
+    let najdeno = stroka.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (najdeno) {
+      god = +najdeno[1]; mesyac = +najdeno[2]; den = +najdeno[3];
+    } else {
+      najdeno = stroka.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+      if (!najdeno) return 0;
+      den = +najdeno[1]; mesyac = +najdeno[2]; god = +najdeno[3];
+    }
+    const kogda = Date.UTC(god, mesyac - 1, den);
+    if (isNaN(kogda)) return 0;
+    return (Date.now() - kogda) / 86400000;
+  }
+
   function dataSlovom(iso, lang) {
     const stroka = String(iso || '').trim();
 
@@ -508,10 +529,22 @@
 
     obnovitVygodu();
 
-    // Совет берём из deystvie, а не из вердикта: вердикт говорит, каков
-    // курс, а совет — что делать, и это разные вещи. В падающем рынке
-    // курс ниже обычного, но ждать нельзя: завтра будет ещё меньше.
-    el.vHint.textContent = t('v.do.' + (o.deystvie || 'obychno'));
+    /* Совет берём из deystvie, а не из вердикта: вердикт говорит, каков
+     * курс, а совет — что делать, и это разные вещи. В падающем рынке
+     * курс ниже обычного, но ждать нельзя: завтра будет ещё меньше.
+     *
+     * И советуем только по свежим данным. Курсы сервисов старше трёх
+     * суток приложение скрывает целиком, а совет при тех же данных
+     * продолжал бодро говорить «сегодня хороший день» — по курсу
+     * четырёхдневной давности. Это ровно тот же класс вреда, что и
+     * совет ждать при падающем рынке: человек послушает и потеряет.
+     *
+     * Порог здесь мягче — пять дней, а не трое. ЦБ не публикует по
+     * выходным и в праздники, и длинные каникулы это норма, а не сбой. */
+    const staryeDannye = vozrastDannyhDney(o.data) > 5;
+    el.vHint.textContent = staryeDannye
+      ? t('v.do.stale')
+      : t('v.do.' + (o.deystvie || 'obychno'));
   }
 
   /**
@@ -588,9 +621,19 @@
       const kartochka = document.createElement('button');
       kartochka.className = 'card' + (i === 0 ? ' best' : '');
 
+      /* Метки не конкурируют за место, их может быть две.
+       *
+       * Здесь стояло «если первый — лучший, ИНАЧЕ если устарело —
+       * устарело». То есть у лучшего способа отметка о вчерашних данных
+       * не появлялась никогда — именно у того, который человек и
+       * выберет. Данные возрастом от суток до трёх мы показываем, но
+       * обязаны об этом сказать, и молчать в самом видном месте —
+       * ровно противоположное тому, ради чего правило заводили. */
       const metki = [];
       if (i === 0) metki.push('<span class="tag best">' + t('tag.best') + '</span>');
-      else if (r.svezhest === 'ustarelo') metki.push('<span class="tag">' + t('tag.stale') + '</span>');
+      if (r.svezhest === 'ustarelo') {
+        metki.push('<span class="tag">' + t('tag.stale') + '</span>');
+      }
 
       const detali = [];
       detali.push(srok(r.delivery_minutes));

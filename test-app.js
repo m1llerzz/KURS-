@@ -552,6 +552,78 @@ function dozhdatsya() {
     'ЦБ не публикует по выходным: в понедельник свежайший курс — ' +
       'за пятницу, и «сегодня» было бы неправдой три дня в неделю');
 
+  /* ── 4в. Свежесть данных ───────────────────────────────────────── */
+
+  function starye(dneyNazad, chasovSbora) {
+    const den = function (n) {
+      return new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+    };
+    const istoriya = [];
+    for (let i = 29; i >= 0; i--) {
+      istoriya.push({ date: den(i + dneyNazad), rub_uzs: 150 - i * 0.3 });
+    }
+    return {
+      ok: true,
+      cbu: { usd_uzs: 11937.89, rub_uzs: 141.76, date: den(dneyNazad) },
+      services: [{
+        id: 'yubor', name: 'Yubor', route: 'A', corridors: ['RU-UZ'],
+        fee_fixed: 0, fee_percent: 0, rate_rub_uzs: 136.0,
+        limit_per_operation: 1000000, delivery_minutes: 60, incoming_fee: 0,
+        checked_at: new Date(Date.now() - chasovSbora * 3600000).toISOString(),
+        fee_unknown: true, nacenka_percent: 4.06,
+      }],
+      banks: [], history: istoriya, sovet: null,
+    };
+  }
+
+  async function posle_rascheta(dannye) {
+    const okno = podnyat(dannye, { intro_pokazan: '1' });
+    await dozhdatsya();
+    okno.document.getElementById('summa').value = '50000';
+    okno.document.getElementById('schitat').click();
+    await dozhdatsya();
+    return okno;
+  }
+
+  // Свежее: способ показан без отметок об устаревании.
+  const wSvezh = await posle_rascheta(starye(0, 2));
+  proverka('свежие данные — способ показан',
+    wSvezh.document.querySelectorAll('#results .card').length === 1);
+
+  /* Данные от суток до трёх мы показываем, но обязаны сказать об этом.
+   * Отметка ставилась «если первый — лучший, ИНАЧЕ если устарело», то
+   * есть у лучшего способа не появлялась никогда — именно у того,
+   * который человек и выберет. Молчать в самом видном месте — ровно
+   * противоположное тому, ради чего правило заводили. */
+  const wVchera = await posle_rascheta(starye(1, 30));
+  const kartochkaVchera = wVchera.document.querySelector('#results .card');
+  proverka('вчерашние данные помечены прямо у лучшего способа',
+    !!kartochkaVchera && /вчера|kecha/i.test(kartochkaVchera.textContent),
+    kartochkaVchera ? kartochkaVchera.textContent.replace(/\s+/g, ' ') : 'нет карточки');
+  proverka('и метка «больше всего» при этом на месте',
+    !!kartochkaVchera && kartochkaVchera.classList.contains('best'),
+    'две метки не конкурируют за одно место');
+
+  // Старше трёх суток — способ не показываем вовсе.
+  const wStar = await posle_rascheta(starye(4, 100));
+  proverka('протухшие курсы сервисов скрыты целиком',
+    wStar.document.querySelectorAll('#results .card').length === 0,
+    'правило проекта: старше 72 часов не показываем');
+
+  /* А вот СОВЕТ при тех же данных продолжал бодро говорить «сегодня
+   * хороший день» — по курсу многодневной давности. Это ровно тот же
+   * класс вреда, что и совет ждать в падающем рынке: человек послушает
+   * и потеряет. Порог здесь мягче трёх суток: ЦБ не публикует по
+   * выходным и в праздники, длинные каникулы это норма. */
+  const wOchenStar = await posle_rascheta(starye(8, 200));
+  proverka('по старым данным совет не даётся',
+    /устарел|eski/i.test(tekst(wOchenStar, 'vHint')),
+    tekst(wOchenStar, 'vHint') + ' — совет по курсу недельной давности '
+      + 'это совет потерять деньги');
+  proverka('на свежих данных совет по-прежнему даётся',
+    !/устарел|eski/i.test(tekst(wSvezh, 'vHint')),
+    tekst(wSvezh, 'vHint'));
+
   /* ── 5a. Учёт ──────────────────────────────────────────────────── */
 
   // Учёт — это то, ради чего партнёрская программа вообще станет

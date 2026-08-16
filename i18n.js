@@ -115,6 +115,10 @@ window.I18N = (function () {
       'v.do.mozhno_zhdat': 'Kurs odatdagidan past, lekin ko’tarilmoqda — kutish ma’noli.',
       'v.do.ne_zhdat':     'Kurs tushmoqda — qancha kutsangiz, shuncha kam yetadi.',
       'v.do.obychno':      'Kurs odatdagidek. Quyida — kartaga qancha tushishi.',
+      // Ma'lumotlar eski bo'lsa, maslahat bermaymiz. To'rt kunlik kurs
+      // bo'yicha «bugun yaxshi kun» deyish — odamga pul yo'qotish
+      // maslahatini berish bilan barobar.
+      'v.do.stale':        'Ma’lumotlar eski — bugun uchun maslahat bermayman. Kursni tekshiring.',
       'v.range':         'oyda {mn} dan {mx} gacha',
       'v.days':          '30 kun',
       'v.week.up':       'haftada +{p}%',
@@ -267,6 +271,10 @@ window.I18N = (function () {
       'v.do.mozhno_zhdat': 'Курс ниже обычного и растёт — есть смысл подождать.',
       'v.do.ne_zhdat':     'Курс падает — чем дольше ждёте, тем меньше дойдёт.',
       'v.do.obychno':      'Курс обычный. Ниже — сколько дойдёт до карты.',
+      // По старым данным советов не даём. «Сегодня хороший день» по
+      // курсу четырёхдневной давности — это совет потерять деньги,
+      // такой же по сути, как «подождите» в падающем рынке.
+      'v.do.stale':        'Данные устарели — совет на сегодня не даю. Проверьте курс.',
       'v.range':         'за месяц от {mn} до {mx}',
       'v.days':          '30 дней',
       'v.week.up':       'за неделю +{p}%',
