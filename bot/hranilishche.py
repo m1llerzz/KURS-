@@ -217,8 +217,12 @@ def zapisat_cheloveka(chat_id, **polya):
     # Отдельно: None означает «не трогать», а сбросить цель надо уметь.
     # Поэтому для сброса есть явная строка-пустышка, см. ниже.
     polya = {k: v for k, v in polya.items() if k in razresheno and v is not None}
-    if polya.get("cel_kurs") == "sbros":
-        polya["cel_kurs"] = None
+    # Строка «sbros» означает «стереть» для любого поля. Обычный None
+    # здесь значит «не трогать», и без отдельного слова стереть однажды
+    # сохранённое было бы нечем.
+    for k in list(polya):
+        if polya[k] == "sbros":
+            polya[k] = None
 
     with _zamok:
         if na_postgres():

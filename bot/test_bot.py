@@ -772,6 +772,35 @@ finally:
         os.environ["CHANNEL_ID"] = _byl_kanal
 
 
+# ── Отписался — сумма стирается ──────────────────────────────────────
+#
+# Сумма хранится ровно для одного: чтобы оповещение говорило про его
+# деньги, а не про абстрактные 50 000. Оповещений больше не будет —
+# значит и повода держать её нет. LEGAL.md прямо запрещает хранить суммы
+# переводов в привязке к личности дольше нужного.
+
+_otpisavshiysya = 123123
+hranilishche.zapisat_cheloveka(_otpisavshiysya, lang="ru", uvedomlyat=True,
+                               summa_rub=50000)
+proverka("сумма сохранилась, пока человек подписан",
+         (hranilishche.chelovek(_otpisavshiysya) or {}).get("summa_rub") == 50000)
+
+hranilishche.zapisat_cheloveka(_otpisavshiysya, uvedomlyat=False,
+                               summa_rub="sbros")
+_posle = hranilishche.chelovek(_otpisavshiysya) or {}
+proverka("после отписки суммы не остаётся",
+         not _posle.get("summa_rub"), str(_posle.get("summa_rub")))
+proverka("отписка при этом записана", _posle.get("uvedomlyat") is False,
+         str(_posle.get("uvedomlyat")))
+
+# Обычный None по-прежнему значит «не трогать» — иначе любое обновление
+# профиля стирало бы всё, чего в нём не назвали.
+hranilishche.zapisat_cheloveka(_otpisavshiysya, summa_rub=70000)
+hranilishche.zapisat_cheloveka(_otpisavshiysya, lang="uz")
+proverka("обновление профиля не стирает соседние поля",
+         (hranilishche.chelovek(_otpisavshiysya) or {}).get("summa_rub") == 70000)
+
+
 # ── В базу попадает только известное ─────────────────────────────────
 #
 # Адрес /api/event открыт всему интернету: прислать туда можно что

@@ -904,7 +904,17 @@ def obrabotat_nazhatie(nazhatie):
 
     if dannye.startswith("sub:"):
         hochet = dannye.split(":", 1)[1] == "1"
-        hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=hochet)
+        if hochet:
+            hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=True)
+        else:
+            # Отписался — стираем и сумму. Она хранилась ровно для одного:
+            # чтобы оповещение говорило про его деньги, а не про абстрактные
+            # 50 000. Оповещений больше не будет — значит и повода держать
+            # её нет. `LEGAL.md`: суммы переводов не хранятся в привязке к
+            # личности дольше, чем нужно для того, ради чего человек их сам
+            # назвал.
+            hranilishche.zapisat_cheloveka(
+                chat_id, uvedomlyat=False, summa_rub="sbros")
         if hochet:
             zhdyom_summu.add(chat_id)
             poslat(chat_id, TEKSTY[lang]["podpisan"], html=False)
@@ -929,7 +939,10 @@ def obrabotat_nazhatie(nazhatie):
         return
 
     if dannye == "stop":
-        hranilishche.zapisat_cheloveka(chat_id, uvedomlyat=False)
+        # Кнопка «больше не писать» из самого оповещения. Сумму стираем
+        # здесь так же, как при отказе: держать её дальше не для чего.
+        hranilishche.zapisat_cheloveka(
+            chat_id, uvedomlyat=False, summa_rub="sbros")
         poslat(chat_id, TEKSTY[lang]["otpisan"], html=False)
         hranilishche.sobytie(chat_id, "otpiska")
         return
