@@ -486,6 +486,12 @@ try:
         return {"ok": True}
 
     bot.vyzov = perehvat_vyzova
+
+    # Проверки идут в файловом режиме, а без базы бот в канал не пишет
+    # вовсе — иначе один пост уходит десятки раз (см. 16 августа).
+    # Здесь проверяется САМ ПОСТ, поэтому базу подставляем.
+    _byla_baza = hranilishche.na_postgres
+    hranilishche.na_postgres = lambda: True
     try:
         os.environ.pop("CHANNEL_ID", None)
         poslannye.clear()
@@ -534,6 +540,7 @@ try:
             bot._dannye["snimok"] = sohranyonnoe
     finally:
         bot.vyzov = nastoyashchiy_vyzov
+        hranilishche.na_postgres = _byla_baza
         os.environ.pop("CHANNEL_ID", None)
 
     # ── Еженедельная сводка ─────────────────────────────────────────
@@ -770,6 +777,38 @@ finally:
         os.environ.pop("CHANNEL_ID", None)
     else:
         os.environ["CHANNEL_ID"] = _byl_kanal
+
+
+# ── Без базы в канал не пишем ────────────────────────────────────────
+#
+# Отметка «этот пост уже публиковали» лежит в хранилище. Без
+# DATABASE_URL хранилище — файл на диске Render, а диск там эфемерный:
+# тариф усыпляет сервис, монитор будит, файла больше нет, и бот честно
+# считает, что сегодня ещё не публиковал.
+#
+# 16 августа это дало семнадцать одинаковых постов подряд с интервалом
+# в две-три минуты, в канале с четырьмя подписчиками. Проверки идут в
+# файловом режиме — значит именно здесь и ловится.
+
+_byl_kanal_pub = os.environ.get("CHANNEL_ID")
+_poslannoe_v_kanal = []
+_byl_vyzov_pub = bot.vyzov
+bot.vyzov = lambda metod, telo=None: (
+    _poslannoe_v_kanal.append(telo) if metod == "sendMessage" else None
+) or {"ok": True, "result": {}}
+try:
+    os.environ["CHANNEL_ID"] = "@testovyy"
+    _poslannoe_v_kanal.clear()
+    bot._opublikovat("den")
+    proverka("без базы пост в канал не уходит",
+             len(_poslannoe_v_kanal) == 0,
+             "ушло сообщений: %d — а перезапуск повторил бы это десятки раз"
+             % len(_poslannoe_v_kanal))
+finally:
+    bot.vyzov = _byl_vyzov_pub
+    os.environ.pop("CHANNEL_ID", None)
+    if _byl_kanal_pub is not None:
+        os.environ["CHANNEL_ID"] = _byl_kanal_pub
 
 
 # ── Отписался — сумма стирается ──────────────────────────────────────
@@ -1032,6 +1071,12 @@ _nastoyashchie = (bot.hranilishche.sostoyanie,
 # Запоминаем ДО try: иначе первое же исключение внутри превратится в
 # NameError из finally, и настоящая причина провала не доедет до вывода.
 _byl_kanal_post = os.environ.get("CHANNEL_ID")
+
+# Здесь проверяется РАСПИСАНИЕ постов: что выходит и когда. Без базы бот
+# в канал не пишет вовсе — иначе один пост уходит десятки раз, как это и
+# случилось 16 августа. Подменяем состояние на своё, значит база «есть».
+_byla_baza_post = bot.hranilishche.na_postgres
+bot.hranilishche.na_postgres = lambda: True
 try:
     _chistoe_sostoyanie()
 
@@ -1141,6 +1186,7 @@ try:
 finally:
     (bot.hranilishche.sostoyanie,
      bot.hranilishche.zapisat_sostoyanie, bot.vyzov) = _nastoyashchie
+    bot.hranilishche.na_postgres = _byla_baza_post
     if _byl_kanal_post is None:
         os.environ.pop("CHANNEL_ID", None)
     else:
