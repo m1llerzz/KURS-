@@ -209,7 +209,7 @@ TEKSTY = {
         # Живая строка курса прямо в приветствии. Человек получает пользу
         # в первом же сообщении, до всякого нажатия, — и сразу видит, что
         # цифры тут настоящие, а не рассказ о том, какие мы хорошие.
-        "privet_kurs": "Bugun: <b>{kurs}</b> so‘m · oyda o‘rtacha {srednee} — {verdikt}",
+        "privet_kurs": "{podpis}: <b>{kurs}</b> so‘m · oyda o‘rtacha {srednee} — {verdikt}",
         "privet_bez_kursa": "Summani kiriting — kartaga qancha yetib borishini aytaman.",
         "knopka": "Hisoblash",
         "knopka_kurs": "Bugungi kurs",
@@ -231,7 +231,7 @@ TEKSTY = {
         "summa_prinyata": "Eslab qoldim: {summa} rubl. Endi hisob aniq siznikiga mos bo‘ladi.",
         "summa_ne_ponyal": "Summani raqam bilan yozing, masalan: 50000",
         "kurs_zagolovok": "Rubl kursi",
-        "kurs_segodnya": "Bugun: <b>{kurs}</b> so‘m",
+        "kurs_segodnya": "{podpis}: <b>{kurs}</b> so‘m",
         "kurs_srednee": "Oydagi o‘rtacha: {srednee} so‘m",
         "kurs_koridor": "Oy koridori: {mn} — {mx}",
         "kurs_nedelya_up": "Haftada: +{p}%",
@@ -240,7 +240,7 @@ TEKSTY = {
         "kurs_net": "Hozircha kurs ma’lumotlari yig‘ilmoqda. Bir necha daqiqadan keyin urinib ko‘ring.",
         "uvedomlenie": (
             "<b>{verdikt}</b>\n\n"
-            "Rubl: {kurs} so‘m (oydagi o‘rtacha {srednee})\n"
+            "Rubl: {kurs} so‘m, {data} (oydagi o‘rtacha {srednee})\n"
             "{stroka_summy}\n\n"
             "{sovet}"
         ),
@@ -252,7 +252,7 @@ TEKSTY = {
             "Qaysi kursda sizga xabar berishim kerak?\n\n"
             "Raqam yozing — masalan <b>148</b>. Rubl shu darajaga chiqqan "
             "kuni bir marta yozaman va to‘xtayman.\n\n"
-            "Bugun: {kurs} · oydagi eng yuqori: {mx}"
+            "{podpis}: {kurs} · oydagi eng yuqori: {mx}"
         ),
         "cel_prinyata": (
             "Yozib qo‘ydim: <b>{cel}</b> so‘m.\n\n"
@@ -291,7 +291,7 @@ TEKSTY = {
             "{stroka_kursa}\n\n"
             "Бесплатно. Деньги не переводим — только считаем."
         ),
-        "privet_kurs": "Сегодня: <b>{kurs}</b> сум · в среднем за месяц {srednee} — {verdikt}",
+        "privet_kurs": "{podpis}: <b>{kurs}</b> сум · в среднем за месяц {srednee} — {verdikt}",
         "privet_bez_kursa": "Введите сумму — скажу, сколько дойдёт до карты.",
         "knopka": "Посчитать",
         "knopka_kurs": "Курс сегодня",
@@ -313,7 +313,7 @@ TEKSTY = {
         "summa_prinyata": "Запомнил: {summa} ₽. Теперь расчёт будет про ваши деньги.",
         "summa_ne_ponyal": "Напишите сумму числом, например: 50000",
         "kurs_zagolovok": "Курс рубля",
-        "kurs_segodnya": "Сегодня: <b>{kurs}</b> сум",
+        "kurs_segodnya": "{podpis}: <b>{kurs}</b> сум",
         "kurs_srednee": "Среднее за месяц: {srednee} сум",
         "kurs_koridor": "Коридор месяца: {mn} — {mx}",
         "kurs_nedelya_up": "За неделю: +{p}%",
@@ -322,7 +322,7 @@ TEKSTY = {
         "kurs_net": "Курсы ещё собираются. Попробуйте через пару минут.",
         "uvedomlenie": (
             "<b>{verdikt}</b>\n\n"
-            "Рубль: {kurs} сум (среднее за месяц {srednee})\n"
+            "Рубль: {kurs} сум на {data} (среднее за месяц {srednee})\n"
             "{stroka_summy}\n\n"
             "{sovet}"
         ),
@@ -334,7 +334,7 @@ TEKSTY = {
             "При каком курсе вам написать?\n\n"
             "Напишите число — например <b>148</b>. В день, когда рубль "
             "поднимется до него, напишу один раз и замолчу.\n\n"
-            "Сегодня: {kurs} · максимум за месяц: {mx}"
+            "{podpis}: {kurs} · максимум за месяц: {mx}"
         ),
         "cel_prinyata": (
             "Записал: <b>{cel}</b> сум.\n\n"
@@ -449,7 +449,12 @@ def privetstvie(chat_id, lang):
     # же сообщении, до единого нажатия, — и сразу видит, что цифры здесь
     # настоящие, а не рассказ о том, какие мы хорошие.
     if ocenka:
+        # Подпись с датой, а не слово «сегодня». ЦБ не публикует курс по
+        # выходным: в понедельник свежайшее число — за пятницу, и «сегодня
+        # 141,76» было бы неправдой три дня в неделю. Вердикты от этого
+        # слова уже избавили, а эти две строки остались с ним.
         stroka = t["privet_kurs"].format(
+            podpis=podpis_kursa(ocenka.get("data"), lang),
             kurs=chislo(ocenka["segodnya"]), srednee=chislo(ocenka["srednee_30"]),
             verdikt=VERDIKTY[lang][ocenka["verdikt"]].lower())
     else:
@@ -532,7 +537,9 @@ def pokazat_kurs(chat_id, lang):
     stroki = [
         "<b>" + VERDIKTY[lang][ocenka["verdikt"]] + "</b>",
         "",
-        t["kurs_segodnya"].format(kurs=chislo(ocenka["segodnya"])),
+        t["kurs_segodnya"].format(
+            podpis=podpis_kursa(ocenka.get("data"), lang),
+            kurs=chislo(ocenka["segodnya"])),
         t["kurs_srednee"].format(srednee=chislo(ocenka["srednee_30"])),
         t["kurs_koridor"].format(mn=chislo(ocenka["min_30"]), mx=chislo(ocenka["max_30"])),
     ]
@@ -592,6 +599,7 @@ def sprosit_cel(chat_id, lang):
         return
     zhdyom_cel.add(chat_id)
     poslat(chat_id, TEKSTY[lang]["cel_sprosit"].format(
+        podpis=podpis_kursa(ocenka.get("data"), lang),
         kurs=chislo(ocenka["segodnya"]), mx=chislo(ocenka["max_30"])))
 
 
@@ -882,6 +890,10 @@ def razoslat_uvedomleniya():
         tekst = t["uvedomlenie"].format(
             verdikt=VERDIKTY[lang][ocenka["verdikt"]],
             kurs=chislo(ocenka["segodnya"]),
+            # Дата курса. Оповещение уходит в день смены вердикта, но
+            # правило проекта не знает исключений: цифра без даты не
+            # показывается никому и никогда.
+            data=data_slovom(ocenka.get("data"), lang),
             srednee=chislo(ocenka["srednee_30"]),
             stroka_summy=_stroka_summy(lang, ocenka, c.get("summa_rub")),
             # Совет берём из общей таблицы, а не пишем в шаблоне: иначе
