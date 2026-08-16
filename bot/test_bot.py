@@ -1410,9 +1410,17 @@ except ImportError:
                     "нет sqlglot: py -m pip install sqlglot")
 
 if _sqlglot:
-    for _imya_sql, _tekst_sql in (
-            ("воронка по источникам", _hr.SQL_VORONKA % {"d": 7}),
-            ("разбивка источников", _hr.SQL_ISTOCHNIKI % {"d": 7})):
+    _zaprosy_dlya_razbora = [
+        ("воронка по источникам", _hr.SQL_VORONKA % {"d": 7}),
+        ("разбивка источников", _hr.SQL_ISTOCHNIKI % {"d": 7}),
+    ]
+    # Схема тоже: ошибка в ней ломает не отчёт, а весь запуск — таблицы
+    # не создадутся, и всё остальное будет молча падать на каждом
+    # обращении. А выполняется она только на боевом, где базы у нас нет.
+    for _nomer, _ddl in enumerate(_hr.SQL_SHEMA, 1):
+        _zaprosy_dlya_razbora.append(("схема, запрос %d" % _nomer, _ddl))
+
+    for _imya_sql, _tekst_sql in _zaprosy_dlya_razbora:
         try:
             _razobrano = _sqlglot.parse_one(_tekst_sql, dialect="postgres")
             proverka("SQL «%s» разбирается" % _imya_sql, _razobrano is not None)

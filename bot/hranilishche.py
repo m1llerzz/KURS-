@@ -94,17 +94,11 @@ def _pisat_fayl(dannye):
 
 # ── Общий вход ───────────────────────────────────────────────────────
 
-def podnyat():
-    """Создаёт таблицы. Вызывать один раз при запуске."""
-    if not na_postgres():
-        if os.environ.get("RENDER"):
-            print("[хранилище] ВНИМАНИЕ: на хостинге нет DATABASE_URL. "
-                  "Подписчики будут стёрты при первом же перезапуске.", flush=True)
-        else:
-            print("[хранилище] файл:", FAYL, flush=True)
-        return
-
-    _vypolnit("""
+# Схема вынесена в константу по той же причине, что и запросы: базы под
+# рукой при разработке нет, и проверить её можно только разбором. А
+# ошибка здесь ломает не отчёт, а весь запуск — таблицы не создадутся, и
+# всё остальное будет молча падать на каждом обращении.
+SQL_SHEMA = ["""
         CREATE TABLE IF NOT EXISTS podpischiki (
             chat_id        BIGINT PRIMARY KEY,
             lang           TEXT    NOT NULL DEFAULT 'uz',
@@ -125,40 +119,58 @@ def podnyat():
             uvedomlen_v    TIMESTAMPTZ,
             sozdan_v       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             aktiven_v      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )""")
-    # Таблица могла быть создана прошлой версией бота, без этого поля.
-    # CREATE TABLE IF NOT EXISTS её не тронет, и запись цели упадёт молча.
-    _vypolnit("ALTER TABLE podpischiki ADD COLUMN IF NOT EXISTS "
-              "cel_kurs DOUBLE PRECISION")
-    _vypolnit("ALTER TABLE podpischiki ADD COLUMN IF NOT EXISTS "
-              "sprosili_podpisku BOOLEAN NOT NULL DEFAULT FALSE")
+        )""",
+
+    # Таблица могла быть создана прошлой версией бота, без этих полей.
+    # CREATE TABLE IF NOT EXISTS её не тронет, и запись цели упала бы молча.
+    "ALTER TABLE podpischiki ADD COLUMN IF NOT EXISTS cel_kurs DOUBLE PRECISION",
+    "ALTER TABLE podpischiki ADD COLUMN IF NOT EXISTS "
+    "sprosili_podpisku BOOLEAN NOT NULL DEFAULT FALSE",
+
     # Таблица могла быть создана прошлой версией, где согласие было
     # включено по умолчанию. Меняем умолчание для новых записей; уже
     # накопленные не трогаем — снимать согласие у тех, кто его давал,
     # так же неправильно, как ставить тем, кто не давал.
-    _vypolnit("ALTER TABLE podpischiki ALTER COLUMN uvedomlyat SET DEFAULT FALSE")
+    "ALTER TABLE podpischiki ALTER COLUMN uvedomlyat SET DEFAULT FALSE",
 
-    _vypolnit("""
+    """
         CREATE TABLE IF NOT EXISTS sobytiya (
             id        BIGSERIAL PRIMARY KEY,
             chat_id   BIGINT,
             tip       TEXT NOT NULL,
             dannye    TEXT,
             sozdano_v TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )""")
+        )""",
 
     # Служебная память бота: что уже опубликовано, что уже разослано.
     # Раньше это жило в переменных внутри цикла, то есть в памяти
     # процесса. На бесплатном тарифе сервис перезапускается сам по себе, и
     # после каждого перезапуска бот считал, что сегодня ещё ничего не
-    # публиковал, — и публиковал заново. Читатель канала видел бы один и
-    # тот же пост столько раз, сколько Render решит нас разбудить.
-    _vypolnit("""
+    # публиковал, — и публиковал заново. 16 августа так вышло семнадцать
+    # копий одного поста подряд.
+    """
         CREATE TABLE IF NOT EXISTS sostoyanie (
             kluch      TEXT PRIMARY KEY,
             znachenie  TEXT,
             obnovleno  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )""")
+        )""",
+]
+
+
+def podnyat():
+    """Создаёт таблицы. Вызывать один раз при запуске."""
+    if not na_postgres():
+        if os.environ.get("RENDER"):
+            print("[хранилище] ВНИМАНИЕ: на хостинге нет DATABASE_URL. "
+                  "Подписчики будут стёрты при первом же перезапуске, "
+                  "а посты в канал и оповещения не будут выходить вовсе.",
+                  flush=True)
+        else:
+            print("[хранилище] файл:", FAYL, flush=True)
+        return
+
+    for zapros in SQL_SHEMA:
+        _vypolnit(zapros)
     print("[хранилище] Postgres готов", flush=True)
 
 
