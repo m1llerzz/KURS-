@@ -745,6 +745,14 @@ function dozhdatsya() {
     ssylki.every(function (a) { return /startapp=poisk/.test(a.href); }),
     'иначе переходы из поиска сольются с остальными и посчитать их нечем');
 
+  // Блок канала спрятан, пока канала нет: пустая ссылка на странице,
+  // которую читает поисковик, — это битая ссылка в его глазах.
+  const kanalBlok = kd.getElementById('kanalBlok');
+  proverka('блок канала на странице есть', !!kanalBlok);
+  proverka('блок канала спрятан, пока канала нет',
+    kanalBlok && kanalBlok.hasAttribute('hidden'),
+    'ссылка на # в выдаче читается как поломка');
+
   /* ── Итог ──────────────────────────────────────────────────────── */
 
   console.log('Пройдено: ' + proshlo.length);

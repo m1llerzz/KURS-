@@ -132,6 +132,15 @@
   </a>
 </p>
 
+<!-- Ссылка на канал появляется, только когда канал заведён: адрес
+     приходит от бота вместе с курсом. Человеку из поиска подписаться
+     проще, чем открыть приложение, — он пришёл посмотреть число, а не
+     считать свой перевод, и звать его сразу считать значит терять
+     большую часть тех, кто дочитал. -->
+<p id="kanalBlok" hidden>
+  <a class="knopka" id="kanalSsylka" href="#">Курс каждое утро в канале</a>
+</p>
+
 <h2>Больше всего решает день отправки, а не сервис</h2>
 
 <p>
@@ -442,6 +451,17 @@
         if (ocenka.verdikt && VERDIKTY[ocenka.verdikt]) {
           var el = document.getElementById('kurs-verdikt');
           if (el) el.textContent = VERDIKTY[ocenka.verdikt];
+        }
+
+        // Канал заведён — зовём туда. Метка своя: надо знать, приводит
+        // ли поиск подписчиков или только читателей.
+        if (d.channel) {
+          var blok = document.getElementById('kanalBlok');
+          var ssylka = document.getElementById('kanalSsylka');
+          if (blok && ssylka) {
+            ssylka.href = String(d.channel);
+            blok.hidden = false;
+          }
         }
 
         // Размах месяца — та самая цифра, ради которой страница написана.
