@@ -775,6 +775,9 @@ def _chistoe_sostoyanie():
 
 _nastoyashchie = (bot.hranilishche.sostoyanie,
                   bot.hranilishche.zapisat_sostoyanie, bot.vyzov)
+# Запоминаем ДО try: иначе первое же исключение внутри превратится в
+# NameError из finally, и настоящая причина провала не доедет до вывода.
+_byl_kanal_post = os.environ.get("CHANNEL_ID")
 try:
     _chistoe_sostoyanie()
 
@@ -810,7 +813,6 @@ try:
     # Пост дня привязан к дате курса, а не к календарю.
     _chistoe_sostoyanie()
     bot.vyzov = _zapomnit_vyzov
-    _byl_kanal_post = os.environ.get("CHANNEL_ID")
     os.environ["CHANNEL_ID"] = "@testovyy_kanal"
 
     _dannye_pyatnicy = {
