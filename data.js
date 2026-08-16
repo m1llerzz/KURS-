@@ -62,7 +62,7 @@ window.SERVICES = [
     "limit_per_operation": 1000000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T04:11:50+00:00",
+    "checked_at": "2026-08-16T09:57:39+00:00",
     "verified_by_receipt": false,
     "fee_unknown": true,
     "nacenka_percent": 4.06
@@ -81,7 +81,7 @@ window.SERVICES = [
     "limit_per_operation": 1000000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T04:11:50+00:00",
+    "checked_at": "2026-08-16T09:57:39+00:00",
     "verified_by_receipt": false,
     "fee_unknown": true,
     "nacenka_percent": 4.06
@@ -114,19 +114,15 @@ window.KURSY_ZAPAS = {"usd_uzs": 11937.89, "rub_uzs": 141.76, "zapas": true};
  * главная ценность приложения, и терять его при сбое сети нельзя.
  */
 window.HISTORY_ZAPAS = [
-  { date: '2026-07-18', rub_uzs: 155.22 }, { date: '2026-07-19', rub_uzs: 155.22 },
-  { date: '2026-07-20', rub_uzs: 153.24 }, { date: '2026-07-21', rub_uzs: 152.53 },
-  { date: '2026-07-22', rub_uzs: 152.09 }, { date: '2026-07-23', rub_uzs: 152.88 },
-  { date: '2026-07-24', rub_uzs: 153.75 }, { date: '2026-07-25', rub_uzs: 153.75 },
-  { date: '2026-07-26', rub_uzs: 153.75 }, { date: '2026-07-27', rub_uzs: 153.87 },
-  { date: '2026-07-28', rub_uzs: 153.49 }, { date: '2026-07-29', rub_uzs: 153.29 },
-  { date: '2026-07-30', rub_uzs: 151.46 }, { date: '2026-07-31', rub_uzs: 150.44 },
-  { date: '2026-08-01', rub_uzs: 150.44 }, { date: '2026-08-02', rub_uzs: 150.44 },
-  { date: '2026-08-03', rub_uzs: 150.42 }, { date: '2026-08-04', rub_uzs: 149.48 },
-  { date: '2026-08-05', rub_uzs: 147.42 }, { date: '2026-08-06', rub_uzs: 146.37 },
-  { date: '2026-08-07', rub_uzs: 146.19 }, { date: '2026-08-08', rub_uzs: 146.19 },
-  { date: '2026-08-09', rub_uzs: 146.19 }, { date: '2026-08-10', rub_uzs: 145.21 },
-  { date: '2026-08-11', rub_uzs: 144.64 }, { date: '2026-08-12', rub_uzs: 143.93 },
-  { date: '2026-08-13', rub_uzs: 144.29 }, { date: '2026-08-14', rub_uzs: 141.76 },
-  { date: '2026-08-15', rub_uzs: 141.76 }, { date: '2026-08-16', rub_uzs: 141.76 },
+  { date: '2026-07-17', rub_uzs: 155.22 }, { date: '2026-07-20', rub_uzs: 153.24 },
+  { date: '2026-07-21', rub_uzs: 152.53 }, { date: '2026-07-22', rub_uzs: 152.09 },
+  { date: '2026-07-23', rub_uzs: 152.88 }, { date: '2026-07-24', rub_uzs: 153.75 },
+  { date: '2026-07-27', rub_uzs: 153.87 }, { date: '2026-07-28', rub_uzs: 153.49 },
+  { date: '2026-07-29', rub_uzs: 153.29 }, { date: '2026-07-30', rub_uzs: 151.46 },
+  { date: '2026-07-31', rub_uzs: 150.44 }, { date: '2026-08-03', rub_uzs: 150.42 },
+  { date: '2026-08-04', rub_uzs: 149.48 }, { date: '2026-08-05', rub_uzs: 147.42 },
+  { date: '2026-08-06', rub_uzs: 146.37 }, { date: '2026-08-07', rub_uzs: 146.19 },
+  { date: '2026-08-10', rub_uzs: 145.21 }, { date: '2026-08-11', rub_uzs: 144.64 },
+  { date: '2026-08-12', rub_uzs: 143.93 }, { date: '2026-08-13', rub_uzs: 144.29 },
+  { date: '2026-08-14', rub_uzs: 141.76 },
 ];

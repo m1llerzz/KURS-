@@ -109,9 +109,23 @@ function dozhdatsya() {
   const grafik = w.document.getElementById('vSpark');
   const liniya = grafik.querySelector('polyline');
   proverka('график нарисован', !!liniya);
-  proverka('в графике 30 точек',
-    liniya && liniya.getAttribute('points').trim().split(/\s+/).length === 30,
-    liniya ? String(liniya.getAttribute('points').trim().split(/\s+/).length) : 'нет');
+  /* Точек в графике ровно столько, сколько курсов в данных.
+   *
+   * Здесь стояло «ровно 30» — и проверка покраснела, как только сборщик
+   * перестал дублировать пятничный курс под субботу и воскресенье: за
+   * тридцать календарных дней ЦБ публикует около двадцати одного раза.
+   * Число публикаций зависит от календаря и праздников, поэтому прибивать
+   * его константой нельзя. Считаем от тех же данных, что рисуют линию, —
+   * тогда проверка ловит настоящую поломку «график потерял точки», а не
+   * очередной длинный уикенд. */
+  const tochekVGrafike = liniya
+    ? liniya.getAttribute('points').trim().split(/\s+/).length : 0;
+  const tochekVDannyh = (w.HISTORY_ZAPAS || []).length;
+  proverka('в графике столько точек, сколько курсов в данных',
+    tochekVGrafike === tochekVDannyh,
+    tochekVGrafike + ' против ' + tochekVDannyh);
+  proverka('точек хватает на месячный график', tochekVDannyh >= 15,
+    tochekVDannyh + ' — за тридцать дней ЦБ публикует около двадцати одного раза');
   proverka('в графике есть линия среднего', !!grafik.querySelector('line.av'),
     'без якоря человек не понимает, много это или мало');
   proverka('на графике отмечен сегодняшний день', !!grafik.querySelector('circle.dt'));

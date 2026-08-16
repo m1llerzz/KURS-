@@ -106,10 +106,36 @@ def kursy_cb(data=None):
             "date": data_otveta, "source": "cbu.uz"}
 
 
+def _data_v_iso(syraya):
+    """«14.08.2026» -> «2026-08-14». Не разобрали — None, без догадок.
+
+    ЦБ пишет дату по-русски, а мы всюду держим ISO: строки этого вида
+    сравниваются как числа, и сортировка истории не требует разбора.
+    """
+    if not syraya:
+        return None
+    tekst = str(syraya).strip()[:10]
+    for shablon in ("%d.%m.%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(tekst, shablon).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
 def kurs_valyuty(kod, data):
     """Одна валюта на одну дату. Ответ — 340 байт против 25 КБ у «all»,
     а для истории нужен ровно рубль. Тридцать дней это девять килобайт,
     а не семьсот пятьдесят.
+
+    Возвращает `{"kurs": 141.76, "data": "2026-08-14"}` или None.
+
+    Дата в ответе — не та же, что в запросе, и это главное здесь. По
+    выходным и праздникам ЦБ отдаёт последний рабочий курс, помечая его
+    ЕГО датой публикации: спросишь про воскресенье 16-го — получишь
+    пятничные 141,76 с полем Date = 14.08.2026. Раньше эта дата
+    выбрасывалась, и число подписывалось датой запроса — то есть продукт
+    сам сочинял, что курс свежий. Треть ряда за месяц была такой.
     """
     syroe = _skachat("https://cbu.uz/ru/arkhiv-kursov-valyut/json/%s/%s/" % (kod, data))
     if not syroe:
@@ -119,12 +145,58 @@ def kurs_valyuty(kod, data):
         if not spisok:
             return None
         v = spisok[0]
-        return float(v["Rate"]) / (float(v.get("Nominal") or 1) or 1)
+        kurs = float(v["Rate"]) / (float(v.get("Nominal") or 1) or 1)
     except Exception:
         return None
 
+    opublikovano = _data_v_iso(v.get("Date"))
+    if not opublikovano:
+        # Формат даты сменился. Взять дату запроса — значит вернуться
+        # ровно к той ошибке, которую эта функция и чинит, поэтому точка
+        # просто не берётся. Ряд поредеет, вердикт замолчит, и молчание
+        # тут честнее свежей на вид цифры.
+        print("[rates] ЦБ прислал дату в незнакомом виде: %r" % (v.get("Date"),),
+              flush=True)
+        return None
+
+    # Дата публикации не может быть позже запрошенной: архив отдаёт
+    # прошлое. Если такое пришло — это не наш случай «выходные», а
+    # что-то сломалось на той стороне, и класть это в историю нельзя.
+    if opublikovano > str(data)[:10]:
+        print("[rates] ЦБ на %s ответил датой из будущего: %s" % (data, opublikovano),
+              flush=True)
+        return None
+
+    return {"kurs": kurs, "data": opublikovano}
+
 
 FAYL_ISTORII = os.path.join(PAPKA, "istoriya_kesh.json")
+
+# Версия формата ряда. Поднимается, когда меняется СМЫСЛ точек, а не их
+# вид. Кеш, записанный старой версией, не читается — иначе правка, которая
+# чинит данные, не доедет до тех, у кого файл уже лежит на диске.
+#
+# 2 — точки датируются днём публикации ЦБ, а не днём запроса; выходные
+#     больше не дублируют пятницу.
+FORMAT_ISTORII = 2
+
+
+def _kesh_istorii():
+    """Ряд из кеша, если он нашего формата. Иначе None."""
+    try:
+        if not os.path.exists(FAYL_ISTORII):
+            return None
+        with open(FAYL_ISTORII, "r", encoding="utf-8") as f:
+            kesh = json.load(f)
+    except Exception:
+        return None
+
+    if kesh.get("format") != FORMAT_ISTORII:
+        return None
+    ryad = kesh.get("ryad") or []
+    if len(ryad) < 7:
+        return None
+    return kesh
 
 
 def istoriya_s_keshem(dney=30):
@@ -141,14 +213,9 @@ def istoriya_s_keshem(dney=30):
     """
     segodnya = datetime.now(timezone.utc).date().isoformat()
 
-    try:
-        if os.path.exists(FAYL_ISTORII):
-            with open(FAYL_ISTORII, "r", encoding="utf-8") as f:
-                kesh = json.load(f)
-            if kesh.get("sobrano") == segodnya and len(kesh.get("ryad") or []) >= 7:
-                return kesh["ryad"]
-    except Exception:
-        pass
+    kesh = _kesh_istorii()
+    if kesh and kesh.get("sobrano") == segodnya:
+        return kesh["ryad"]
 
     ryad = istoriya_cb(dney)
 
@@ -156,21 +223,16 @@ def istoriya_s_keshem(dney=30):
     # вчерашнему ряду честнее отсутствия вердикта: за сутки среднее
     # за месяц не меняется настолько, чтобы совет перевернулся.
     if len(ryad) < 7:
-        try:
-            if os.path.exists(FAYL_ISTORII):
-                with open(FAYL_ISTORII, "r", encoding="utf-8") as f:
-                    staryy = json.load(f).get("ryad") or []
-                if len(staryy) >= 7:
-                    print("[rates] история не собралась, беру вчерашнюю", flush=True)
-                    return staryy
-        except Exception:
-            pass
+        if kesh:
+            print("[rates] история не собралась, беру вчерашнюю", flush=True)
+            return kesh["ryad"]
         return ryad
 
     try:
         vremenny = FAYL_ISTORII + ".tmp"
         with open(vremenny, "w", encoding="utf-8") as f:
-            json.dump({"sobrano": segodnya, "ryad": ryad}, f, ensure_ascii=False)
+            json.dump({"sobrano": segodnya, "format": FORMAT_ISTORII,
+                       "ryad": ryad}, f, ensure_ascii=False)
         os.replace(vremenny, FAYL_ISTORII)
     except Exception as oshibka:
         print("[rates] кеш истории не записался:", repr(oshibka)[:120], flush=True)
@@ -186,19 +248,29 @@ def istoriya_cb(dney=30):
     лёгких запросов раз в сутки — для открытого API без ограничений это
     ничто, но делаем с паузой, чтобы не выглядеть перебором.
 
-    За выходные ЦБ отдаёт пятничный курс — он для этих дат официальный,
-    и это не дубль, а факт. Пропущенные даты не выдумываем ничем.
+    Ряд собирается ПО ДАТАМ ПУБЛИКАЦИИ, а не по дням календаря. За тридцать
+    дней это около двадцати одной точки: выходные и праздники ЦБ не
+    публикует и на такой запрос отдаёт последний рабочий курс.
+
+    Почему не оставить дубли. Раньше пятничный курс ложился в ряд трижды —
+    под пятницей, субботой и воскресеньем. Стоило это двух вещей. Первая:
+    дата у числа становилась чужой, и человек читал «курс на 16 августа»,
+    когда курс был за 14-е. Вторая, дороже: тренд считается по трём
+    последним точкам против трёх предыдущих, и в воскресенье «последние
+    три дня» оказывались одним днём, посчитанным трижды. От тренда зависит
+    совет ждать или не ждать — то есть чужие деньги.
     """
-    itog = []
+    po_publikacii = {}
     segodnya = datetime.now(timezone.utc).date()
     for shag in range(dney):
         den = (segodnya - timedelta(days=shag)).isoformat()
-        rub = kurs_valyuty("RUB", den)
-        if rub:
-            itog.append({"date": den, "rub_uzs": round(rub, 2)})
+        tochka = kurs_valyuty("RUB", den)
+        if tochka:
+            # Один и тот же день приходит несколько раз — значение то же,
+            # так что кто последний записал, неважно.
+            po_publikacii[tochka["data"]] = round(tochka["kurs"], 2)
         time.sleep(0.12)
-    itog.sort(key=lambda x: x["date"])
-    return itog
+    return [{"date": d, "rub_uzs": k} for d, k in sorted(po_publikacii.items())]
 
 
 # ── 2. bank.uz — курсы денежных переводов ────────────────────────────

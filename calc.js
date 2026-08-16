@@ -243,11 +243,38 @@ window.CALC = (function () {
 
   const PORAG_ZAMETNOSTI = 1.0;   // ниже — разница тонет в комиссии
   const PORAG_SILNYY = 3.0;       // выше — стоит менять планы
+
+  // КАЛЕНДАРНЫХ дней за «обычный курс», не публикаций. ЦБ печатает курс по
+  // рабочим дням, и за тридцать дней приходит около двадцати одной точки.
+  // Считать окно точками значит незаметно растянуть месяц до полутора.
   const OKNO_DNEY = 30;
+  const NEDELYA_DNEY = 7;
 
   function srednee(chisla) {
     if (!chisla.length) return null;
     return chisla.reduce(function (a, b) { return a + b; }, 0) / chisla.length;
+  }
+
+  /** Дата, начиная с которой точка попадает в окно длиной `dney`.
+   *  Окно включает сам последний день, поэтому шагаем на `dney - 1` назад.
+   *  Дату не разобрали — null, и вызывающий считает по точкам. */
+  function granica(posledniyDen, dney) {
+    const chasti = String(posledniyDen).slice(0, 10).split('-');
+    if (chasti.length !== 3) return null;
+    const d = new Date(Date.UTC(+chasti[0], +chasti[1] - 1, +chasti[2]));
+    if (isNaN(d.getTime())) return null;
+    d.setUTCDate(d.getUTCDate() - Math.max(dney - 1, 0));
+    return d.toISOString().slice(0, 10);
+  }
+
+  /** Точки за последние `dney` календарных дней. Ряд уже отсортирован. */
+  function oknoPoDatam(ryad, dney) {
+    if (!ryad.length) return [];
+    const ot = granica(ryad[ryad.length - 1].date, dney);
+    if (ot === null) return ryad.slice(-dney);
+    return ryad.filter(function (t) {
+      return String(t.date).slice(0, 10) >= ot;
+    });
   }
 
   /**
@@ -293,7 +320,9 @@ window.CALC = (function () {
     const kursy = ryad.map(function (x) { return x.rub_uzs; });
     const segodnya = kursy[kursy.length - 1];
 
-    const okno = kursy.slice(-OKNO_DNEY);
+    const okno = oknoPoDatam(ryad, OKNO_DNEY).map(function (x) {
+      return x.rub_uzs;
+    });
     const sred = srednee(okno);
     const minimum = Math.min.apply(null, okno);
     const maksimum = Math.max.apply(null, okno);
@@ -330,10 +359,20 @@ window.CALC = (function () {
     // Сдвиг за неделю. «Курс падает» — это направление, а «за неделю на 2%»
     // уже величина, по которой человек может решать. Одно без другого
     // не работает: направление без величины ни к чему не обязывает.
+    // Точка отсчёта — последняя публикация НЕ ПОЗЖЕ чем неделю назад.
+    // Не «восьмая с конца»: восьмая публикация назад это одиннадцать
+    // календарных дней, и строка «за неделю» описывала бы полторы.
     let nedelya = null;
-    if (kursy.length >= 8) {
-      const bylo = kursy[kursy.length - 8];
+    const nedelyuNazad = granica(ryad[ryad.length - 1].date, NEDELYA_DNEY + 1);
+    if (nedelyuNazad !== null) {
+      const rannie = ryad.filter(function (t) {
+        return String(t.date).slice(0, 10) <= nedelyuNazad;
+      });
+      const bylo = rannie.length ? rannie[rannie.length - 1].rub_uzs : null;
       if (bylo) nedelya = Math.round(((segodnya - bylo) / bylo) * 100 * 100) / 100;
+    } else if (kursy.length >= 8 && kursy[kursy.length - 8]) {
+      const zapasnoe = kursy[kursy.length - 8];
+      nedelya = Math.round(((segodnya - zapasnoe) / zapasnoe) * 100 * 100) / 100;
     }
 
     return {
@@ -357,7 +396,9 @@ window.CALC = (function () {
       // против обычного курса. Умножить на свою сумму умеет каждый,
       // а процент от абстрактного курса не чувствует никто.
       raznica_na_1000_rub: Math.round((segodnya - sred) * 1000),
-      ryad: ryad.slice(-OKNO_DNEY),
+      // График рисуется по тому же окну, что и среднее. Иначе линия
+      // показывала бы один период, а подпись под ней — другой.
+      ryad: oknoPoDatam(ryad, OKNO_DNEY),
     };
   }
 
