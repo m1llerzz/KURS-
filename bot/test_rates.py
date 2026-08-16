@@ -263,6 +263,51 @@ try:
     zapisano = s_podstavoy(kalendar,
                            lambda: rates.istoriya_s_keshem(4) and None)
     del zapisano
+
+    # ── Кеш уступает свежему курсу ЦБ ────────────────────────────────
+    #
+    # Сутки для кеша считаются по UTC, то есть новый день начинается в
+    # пять утра по Ташкенту, а ЦБ публикует курс ближе к десяти. Кеш
+    # успевал собраться ДО публикации и держал вчерашний ряд до
+    # следующего утра. Текущий курс при этом обновлялся раз в час и был
+    # свежим — на экране сегодняшний курс, а вердикт по ряду, который
+    # заканчивается вчера. Числа настоящие, даты честные, дни разные.
+
+    _segodnya_utc = _dt.datetime.now(_dt.timezone.utc).date().isoformat()
+    _ryad_vchera = [{"date": "2026-08-%02d" % d, "rub_uzs": 140.0 + d}
+                    for d in range(1, 12)]
+    _poslednyaya = _ryad_vchera[-1]["date"]
+
+    with open(_vremenny_kesh, "w", encoding="utf-8") as f:
+        json.dump({"sobrano": _segodnya_utc, "format": rates.FORMAT_ISTORII,
+                   "ryad": _ryad_vchera}, f)
+
+    # Курса новее нет — кеш берётся как есть, лишних запросов не делаем.
+    proverka("без нового курса кеш не пересобирается",
+             rates.istoriya_s_keshem(4) == _ryad_vchera)
+    proverka("курс той же даты кеш не сбрасывает",
+             rates.istoriya_s_keshem(4, _poslednyaya) == _ryad_vchera,
+             "иначе 720 запросов к чужому серверу в сутки")
+
+    # А вот курс новее последней точки обязан заставить пересобрать.
+    _pytalis = {"da": False}
+    _byl_sbor = rates.istoriya_cb
+
+    def _sbor_zasechkoy(dney=30):
+        _pytalis["da"] = True
+        return []                      # сеть «подвела» — вернётся кеш
+
+    rates.istoriya_cb = _sbor_zasechkoy
+    try:
+        _vernulos = rates.istoriya_s_keshem(4, "2026-08-20")
+        proverka("свежий курс ЦБ заставляет пересобрать историю",
+                 _pytalis["da"],
+                 "иначе весь день показываем вчерашний ряд при сегодняшнем курсе")
+        proverka("при неудаче пересборки остаётся прежний ряд",
+                 _vernulos == _ryad_vchera,
+                 "вчерашний ряд честнее пустого экрана")
+    finally:
+        rates.istoriya_cb = _byl_sbor
 finally:
     rates.FAYL_ISTORII = _bylo_fayl
     if os.path.exists(_vremenny_kesh):

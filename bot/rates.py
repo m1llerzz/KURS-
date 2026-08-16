@@ -199,7 +199,7 @@ def _kesh_istorii():
     return kesh
 
 
-def istoriya_s_keshem(dney=30):
+def istoriya_s_keshem(dney=30, data_kursa=None):
     """История с суточным кешем на диске.
 
     Зачем кеш. Курс ЦБ меняется раз в рабочий день, а снимок пересобирается
@@ -210,12 +210,28 @@ def istoriya_s_keshem(dney=30):
     Кеш живёт на диске рядом с ботом. На Render диск эфемерный, и после
     перезапуска история соберётся заново — это нормально: она нужна раз
     в сутки, а не постоянно.
+
+    `data_kursa` — дата свежего курса ЦБ (ISO). Если она новее последней
+    точки в кеше, кеш пересобирается независимо от календаря.
+
+    Зачем это понадобилось. Сутки считались по UTC, то есть новый день
+    для кеша начинался в пять утра по Ташкенту, а ЦБ публикует курс
+    ближе к десяти. Кеш успевал собраться ДО публикации и держал
+    вчерашний ряд до следующего утра. Текущий курс при этом обновлялся
+    раз в час и был свежим — то есть на экране стоял сегодняшний курс, а
+    вердикт считался по ряду, который заканчивается вчера. Числа
+    настоящие, даты честные, а сравниваются разные дни.
     """
     segodnya = datetime.now(timezone.utc).date().isoformat()
 
     kesh = _kesh_istorii()
     if kesh and kesh.get("sobrano") == segodnya:
-        return kesh["ryad"]
+        poslednyaya = max((str(t.get("date") or "") for t in kesh["ryad"]),
+                          default="")
+        if not (data_kursa and str(data_kursa) > poslednyaya):
+            return kesh["ryad"]
+        print("[rates] ЦБ опубликовал курс за %s, а в кеше только по %s — "
+              "пересобираю" % (data_kursa, poslednyaya), flush=True)
 
     ryad = istoriya_cb(dney)
 
@@ -454,7 +470,12 @@ def snimok(s_istoriey=True):
         "cbu": cb,
         "services": servisy,
         "banks": banki,
-        "history": istoriya_s_keshem(30) if s_istoriey else [],
+        # Дату свежего курса передаём внутрь: если ЦБ уже опубликовал
+        # сегодняшний, а в кеше только вчерашний ряд, кеш пересоберётся —
+        # иначе на экране стоял бы сегодняшний курс при вердикте,
+        # посчитанном по ряду, который заканчивается вчера.
+        "history": (istoriya_s_keshem(30, _data_v_iso((cb or {}).get("date")))
+                    if s_istoriey else []),
     }
 
 
