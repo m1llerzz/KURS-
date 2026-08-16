@@ -54,6 +54,7 @@
 здесь нет.
 """
 import re
+from datetime import datetime, timedelta, timezone
 
 # Telegram: имя команды — до 32 знаков, только строчные латинские буквы,
 # цифры и подчёркивание. Наши ключи (`post_den`, `kurs_osveshchen`,
@@ -74,6 +75,17 @@ ZNACHENIE_CHISTOE = re.compile(r"^[0-9A-Za-z_.:\-]{1,40}$")
 YAZYK_TAYNIKA = "af"
 
 DLINA_OPISANIYA = 512
+
+# Под этим ключом лежит день, когда запись в память проверялась последний
+# раз. Раз в сутки, не чаще: Render перезапускает сервис постоянно, и
+# проверка при каждом запуске превратилась бы в сотни обращений в день.
+# Реже нельзя: пост уходит раз в сутки, и узнать, что писать некуда,
+# продукт обязан ДО того, как это понадобится, а не по пустому каналу.
+KLUCH_ZHIVA = "pamyat_zhiva"
+
+
+def _den_tashkenta():
+    return (datetime.now(timezone.utc) + timedelta(hours=5)).strftime("%Y-%m-%d")
 
 
 def prigoden(kluch, znachenie):
@@ -200,25 +212,40 @@ class PamyatTelegrama(object):
     def podnyat(self):
         """Ищет рабочий способ хранения. Возвращает True, если нашёлся.
 
-        Только чтение: писать при каждом запуске нельзя. Render на
-        бесплатном тарифе перезапускает сервис постоянно, и запись «на
-        пробу» каждый раз — это сотни обращений в день там, где по делу
-        нужно два. Запись проверяется тогда, когда она случается по делу,
-        и до всякого действия наружу.
+        Читать умеет — половина дела. Вторая половина: писать. Проверяем
+        и её, но не чаще раза в сутки — Render на бесплатном тарифе
+        перезапускает сервис постоянно, и проверка при каждом запуске
+        стала бы сотнями обращений там, где по делу нужно два.
+
+        Раз в сутки — потому что пост уходит раз в сутки. Узнать, что
+        писать некуда, продукт обязан ДО того, как это понадобится, а не
+        завтра по пустому каналу.
         """
         prichiny = []
         for klass in SPOSOBY:
             sposob = klass(self.vyzov, self.kanal)
             if not sposob.dostupen():
                 continue
-            if sposob.prochitat() is not None:
-                self.sposob = sposob
-                self.pochemu = ""
-                print("[память] отметки о постах лежат у Telegram (%s) — "
-                      "канал может публиковать без DATABASE_URL" % sposob.imya,
-                      flush=True)
-                return True
-            prichiny.append("%s: %s" % (sposob.imya, sposob.pochemu))
+
+            lezhit = sposob.prochitat()
+            if lezhit is None:
+                prichiny.append("%s: %s" % (sposob.imya, sposob.pochemu))
+                continue
+
+            self.sposob = sposob
+            segodnya = _den_tashkenta()
+            if lezhit.get(KLUCH_ZHIVA) != segodnya:
+                if not self.zapisat(KLUCH_ZHIVA, segodnya):
+                    prichiny.append("%s: читать может, писать нет (%s)"
+                                    % (sposob.imya, self.pochemu))
+                    self.sposob = None
+                    continue
+
+            self.pochemu = ""
+            print("[память] отметки о постах лежат у Telegram (%s), чтение и "
+                  "запись проверены — канал может публиковать без "
+                  "DATABASE_URL" % sposob.imya, flush=True)
+            return True
 
         self.pochemu = "; ".join(prichiny) or "хранить негде"
         print("[память] запасной памяти нет, канал молчит — " + self.pochemu,

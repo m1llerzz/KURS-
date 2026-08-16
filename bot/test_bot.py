@@ -1471,6 +1471,7 @@ class _FeykTelegrama(object):
         self.zapis_slomana = False
         self.otdavat_staroe = None   # отдаёт это вместо записанного
         self.postov = 0
+        self.zapisey = 0
 
     def _kanal_li(self, telo):
         oblast = telo.get("scope") or {}
@@ -1498,6 +1499,7 @@ class _FeykTelegrama(object):
                         "description": "Bad Request: не сегодня"}
             self.komandy = {k["command"]: k["description"]
                             for k in (telo.get("commands") or [])}
+            self.zapisey += 1
             return {"ok": True, "result": True}
 
         if metod == "getMyDescription":
@@ -1514,6 +1516,7 @@ class _FeykTelegrama(object):
                 return {"ok": False, "error_code": 400,
                         "description": "Bad Request: не сегодня"}
             self.opisaniya[telo.get("language_code")] = telo.get("description")
+            self.zapisey += 1
             return {"ok": True, "result": True}
 
         if metod == "sendMessage":
@@ -1566,10 +1569,28 @@ for _kanalnye_komandy in (True, False):
              _posle.podnyat() and _posle.vse().get("post_den") == "2026-08-14",
              "ради этого всё и затевалось")
 
-proverka("подъём памяти ничего не записал",
-         not _tg.opisaniya.get(pamyat_kanala.YAZYK_TAYNIKA, "").startswith("proba"),
-         "запись при каждом запуске — это сотни обращений в день на "
-         "бесплатном Render, который перезапускается постоянно")
+# Запись проверяется боем — но раз в сутки, не при каждом запуске.
+# Render перезапускается постоянно, и проверка на каждом старте стала бы
+# сотнями обращений в день там, где по делу нужно два.
+_tg_schet = _FeykTelegrama()
+pamyat_kanala.PamyatTelegrama(_tg_schet.vyzov, "@kanal").podnyat()
+_posle_pervogo_podyoma = _tg_schet.zapisey
+proverka("при первом подъёме за сутки запись проверяется боем",
+         _posle_pervogo_podyoma == 1, str(_posle_pervogo_podyoma))
+
+for _ in range(5):
+    pamyat_kanala.PamyatTelegrama(_tg_schet.vyzov, "@kanal").podnyat()
+proverka("пять перезапусков подряд ничего не пишут",
+         _tg_schet.zapisey == _posle_pervogo_podyoma,
+         "записей стало %d — на бесплатном Render это сотни в день"
+         % _tg_schet.zapisey)
+
+# И обратное: читать может, а писать нет — это НЕ память.
+_tolko_chtenie = _FeykTelegrama()
+_tolko_chtenie.zapis_slomana = True
+_polovina = pamyat_kanala.PamyatTelegrama(_tolko_chtenie.vyzov, "@kanal")
+proverka("читает, но не пишет — памяти нет", not _polovina.podnyat(),
+         "иначе узнали бы об этом завтра по пустому каналу")
 
 # Когда команды канала не принимаются — переходим ко второму способу, а
 # не сдаёмся. Ровно это и случилось на боевом 17 августа.
@@ -1592,11 +1613,12 @@ proverka("причина отказа названа", bool(_net_pamyati.pochemu
          "молчащий канал без причины — поломка, о которой узнаёшь по "
          "пустой ленте через неделю")
 
+# Запись отвалилась уже после подъёма — отметка не считается поставленной.
 _slomannoe = _FeykTelegrama()
-_slomannoe.zapis_slomana = True
 _ne_pishet = pamyat_kanala.PamyatTelegrama(_slomannoe.vyzov, "@kanal")
 _ne_pishet.podnyat()
-proverka("не пишет — отметка не считается поставленной",
+_slomannoe.zapis_slomana = True
+proverka("перестал писать — отметка не считается поставленной",
          not _ne_pishet.zapisat("post_den", "2026-08-14"))
 
 # Самый тихий случай: пишет, отвечает «ок», а читается старое. Именно он

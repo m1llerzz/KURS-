@@ -173,7 +173,9 @@ def perenesti_otmetki(vyzov, kanal):
 
     perenesli = []
     for kluch, znachenie in sorted(bylo.items()):
-        if not znachenie:
+        # Отметка «память жива» служебная: она про запасное хранилище, а
+        # оно с появлением базы больше не используется.
+        if not znachenie or kluch == pamyat_kanala.KLUCH_ZHIVA:
             continue
         if sostoyanie(kluch) is not None:
             continue
