@@ -62,29 +62,32 @@ window.SERVICES = [
     "limit_per_operation": 1000000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T16:46:48+00:00",
+    "checked_at": "2026-08-16T17:22:25+00:00",
     "verified_by_receipt": false,
     "fee_unknown": true,
     "nacenka_percent": 4.06
   },
   {
-    "url": "https://avosend.com/",
     "id": "avosend",
     "name": "Avosend",
     "route": "A",
     "corridors": [
       "RU-UZ"
     ],
-    "fee_fixed": 0,
+    "fee_fixed": 29,
     "fee_percent": 0,
     "rate_rub_uzs": 136.0,
-    "limit_per_operation": 1000000,
+    "limit_per_operation": 200000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-16T16:46:48+00:00",
+    "checked_at": "2026-08-16T17:22:25+00:00",
     "verified_by_receipt": false,
-    "fee_unknown": true,
-    "nacenka_percent": 4.06
+    "fee_unknown": false,
+    "nacenka_percent": 4.06,
+    "url": "https://avosend.com/",
+    "limit_v_sutki": 380000,
+    "limit_v_mesyac": 1500000,
+    "istochnik_uslovij": "avosend.com, 16.08.2026"
   }
 ];
 

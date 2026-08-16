@@ -553,16 +553,38 @@ function dozhdatsya() {
     'данные настоящие, пометка врала бы');
   proverka('три шага спрятались после расчёта', !vidno(w, 'idle'));
 
+  /* Плашка показывает одно из двух — и это зависит от данных, а не от
+   * нашей памяти.
+   *
+   * Если между способами есть разница, показывается она. Если способы
+   * дают одинаково (так было, пока мы не знали комиссий), показывается
+   * потеря на курсе против официального. Обе ветки правильные, и
+   * проверка обязана понимать обе: она сломалась ровно в тот день,
+   * когда мы узнали комиссию Avosend и разница появилась.
+   *
+   * Проверяем не ветку, а СООТВЕТСТВИЕ подписи числу. */
   proverka('плашка потери показана', vidno(w, 'loss'),
-    'курсы сервисов совпали, но потеря к официальному курсу осталась');
+    'потеря есть всегда: либо между способами, либо к официальному курсу');
   proverka('в плашке есть число', /\d{3}/.test(tekst(w, 'lossNum')), tekst(w, 'lossNum'));
-  proverka('рядом с суммой стоит процент', /%/.test(tekst(w, 'lossNum')),
-    tekst(w, 'lossNum') + ' — без процента непонятно, много это или мало');
-  proverka('процент похож на наценку сервиса',
-    /4[,.]\d\s*%/.test(tekst(w, 'lossNum')), tekst(w, 'lossNum'));
-  proverka('подпись плашки соответствует числу',
-    /курс|kurs/i.test(tekst(w, 'lossT')) && !/между способами|usullar/i.test(tekst(w, 'lossT')),
-    tekst(w, 'lossT') + ' — здесь показана потеря на курсе, а не разница между способами');
+
+  const podpisPlashki = tekst(w, 'lossT');
+  const proMezhduSposobami = /между способами|usullar orasidagi/i.test(podpisPlashki);
+  const raznicaSposobov = kartochki.length > 1
+    ? summaIzTeksta(kartochki[0].textContent) - summaIzTeksta(kartochki[1].textContent)
+    : 0;
+
+  if (proMezhduSposobami) {
+    proverka('подпись «между способами» стоит при реальной разнице',
+      raznicaSposobov > 0,
+      'способы дают одинаково, а подпись обещает разницу: ' + podpisPlashki);
+  } else {
+    proverka('подпись про курс стоит, когда способы равны',
+      raznicaSposobov === 0 && /курс|kurs/i.test(podpisPlashki),
+      podpisPlashki + ' — разница способов ' + raznicaSposobov);
+    // Процент нужен только у потери на курсе: там он крупный и осмысленный.
+    proverka('у потери на курсе показан процент', /%/.test(tekst(w, 'lossNum')),
+      tekst(w, 'lossNum') + ' — без процента непонятно, много это или мало');
+  }
 
   const polosy = w.document.querySelectorAll('#results .card .bar i');
   proverka('у каждой карточки есть полоса', polosy.length === kartochki.length,
@@ -570,9 +592,20 @@ function dozhdatsya() {
   proverka('полосы имеют ширину',
     Array.prototype.every.call(polosy, function (p) { return /%$/.test(p.style.width); }),
     Array.prototype.map.call(polosy, function (p) { return p.style.width; }).join(', '));
-  proverka('одинаковый итог даёт одинаковые полосы',
-    polosy.length === 2 && polosy[0].style.width === polosy[1].style.width,
-    'курс у сервисов совпадает — и это тоже правда, которую видно');
+  /* Полосы следуют за итогами: равные итоги — равные полосы, больший
+   * итог — полоса не короче. Раньше здесь стояло «полосы одинаковы»,
+   * потому что оба сервиса давали одно и то же; появилась комиссия —
+   * появилась и разница, а проверка осталась в прошлом дне. */
+  const shiriny = Array.prototype.map.call(polosy, function (p) {
+    return parseFloat(p.style.width) || 0;
+  });
+  proverka('полоса лучшего способа не короче остальных',
+    shiriny.length < 2 || shiriny[0] >= shiriny[1],
+    shiriny.join('% / ') + '% — сверху тот, где придёт больше');
+  proverka('равные итоги дают равные полосы',
+    raznicaSposobov !== 0 || shiriny.length < 2
+      || Math.abs(shiriny[0] - shiriny[1]) < 0.01,
+    'итоги равны, а полосы разной длины: ' + shiriny.join('% / ') + '%');
 
   /* ── Куда уходят деньги ────────────────────────────────────────── */
 
