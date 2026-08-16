@@ -567,6 +567,25 @@ function dozhdatsya() {
   proverka('канонический адрес указан',
     !!kd.querySelector('link[rel="canonical"]'));
 
+  /* Картинка карточки. Ссылка на приложение уходит в каждой пересылке, а
+   * пересылка — единственный бесплатный источник роста, который у нас
+   * есть. Карточка без картинки выглядит в чате бледной строкой, и её
+   * пролистывают, не прочитав. */
+  ['index.html', 'kurs.html'].forEach(function (imya) {
+    const dom = new JSDOM(fs.readFileSync(path.join(KORNI, imya), 'utf8'));
+    const kartinka = dom.window.document.querySelector('meta[property="og:image"]');
+    proverka('у ' + imya + ' есть картинка карточки', !!kartinka,
+      'без неё ссылка в чате читается как обычный текст');
+    if (kartinka) {
+      const adres = kartinka.getAttribute('content');
+      proverka('адрес картинки ' + imya + ' абсолютный',
+        /^https:\/\//.test(adres), adres + ' — относительный адрес соцсети не примут');
+      proverka('картинка карточки ' + imya + ' лежит на месте',
+        fs.existsSync(path.join(KORNI, adres.split('/').pop())),
+        adres + ' — файла нет, карточка будет пустой');
+    }
+  });
+
   // Оба языка обязательны — это решение проекта, и страница поиска
   // ловит запросы обоих: «курс рубля к суму» и «rubl kursi bugun».
   proverka('на странице оба языка',
