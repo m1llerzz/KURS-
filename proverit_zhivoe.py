@@ -232,20 +232,41 @@ if kod == 200 and telo.startswith("{"):
     # я только что залил»: на бесплатном тарифе заливка доезжает не
     # мгновенно, и зелёный прогон по старому коду успокаивает зря.
     if s.get("kod"):
-        try:
-            svoy = subprocess.check_output(
-                ["git", "rev-parse", "--short=7", "HEAD"],
-                cwd=os.path.dirname(os.path.abspath(__file__)),
-                stderr=subprocess.DEVNULL).decode().strip()
-        except Exception:
-            svoy = ""
-        if svoy and svoy != s["kod"]:
-            preduprezhdenie(
-                "на боевом другой код: там %s, у меня %s" % (s["kod"], svoy),
-                "заливка ещё не доехала или не пошла — проверено НЕ то, "
-                "что лежит в рабочей копии")
-        elif svoy:
+        KORENA = os.path.dirname(os.path.abspath(__file__))
+
+        def _git(*args):
+            try:
+                return subprocess.check_output(
+                    ("git",) + args, cwd=KORENA,
+                    stderr=subprocess.DEVNULL).decode().strip()
+            except Exception:
+                return None
+
+        svoy = _git("rev-parse", "--short=7", "HEAD")
+        if svoy and svoy == s["kod"]:
             proverka("на боевом тот же код, что у меня (%s)" % svoy, True)
+        elif svoy:
+            # Сравниваем не коммиты, а ФАЙЛЫ БОТА. Приложение и страница
+            # поиска лежат на GitHub Pages и заливаются тем же push, но
+            # Render на них не перезапускается — и правильно делает.
+            # Проверка, кричащая после каждой правки картинки, приучает
+            # пролистывать жёлтое, а вместе с ним и настоящие поломки.
+            izmenilos = _git("diff", "--name-only", s["kod"] + "..HEAD",
+                             "--", "bot")
+            if izmenilos is None:
+                preduprezhdenie(
+                    "на боевом код %s, а такого коммита у меня нет"
+                    % s["kod"], "проверено НЕ то, что лежит в рабочей копии")
+            elif izmenilos:
+                preduprezhdenie(
+                    "БОТ НА БОЕВОМ СТАРЫЙ: там %s, у меня %s"
+                    % (s["kod"], svoy),
+                    "изменены " + ", ".join(sorted(
+                        set(izmenilos.split("\n"))))[:160]
+                    + " — заливка не доехала или не пошла")
+            else:
+                proverka("бот на боевом свежий (%s; дальше менялось только "
+                         "приложение)" % s["kod"], True)
 
     if "podrobnosti" in s:
         # Без ключа сказать «событий нет» нельзя: мы их просто не видим.

@@ -1804,6 +1804,23 @@ def opublikovat_ryvok():
     return _opublikovat("ryvok")
 
 
+def _segodnya_v_tashkente(teper=None):
+    """Сегодняшняя дата по Ташкенту, без времени.
+
+    Возраст страницы и обложки считается ОТ НЕЁ, а не от UTC. Даты на
+    них ставит сборщик по дате курса — то есть по Ташкенту, — и с семи
+    вечера по UTC там уже завтра. Считая от UTC, мы получали возраст
+    «минус один день» и красное на совершенно исправной странице пять
+    часов в сутки. Тот же класс, что и «день продукта считается по UTC»:
+    сравнивать надо в одних часах, а не в двух разных.
+
+    `teper` можно задать — иначе проверить это можно было бы только в те
+    пять часов в сутки, когда ошибка и проявлялась.
+    """
+    teper = (teper or datetime.now(timezone.utc)) + timedelta(hours=5)
+    return datetime(teper.year, teper.month, teper.day, tzinfo=timezone.utc)
+
+
 def svezhest_stranicy_poiska():
     """Сколько дней числам на странице под поиск. None — не удалось узнать.
 
@@ -1837,7 +1854,7 @@ def svezhest_stranicy_poiska():
     except (ValueError, IndexError):
         return None
 
-    return (datetime.now(timezone.utc) - byla).days
+    return (_segodnya_v_tashkente() - byla).days
 
 
 def vozrast_oblozhki_dney():
@@ -1871,7 +1888,7 @@ def vozrast_oblozhki_dney():
     except ValueError:
         return None
 
-    return (datetime.now(timezone.utc) - byla).days
+    return (_segodnya_v_tashkente() - byla).days
 
 
 def svodka_dlya_svoih():
