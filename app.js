@@ -232,12 +232,30 @@
   };
 
   function dataSlovom(iso, lang) {
-    const chasti = String(iso || '').slice(0, 10).split('-');
-    if (chasti.length !== 3) return String(iso || '');
+    const stroka = String(iso || '').trim();
+
+    /* Форматов два, и оба приходят в одном ответе.
+     *
+     * ЦБ Узбекистана отдаёт «14.08.2026», а история и вердикт считаются
+     * в «2026-08-14». Понимать надо оба: разбирать только один — значит
+     * однажды показать человеку сырую строку вместо даты и не заметить
+     * этого, потому что она всё-таки похожа на дату. */
+    let den, mesyac;
+    let najdeno = stroka.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (najdeno) {
+      den = parseInt(najdeno[3], 10);
+      mesyac = parseInt(najdeno[2], 10);
+    } else {
+      najdeno = stroka.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+      if (!najdeno) return stroka;
+      den = parseInt(najdeno[1], 10);
+      mesyac = parseInt(najdeno[2], 10);
+    }
+
     const spisok = MESYACY[lang] || MESYACY[window.I18N.get()] || MESYACY.ru;
-    const mesyac = spisok[parseInt(chasti[1], 10) - 1];
-    if (!mesyac) return String(iso);
-    return parseInt(chasti[2], 10) + ' ' + mesyac;
+    const nazvanie = spisok[mesyac - 1];
+    if (!nazvanie || !den) return stroka;
+    return den + ' ' + nazvanie;
   }
 
   /**
@@ -919,7 +937,7 @@
     if (!el.srcUpd) return;
     const kogda = (posledniyKurs && posledniyKurs.date)
       || (window.KURSY_ZAPAS && window.KURSY_ZAPAS.date);
-    el.srcUpd.textContent = t('src.upd', { d: kogda || '—' });
+    el.srcUpd.textContent = t('src.upd', { d: kogda ? dataSlovom(kogda) : '—' });
   }
 
   /* ── Язык ────────────────────────────────────────────────── */

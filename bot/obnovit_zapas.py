@@ -243,7 +243,13 @@ def main():
 
     cb = snimok["cbu"]
     tekst = _zamenit_blok(tekst, "KURSY_ZAPAS", json.dumps(
-        {"usd_uzs": cb["usd_uzs"], "rub_uzs": cb["rub_uzs"], "zapas": True},
+        {"usd_uzs": cb["usd_uzs"], "rub_uzs": cb["rub_uzs"],
+         # Дата обязательна. Запас показывается человеку, когда бот спит,
+         # и без даты это цифра без даты — ровно то, что правило проекта
+         # запрещает. Раньше её здесь не было, и приложение в такие
+         # минуты честно рисовало прочерк вместо дня.
+         "date": cb.get("date") or (istoriya[-1]["date"] if istoriya else None),
+         "zapas": True},
         ensure_ascii=False))
 
     # История — по две точки в строке, чтобы файл читался глазами.

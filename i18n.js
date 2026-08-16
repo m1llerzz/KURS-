@@ -125,7 +125,12 @@ window.I18N = (function () {
       'src.t':           'Raqamlar qayerdan',
       'src.cb':          'Rasmiy kurs — O‘zbekiston Markaziy bankining ochiq API si',
       'src.svc':         'O‘tkazma kurslari — bank.uz, pul o‘tkazmalari sahifasi',
-      'src.upd':         'Har soatda yangilanadi. Oxirgi marta: {d}',
+      // Ikki xil narsani chalkashtirmaslik kerak: MA'LUMOT har soatda
+      // yig‘iladi, KURS esa Markaziy bank e'lon qilgan kunga tegishli.
+      // Ilgari bu yerda «har soatda yangilanadi, oxirgi marta 14.08» deb
+      // yozilgan edi — ya'ni «ikki kundan beri yangilanmagan» degandek
+      // o‘qilardi, holbuki hammasi joyida edi.
+      'src.upd':         'Har soatda yig‘amiz. Markaziy bank kursi — {d} holatiga',
       'src.no':          'Biz pul o‘tkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz.',
 
       // ── Servis kursi rasmiy kursga nisbatan ──────────────────────
@@ -276,7 +281,11 @@ window.I18N = (function () {
       'src.t':           'Откуда цифры',
       'src.cb':          'Официальный курс — открытый API Центрального банка Узбекистана',
       'src.svc':         'Курсы переводов — bank.uz, страница денежных переводов',
-      'src.upd':         'Обновляется каждый час. Последний раз: {d}',
+      // Здесь смешивались две разные вещи: ДАННЫЕ собираются каждый час,
+      // а КУРС относится к тому дню, когда его опубликовал ЦБ. Стояло
+      // «обновляется каждый час, последний раз 14.08» — и это читалось
+      // как «два дня не обновлялось», хотя всё работало исправно.
+      'src.upd':         'Собираем каждый час. Курс ЦБ — на {d}',
       'src.no':          'Мы не переводим и не принимаем деньги. Только считаем.',
 
       // ── Курс сервиса против официального ─────────────────────────
