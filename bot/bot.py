@@ -210,6 +210,7 @@ TEKSTY = {
         "privet_bez_kursa": "Summani kiriting — kartaga qancha yetib borishini aytaman.",
         "knopka": "Hisoblash",
         "knopka_kurs": "Bugungi kurs",
+        "knopka_kanal": "Kanal — har kuni kurs",
         "podpiska_predlozhenie": (
             "Kurs yaxshilanganda sizga xabar berayinmi?\n\n"
             "Faqat kurs odatdagidan yaxshi bo‘lganda yozaman — ya’ni "
@@ -291,6 +292,7 @@ TEKSTY = {
         "privet_bez_kursa": "Введите сумму — скажу, сколько дойдёт до карты.",
         "knopka": "Посчитать",
         "knopka_kurs": "Курс сегодня",
+        "knopka_kanal": "Канал — курс каждый день",
         "podpiska_predlozhenie": (
             "Написать, когда курс станет лучше?\n\n"
             "Пишу только когда курс выше обычного — то есть когда моё молчание "
@@ -450,10 +452,20 @@ def privetstvie(chat_id, lang):
     else:
         stroka = t["privet_bez_kursa"]
 
-    poslat(chat_id, t["privet"].format(stroka_kursa=stroka), [
+    knopki = [
         [{"text": t["knopka"], "web_app": {"url": PRILOZHENIE}}],
         [{"text": t["knopka_kurs"], "callback_data": "kurs"}],
-    ])
+    ]
+
+    # Канал — второй путь возврата, и он мягче подписки: на канал
+    # подписываются охотнее, потому что он не пишет лично. Кнопкой в том
+    # же сообщении, а не отдельным — правило про два сообщения подряд
+    # никуда не делось.
+    kanal = ssylka_na_kanal()
+    if kanal:
+        knopki.append([{"text": t["knopka_kanal"], "url": kanal}])
+
+    poslat(chat_id, t["privet"].format(stroka_kursa=stroka), knopki)
 
 
 def predlozhit_podpisku(chat_id, lang):
@@ -766,7 +778,14 @@ def obrabotat_nazhatie(nazhatie):
             zhdyom_summu.add(chat_id)
             poslat(chat_id, TEKSTY[lang]["podpisan"], html=False)
         else:
-            poslat(chat_id, TEKSTY[lang]["otpisan"], html=False)
+            # Отказался от личных сообщений — предлагаем канал, но только
+            # кнопкой в том же ответе. Человек отказал нам в праве писать
+            # ему лично; канал этого права не требует, и потому это не
+            # обход отказа, а уважение к нему. Второго сообщения нет.
+            kanal = ssylka_na_kanal()
+            poslat(chat_id, TEKSTY[lang]["otpisan"],
+                   [[{"text": TEKSTY[lang]["knopka_kanal"], "url": kanal}]]
+                   if kanal else None, html=False)
         hranilishche.sobytie(chat_id, "podpiska", {"vkl": hochet})
         return
 

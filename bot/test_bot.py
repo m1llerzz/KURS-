@@ -640,6 +640,73 @@ proverka("рост назван ростом",
          "ko‘tarildi" in _tekst_rosta and "вырос" in _tekst_rosta)
 
 
+# ── Ссылка на канал: строится из CHANNEL_ID ──────────────────────────
+#
+# Адрес канала едет и в приложение, и в кнопки бота. Строить его можно
+# только из имени вида @kanal: числовой id публичного адреса не даёт, и
+# выдумывать его нельзя — вышла бы битая ссылка, что хуже её отсутствия.
+
+_byl_kanal = os.environ.get("CHANNEL_ID")
+try:
+    os.environ["CHANNEL_ID"] = "@rublkursi"
+    proverka("ссылка на канал строится из имени",
+             bot.ssylka_na_kanal() == "https://t.me/rublkursi",
+             bot.ssylka_na_kanal())
+
+    os.environ["CHANNEL_ID"] = "-1001234567890"
+    proverka("из числового id ссылку не выдумываем",
+             bot.ssylka_na_kanal() == "",
+             "публичного адреса у числового id нет, вышла бы битая ссылка")
+
+    os.environ["CHANNEL_ID"] = "@плохое имя"
+    proverka("кривое имя канала отвергается", bot.ssylka_na_kanal() == "",
+             bot.ssylka_na_kanal())
+
+    os.environ.pop("CHANNEL_ID", None)
+    proverka("без канала ссылки нет", bot.ssylka_na_kanal() == "")
+
+    # Кнопка канала появляется сама, когда канал заведён. Отдельным
+    # сообщением его слать нельзя — два подряд читаются как спам.
+    poslannye_knopki = []
+
+    def _perehvat(metod, telo=None):
+        if metod == "sendMessage":
+            poslannye_knopki.append(telo or {})
+        return {"ok": True, "result": {}}
+
+    _byl_vyzov = bot.vyzov
+    bot.vyzov = _perehvat
+    try:
+        poslannye_knopki.clear()
+        bot.privetstvie(1, "ru")
+        proverka("приветствие — одно сообщение", len(poslannye_knopki) == 1,
+                 "два подряд читаются как спам")
+        _knopki = (poslannye_knopki[0].get("reply_markup") or {}).get(
+            "inline_keyboard", [])
+        proverka("без канала кнопки канала нет",
+                 not any("t.me" in (k.get("url") or "")
+                         for ryad in _knopki for k in ryad))
+
+        os.environ["CHANNEL_ID"] = "@rublkursi"
+        poslannye_knopki.clear()
+        bot.privetstvie(1, "ru")
+        _knopki = (poslannye_knopki[0].get("reply_markup") or {}).get(
+            "inline_keyboard", [])
+        proverka("канал заведён — кнопка появилась сама",
+                 any("t.me/rublkursi" in (k.get("url") or "")
+                     for ryad in _knopki for k in ryad),
+                 "вписывать её руками никто не должен")
+        proverka("приветствие всё ещё одно сообщение",
+                 len(poslannye_knopki) == 1)
+    finally:
+        bot.vyzov = _byl_vyzov
+finally:
+    if _byl_kanal is None:
+        os.environ.pop("CHANNEL_ID", None)
+    else:
+        os.environ["CHANNEL_ID"] = _byl_kanal
+
+
 # ── Разбивка «откуда пришли» ─────────────────────────────────────────
 #
 # Денег на рекламу нет, значит каждый человек пришёл из какого-то одного
