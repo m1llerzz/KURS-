@@ -1441,6 +1441,78 @@ proverka("заданное не попадает в список пропуще�
 proverka("незаданное остаётся в списке", "CHANNEL_ID" in _chastichno)
 
 
+# ── Свои выводятся из администраторов канала ─────────────────────────
+#
+# Узкое место продукта — не код, а пять минут человека, у которого их
+# нет: SVOI и ADMIN_CHAT_ID стоят незаданными вторые сутки, и вместе с
+# ними стоят служебные команды и еженедельная сводка. Кто здесь свой,
+# Telegram знает и так: свои — те, кого Семён сам назначил
+# администраторами канала.
+
+_byl_vyzov_admin = bot.vyzov
+_byl_kanal_admin = os.environ.get("CHANNEL_ID")
+_byl_svoi = os.environ.get("SVOI")
+_byl_admin_id = os.environ.get("ADMIN_CHAT_ID")
+try:
+    os.environ["CHANNEL_ID"] = "@testovyy_kanal"
+    os.environ.pop("SVOI", None)
+    os.environ.pop("ADMIN_CHAT_ID", None)
+
+    _sprosheno = [0]
+
+    def _admin_kanala(metod, telo=None, popytok=2):
+        if metod == "getChatAdministrators":
+            _sprosheno[0] += 1
+            return {"ok": True, "result": [
+                {"status": "creator", "user": {"id": 111, "is_bot": False}},
+                {"status": "administrator", "user": {"id": 222, "is_bot": False}},
+                {"status": "administrator", "user": {"id": 999, "is_bot": True}},
+            ]}
+        return {"ok": True, "result": True}
+
+    bot.vyzov = _admin_kanala
+    bot._admin_kanala.update({"kogda": 0.0, "sozdatel": "", "vse": set()})
+
+    proverka("создатель канала — свой", bot.svoi(111))
+    proverka("администратор канала — свой", bot.svoi(222))
+    proverka("бот-администратор своим не считается", not bot.svoi(999),
+             "он в списке админов всегда, и разговаривать с собой некому")
+    proverka("посторонний своим не стал", not bot.svoi(333),
+             "для него служебной команды не существует вовсе")
+
+    proverka("сводка идёт СОЗДАТЕЛЮ, а не любому админу",
+             bot.upravlyayut_kanalom()[0] == "111",
+             "в сводке карта посева, собранная неделями и руками")
+
+    proverka("список админов спрошен один раз, а не на каждое сообщение",
+             _sprosheno[0] == 1, "спрошено раз: %d" % _sprosheno[0])
+
+    # Сбой сети не должен выключать служебные команды на час.
+    bot._admin_kanala.update({"kogda": 0.0, "sozdatel": "", "vse": set()})
+    bot.vyzov = lambda metod, telo=None, popytok=2: None
+    bot.upravlyayut_kanalom()
+    _kogda_posle_sboya = bot._admin_kanala["kogda"]
+    bot.vyzov = _admin_kanala
+    proverka("после сбоя спросим снова через минуту, а не через час",
+             __import__("time").time() - _kogda_posle_sboya > 3000,
+             "иначе один сбой сети выключил бы служебные команды на час")
+
+    # Заданное сильнее выведенного — на случай своего человека, который
+    # каналом не управляет.
+    os.environ["SVOI"] = "444"
+    proverka("заданный в SVOI свой остаётся своим", bot.svoi(444))
+finally:
+    bot.vyzov = _byl_vyzov_admin
+    bot._admin_kanala.update({"kogda": 0.0, "sozdatel": "", "vse": set()})
+    for _imya, _znach in (("CHANNEL_ID", _byl_kanal_admin),
+                          ("SVOI", _byl_svoi),
+                          ("ADMIN_CHAT_ID", _byl_admin_id)):
+        if _znach is None:
+            os.environ.pop(_imya, None)
+        else:
+            os.environ[_imya] = _znach
+
+
 # ── Запасная память у Telegram ───────────────────────────────────────
 #
 # Здесь проверяется единственное, ради чего она есть: канал публикует без
