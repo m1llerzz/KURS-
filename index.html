@@ -43,13 +43,26 @@
        различать «ты ошибся» и «сегодня невыгодно». Янтарный читается
        как «притормози» и не кричит. */
     --warn:    #b8791f;
+
+    /* Радиусы тремя ступенями, а не одним значением на всё. Одинаковый
+       радиус у главного экрана и у служебной подписи — первый признак
+       шаблона: материал перестаёт различаться, и глазу не за что зацепиться. */
+    --r-hero: 20px;
+    --r-mid:  14px;
+    --r-min:  10px;
+
+    /* Тени со смещением и мягким размытием. Ореол без смещения — не
+       глубина, а подсветка: он одинаков со всех сторон и потому ничего
+       не говорит о том, что выше чего лежит. */
+    --ten-mid:  0 1px 2px rgba(0,0,0,.05), 0 10px 24px -18px rgba(0,0,0,.45);
+    --ten-hero: 0 2px 3px rgba(0,0,0,.05), 0 22px 44px -26px rgba(0,0,0,.55);
   }
 
   * { box-sizing: border-box; }
 
   body {
     margin: 0;
-    padding: 14px 14px 32px;
+    padding: 14px 14px 34px;
     background: var(--bg);
     color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -61,14 +74,18 @@
 
   /* Фон — свечение акцентом сверху, отдельным слоем под содержимым.
      Псевдоэлемент, а не background: так он одинаково ложится и на светлую,
-     и на тёмную тему Telegram. Ничего не перехватывает по нажатиям. */
+     и на тёмную тему Telegram. Ничего не перехватывает по нажатиям.
+
+     Приглушено с .16 до .10 и подрезано снизу: теперь это подложка под
+     вердикт, а не самостоятельный цветной блок. Прежнее свечение спорило
+     с карточкой за то же место и делало верх экрана мутным. */
   body::before {
     content: '';
     position: fixed;
     top: 0; left: 0; right: 0;
-    height: 260px;
-    background: linear-gradient(180deg, var(--accent), transparent);
-    opacity: .16;
+    height: 220px;
+    background: linear-gradient(180deg, var(--accent) 0%, transparent 78%);
+    opacity: .10;
     pointer-events: none;
     z-index: 0;
   }
@@ -76,19 +93,24 @@
 
   .wrap { display: flex; flex-direction: column; gap: 13px; max-width: 480px; margin: 0 auto; }
 
+  /* Служебные подписи. Мельче и разрежённее прежнего: подпись обязана
+     читаться как подпись с одного взгляда, а не соревноваться со
+     значением, которое она называет. */
   .lbl {
-    font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+    font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
     color: var(--muted); font-weight: 700;
   }
 
   .field {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 10px 13px; display: flex; flex-direction: column; gap: 2px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-mid);
+    padding: 11px 14px; display: flex; flex-direction: column; gap: 2px;
+    transition: border-color .18s ease, box-shadow .18s ease;
   }
   .field input, .field select {
     background: transparent; border: none; color: var(--ink);
-    font-family: inherit; font-size: 21px; font-weight: 700; width: 100%;
-    padding: 0; font-variant-numeric: tabular-nums;
+    font-family: inherit; font-size: 24px; font-weight: 800; width: 100%;
+    padding: 0; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
   }
   /* Раскрытый список рисует система, и фон у него свой — почти всегда белый.
      Цвет текста наследуется от темы, поэтому в тёмной теме пункты
@@ -96,17 +118,33 @@
   .field select option { background: var(--bg); color: var(--ink); }
   .field select { font-size: 16px; font-weight: 600; }
   .field input:focus, .field select:focus { outline: none; }
-  .field:focus-within { border-color: var(--accent); }
+  /* Фокус виден кольцом, а не сменой цвета рамки на волосок: поле ввода
+     суммы — единственное место, где человек что-то печатает, и он должен
+     видеть, куда попадёт нажатие, не приглядываясь. */
+  .field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+  }
   .field .hint { font-size: 12px; color: var(--muted); }
 
   button {
     font-family: inherit; font-size: 15px; font-weight: 700;
-    border: none; border-radius: 12px; padding: 14px; width: 100%; cursor: pointer;
+    border: none; border-radius: var(--r-mid); padding: 15px; width: 100%; cursor: pointer;
     background: var(--accent); color: var(--accent-ink);
+    letter-spacing: -.005em;
+    box-shadow: var(--ten-mid);
+    transition: transform .12s ease, box-shadow .18s ease, opacity .18s ease;
   }
+  /* Нажатие обязано ощущаться. На телефоне у кнопки нет наведения — если
+     она никак не отвечает на палец, человек нажимает второй раз. */
+  button:active { transform: translateY(1px) scale(.994); }
   /* Текст красим в --ink, а не в --accent: в тёмных темах Telegram цвет
      кнопки бывает почти чёрным, и надпись на прозрачном фоне пропадает. */
-  button.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--accent); }
+  button.ghost {
+    background: transparent; color: var(--ink);
+    border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    box-shadow: none;
+  }
   button:disabled { opacity: .45; cursor: not-allowed; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -114,11 +152,34 @@
      Первый экран продукта и его главная ценность. За месяц курс рубля
      прошёл 9,5% — это больше денег, чем выбор сервиса и банка вместе.
      Поэтому цифра дня стоит выше формы, а не под ней. */
+  /* Вердикт — не карточка, а панель. Разница не в словах: у карточки
+     тот же материал, что у соседей, и она встаёт с ними в один ряд. Здесь
+     же должен быть виден слой выше остальных — иначе главный экран
+     продукта неотличим от служебной плашки под ним.
+
+     Отсюда: свой радиус, своя тень со смещением, свой ритм внутри и
+     график, доходящий до самых краёв. `overflow: hidden` держит края
+     графика и нижней полосы совета внутри скругления. */
   .verdict {
-    border-radius: 14px; padding: 15px 16px 13px;
-    display: flex; flex-direction: column; gap: 9px;
-    background: color-mix(in srgb, var(--tone) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent);
+    position: relative;
+    border-radius: var(--r-hero);
+    padding: 17px 17px 0;
+    display: flex; flex-direction: column; gap: 8px;
+    /* Подложка почти нейтральная — тон в ней едва слышен.
+       Сначала здесь была заливка тоном в 10%, и на светлой теме янтарный
+       «плохой курс» превращал всю панель в бежевое пятно. Цвет в этом
+       продукте — это оценка, а не обои: он принадлежит числу, значку,
+       линии и полосе совета. Стоит покрасить им фон — и оценка перестаёт
+       читаться, потому что красится всё сразу.
+
+       Плоская подложка первой строкой: если браузер не знает color-mix
+       (старые webview на дешёвых телефонах — ровно наша аудитория),
+       панель осталась бы совсем без фона. */
+    background: var(--surface);
+    background: color-mix(in srgb, var(--tone) 4%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--tone) 22%, var(--line));
+    box-shadow: var(--ten-hero);
+    overflow: hidden;
     --tone: var(--muted);
   }
   .verdict.good { --tone: var(--accent); }
@@ -128,107 +189,209 @@
      тем, кто листает быстро и текст не читает вовсе. */
   .verdict .vtop { display: flex; align-items: flex-start; gap: 10px; }
   .verdict .vh {
-    font-size: 16.5px; font-weight: 800; line-height: 1.3;
-    letter-spacing: -.01em; flex: 1;
+    font-size: 15px; font-weight: 700; line-height: 1.3;
+    letter-spacing: .005em; flex: 1;
+    /* Заголовок ушёл на ступень вниз, курс — на две вверх. Раньше они
+       стояли почти вровень (16,5 против 32) и делили внимание; теперь
+       очередь чтения задана размером, а не порядком строк. */
+    color: color-mix(in srgb, var(--ink) 78%, var(--tone));
   }
   .verdict .vbadge {
-    flex: none; font-size: 11px; font-weight: 800; letter-spacing: .04em;
-    padding: 4px 9px; border-radius: 999px; white-space: nowrap;
-    background: color-mix(in srgb, var(--tone) 20%, transparent);
-    color: var(--tone); font-variant-numeric: tabular-nums;
+    flex: none; font-size: 11.5px; font-weight: 800; letter-spacing: .01em;
+    padding: 5px 10px; border-radius: 999px; white-space: nowrap;
+    background: color-mix(in srgb, var(--tone) 90%, var(--bg));
+    color: var(--bg);
+    font-variant-numeric: tabular-nums;
   }
 
-  .verdict .vnums { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
-  .verdict .vrate {
-    font-size: 32px; font-weight: 800; color: var(--tone);
-    font-variant-numeric: tabular-nums; letter-spacing: -.03em; line-height: 1.05;
+  .verdict .vnums {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   }
-  .verdict .vavg { font-size: 12.5px; color: var(--muted); }
-  .verdict .vmeta { font-size: 12px; color: var(--muted); }
+  /* Курс — единственное число, ради которого человек открыл приложение,
+     и громкость отдана ему одному. Единицы измерения при этом остаются
+     мелкими: «1 ₽ =» и «сум» в том же кегле не сообщают ничего нового,
+     зато не оставляют самому числу места на экране телефона. */
+  /* Строчная раскладка, а не flex: во flex каждый кусок становится
+     отдельным элементом, и пробелы по краям схлопываются — «1 ₽ =138,67сум».
+     Выравнивание по базовой линии здесь и так своё, встроенное. */
+  .verdict .vrate {
+    display: block;
+    color: var(--tone); font-variant-numeric: tabular-nums; line-height: 1.05;
+    font-size: 46px; font-weight: 800; letter-spacing: -.04em;
+  }
+  .verdict .vrate .vrn { font: inherit; letter-spacing: inherit; }
+  .verdict .vrate .vru {
+    font-size: 14.5px; font-weight: 700; letter-spacing: 0;
+    color: color-mix(in srgb, var(--ink) 58%, var(--tone));
+    white-space: nowrap;
+  }
+  /* На цветной подложке вторичный текст подкрашиваем тем же тоном, а не
+     красим серым: серый на цветном читается как выцветший и роняет весь
+     блок в дешевизну. */
+  .verdict .vavg {
+    font-size: 12.5px; font-weight: 600;
+    color: color-mix(in srgb, var(--ink) 55%, var(--tone));
+  }
+  .verdict .vmeta {
+    font-size: 12px; color: color-mix(in srgb, var(--ink) 52%, var(--tone));
+  }
   .verdict .vonsum {
-    font-size: 15px; font-weight: 700; line-height: 1.35; padding-top: 2px;
+    font-size: 15.5px; font-weight: 700; line-height: 1.35; padding-top: 3px;
+    letter-spacing: -.005em;
   }
   .verdict .vspread {
-    font-size: 12.5px; color: var(--muted); line-height: 1.4;
-    padding-top: 1px;
+    font-size: 12.5px; line-height: 1.4; padding-top: 1px;
+    color: color-mix(in srgb, var(--ink) 52%, var(--tone));
   }
   .verdict .vspread b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* Совет — не последняя строка внутри блока, а отдельная полоса во всю
+     ширину панели. Это ответ на вопрос «что делать», и он обязан
+     отделяться от описания курса не отступом, а материалом. */
   .verdict .vhint {
-    font-size: 12.5px; color: var(--ink); line-height: 1.4; font-weight: 600;
-    border-top: 1px solid color-mix(in srgb, var(--tone) 25%, transparent);
-    padding-top: 9px; margin-top: 2px;
+    font-size: 13px; color: var(--ink); line-height: 1.4; font-weight: 600;
+    margin: 11px -17px 0; padding: 12px 17px;
+    background: color-mix(in srgb, var(--tone) 15%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--tone) 22%, transparent);
   }
+  /* Пустой совет не должен оставлять на дне панели цветную полосу ни о
+     чём. :empty срабатывает ровно тогда, когда текста не подставили. */
+  .verdict .vhint:empty { display: none; }
 
   /* График курса. Настоящий ряд ЦБ за 30 дней: одно движение глазом
-     объясняет больше, чем абзац текста про волатильность. */
-  .chart { display: flex; flex-direction: column; gap: 3px; }
+     объясняет больше, чем абзац текста про волатильность.
+
+     Он вырос с 58 до 108 точек и вышел на всю ширину панели — до самых
+     краёв, под скругление. Это единственная картинка в продукте и
+     единственное, что нельзя пересказать словами; на пятидесяти восьми
+     точках месяц выглядел ровной чертой, то есть врал в главном. */
+  .verdict .chart {
+    display: flex; flex-direction: column;
+    margin: 8px -17px 0; position: relative;
+  }
   /* color задаёт currentColor для градиента заливки: так она повторяет
      цвет вердикта, и второго набора правил под каждое состояние не нужно. */
-  .spark { width: 100%; height: 58px; display: block; overflow: visible; color: var(--tone); }
-  .spark .ln { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .spark { width: 100%; height: 108px; display: block; overflow: visible; color: var(--tone); }
+  /* non-scaling-stroke обязателен: поле растягивается по ширине экрана
+     без сохранения пропорций, и без него линия в 2 пикселя приезжает
+     разной толщины по вертикали и горизонтали. */
+  .spark .ln {
+    fill: none; stroke: var(--tone); stroke-width: 2.25;
+    stroke-linejoin: round; stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
   .spark .ar { fill: url(#zaliv); stroke: none; }
-  .spark .av { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .65; }
+  .spark .av {
+    stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; opacity: .6;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Вертикаль от сегодняшней точки вниз. Она не украшение: на ряду из
+     тридцати значений «где здесь сегодня» — первый вопрос, и кружок в
+     гуще линии на него не отвечает. */
+  .spark .segodnya {
+    stroke: var(--tone); stroke-width: 1; stroke-dasharray: 2 3; opacity: .5;
+    vector-effect: non-scaling-stroke;
+  }
+  /* Точка без обводки. Кольцо цветом панели вокруг неё выглядело
+     разумным ровно до снимка: линия приходит в эту самую точку, и светлое
+     кольцо стирало её приход — на экране получалась оборванная линия и
+     отдельно стоящий кружок с дыркой посередине. От линии точку отделяет
+     ореол под ней, и этого достаточно. */
   .spark .dt { fill: var(--tone); }
   /* Ореол вокруг сегодняшней точки: на плотном ряду из тридцати значений
      обычный кружок теряется в линии. */
-  .spark .dtg { fill: var(--tone); opacity: .22; }
+  .spark .dtg { fill: var(--tone); opacity: .2; }
 
   /* Подписи под графиком: крайние значения месяца и период. Без них
-     линия красивая, но бессмысленная — не с чем сравнить. */
-  .chart .osi {
+     линия красивая, но бессмысленная — не с чем сравнить.
+
+     Стоят отдельной строкой, а не поверх нижнего края графика. Сначала
+     они лежали прямо на картинке — красиво ровно до первого падающего
+     курса: линия приходит в правый нижний угол, и сегодняшняя точка
+     садится точно на слова «30 дней». Подпись, которую перечёркивает то,
+     что она подписывает, хуже отсутствующей. */
+  .verdict .chart .osi {
     display: flex; justify-content: space-between; gap: 8px;
-    font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+    padding: 0 17px; margin-top: 5px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .01em;
+    color: color-mix(in srgb, var(--ink) 58%, var(--tone));
+    font-variant-numeric: tabular-nums;
   }
 
   /* Шкала месяца: где сегодняшний курс между худшим и лучшим днём.
      Самая понятная часть экрана — положение точки читается без чисел. */
   .scale {
-    position: relative; height: 6px; border-radius: 999px; margin: 3px 0 1px;
+    position: relative; height: 7px; border-radius: 999px; margin: 13px 0 2px;
     background: linear-gradient(90deg,
       color-mix(in srgb, var(--warn) 45%, transparent),
       color-mix(in srgb, var(--muted) 28%, transparent),
       color-mix(in srgb, var(--accent) 55%, transparent));
   }
   .scale .tochka {
-    position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%;
-    background: var(--tone); border: 2px solid var(--bg);
+    position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--tone); border: 2.5px solid var(--bg);
+    box-shadow: 0 1px 3px rgba(0,0,0,.28);
     transform: translate(-50%, -50%);
-    transition: left .35s cubic-bezier(.2,.7,.3,1);
+    /* Долгий и затухающий переход: точка приезжает на своё место сама,
+       и это единственное движение на экране, которое человек застаёт. */
+    transition: left .8s cubic-bezier(.16,1,.3,1);
   }
 
   /* ── Результат ──────────────────────────────────────────────────── */
   .loss {
-    background: color-mix(in srgb, var(--accent) 13%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-    border-radius: 12px; padding: 13px 15px; display: flex; flex-direction: column; gap: 2px;
+    background: color-mix(in srgb, var(--accent) 11%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+    border-radius: var(--r-mid); padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 3px;
   }
-  .loss .t { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .loss .t {
+    font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+    font-weight: 700; color: color-mix(in srgb, var(--ink) 50%, var(--accent));
+  }
   .loss .n {
-    font-size: 27px; font-weight: 800; color: var(--accent);
-    font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+    font-size: 30px; font-weight: 800; color: var(--accent);
+    font-variant-numeric: tabular-nums; letter-spacing: -.035em; line-height: 1.1;
   }
-  .loss .s { font-size: 12.5px; color: var(--muted); }
+  .loss .s {
+    font-size: 12.5px;
+    color: color-mix(in srgb, var(--ink) 50%, var(--accent));
+  }
 
+  /* Способы — не одинаковые карточки в столбик. Первый выигрывает, и это
+     должно быть видно материалом, а не мелкой подписью в углу: у него
+     свой фон и своя тень, остальные лежат тихими строками ниже.
+     Ряд одинаковых прямоугольников заставляет сравнивать их чтением —
+     ровно ту работу, которую продукт и обещал сделать за человека. */
   .card {
     /* color обязателен: .card — это button, а правило button выше красит
        текст в var(--accent-ink), то есть белым по светлому фону карточки */
-    background: var(--surface); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 12px;
-    padding: 12px 13px; display: flex; flex-direction: column; gap: 4px;
+    background: transparent; color: var(--ink);
+    border: 1px solid transparent; border-radius: var(--r-mid);
+    padding: 11px 14px; display: flex; flex-direction: column; gap: 4px;
     text-align: left; width: 100%; cursor: pointer;
+    box-shadow: none;
   }
-  .card.best { border-color: var(--accent); }
+  .card.best {
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+    padding: 14px; box-shadow: var(--ten-mid);
+  }
+  /* Тихие строки отделяются друг от друга волоском, а не рамкой вокруг
+     каждой: рамка — это обещание, что содержимое внутри самостоятельно. */
+  .card:not(.best) + .card:not(.best) { border-top-color: var(--line); border-radius: 0; }
   .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .card .svc { font-size: 13.5px; font-weight: 700; }
+  .card .svc { font-size: 14px; font-weight: 700; letter-spacing: -.005em; }
   .card .tag {
-    font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+    font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
     font-weight: 800; color: var(--muted);
   }
   .card .tag.best { color: var(--accent); }
   .card .sum {
-    font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+    font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums;
+    letter-spacing: -.03em; line-height: 1.15;
   }
-  .card .brk { font-size: 11.5px; color: var(--muted); }
+  .card.best .sum { font-size: 26px; }
+  .card .brk { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
 
   /* Полоса под суммой: длина пропорциональна тому, сколько дойдёт.
      Два способа с одинаковым итогом дают одинаковые полосы — и это
@@ -261,8 +424,8 @@
      это не мешает, а тот, кто хочет проверить, — раскрывает. */
   .src { font-size: 12px; color: var(--muted); }
   .src summary {
-    cursor: pointer; font-weight: 700; padding: 6px 0;
-    letter-spacing: .04em; text-transform: uppercase; font-size: 11px;
+    cursor: pointer; font-weight: 700; padding: 7px 0;
+    letter-spacing: .09em; text-transform: uppercase; font-size: 10.5px;
   }
   .src summary::marker { color: var(--accent); }
   .src ul { margin: 2px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
@@ -274,14 +437,14 @@
      и видно, что курс забирает больше комиссии. */
   .razbor {
     background: var(--surface); border: 1px solid var(--line);
-    border-radius: 12px; padding: 13px 15px 12px;
-    display: flex; flex-direction: column; gap: 9px;
+    border-radius: var(--r-mid); padding: 15px 16px 14px;
+    display: flex; flex-direction: column; gap: 11px;
   }
   .razbor .rt {
-    font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+    font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
     color: var(--muted); font-weight: 700;
   }
-  .razbor .rr { display: flex; flex-direction: column; gap: 5px; }
+  .razbor .rr { display: flex; flex-direction: column; gap: 7px; }
   .razbor .rl {
     display: flex; justify-content: space-between; align-items: baseline;
     gap: 10px; font-size: 13.5px;
@@ -290,11 +453,14 @@
   .razbor .rl .v { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
   .razbor .rl.minus .v { color: var(--warn); }
   .razbor .rl.itog {
-    border-top: 1px solid var(--line); padding-top: 8px; margin-top: 2px;
+    border-top: 1px solid var(--line); padding-top: 10px; margin-top: 3px;
     font-size: 15px;
   }
   .razbor .rl.itog .k { color: var(--ink); font-weight: 700; }
-  .razbor .rl.itog .v { font-size: 19px; color: var(--accent); letter-spacing: -.02em; }
+  .razbor .rl.itog .v {
+    font-size: 22px; color: var(--accent);
+    letter-spacing: -.035em; line-height: 1.1;
+  }
 
   /* Полоса потерь: сколько от официального курса осталось человеку.
      Одна картинка вместо абзаца — видно, что забрали, и что дошло. */
@@ -310,15 +476,23 @@
      попаданий по цифрам и открытая клавиатура поверх половины экрана.
      Одно нажатие вместо этого убирает главное трение перед цифрой,
      ради которой человек пришёл. Поле при этом никуда не делось. */
-  .chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .chips { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
   .chips .chip {
     width: auto; flex: 1 1 0; min-width: 62px;
-    padding: 8px 6px; font-size: 13px; font-weight: 700; border-radius: 9px;
+    padding: 9px 6px; font-size: 13px; font-weight: 700; border-radius: var(--r-min);
     background: transparent; color: var(--muted);
     border: 1.5px solid var(--line); font-variant-numeric: tabular-nums;
-    transition: border-color .15s, color .15s;
+    box-shadow: none;
+    transition: border-color .15s, color .15s, background-color .15s;
   }
-  .chips .chip.on { border-color: var(--accent); color: var(--accent); }
+  /* Выбранная сумма заливается, а не только обводится. Обводка в полтора
+     пикселя на солнце с телефона в руке не читается вовсе, и человек не
+     видит, на какой сумме он стоит. */
+  .chips .chip.on {
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    background: color-mix(in srgb, var(--accent) 13%, transparent);
+    color: var(--accent);
+  }
 
   /* Три шага расчёта. Исчезают, как только появился результат. */
   .steps {
@@ -332,10 +506,10 @@
      Сначала польза, потом просьба. */
   .sub {
     background: var(--surface); border: 1px solid var(--line);
-    border-radius: 12px; padding: 14px 15px;
-    display: flex; flex-direction: column; gap: 8px;
+    border-radius: var(--r-mid); padding: 15px 16px;
+    display: flex; flex-direction: column; gap: 9px;
   }
-  .sub .st { font-size: 14.5px; font-weight: 700; }
+  .sub .st { font-size: 15px; font-weight: 700; letter-spacing: -.005em; }
   .sub .sp { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
   .sub .chlink {
     font-size: 12.5px; color: var(--accent); text-decoration: none;
@@ -364,24 +538,66 @@
   .hidden { display: none !important; }
 
   /* Первый запуск: объясняем, зачем это */
-  .intro { display: flex; flex-direction: column; gap: 16px; padding: 22px 4px 0; }
-  .intro h1 { font-size: 25px; font-weight: 800; margin: 0; line-height: 1.2; letter-spacing: -.02em; }
+  .intro { display: flex; flex-direction: column; gap: 18px; padding: 26px 4px 0; }
+  .intro h1 {
+    font-size: 30px; font-weight: 800; margin: 0; line-height: 1.15;
+    letter-spacing: -.035em; text-wrap: balance;
+  }
   .intro p { margin: 0; font-size: 16px; color: var(--muted); line-height: 1.55; }
   .intro .bignum {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 16px 18px; display: flex; flex-direction: column; gap: 2px;
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+    border-radius: var(--r-mid);
+    padding: 17px 19px; display: flex; flex-direction: column; gap: 4px;
   }
   .intro .bignum .v {
-    font-size: 18px; font-weight: 800; color: var(--accent);
-    letter-spacing: -.01em; line-height: 1.3;
+    font-size: 20px; font-weight: 800; color: var(--accent);
+    letter-spacing: -.025em; line-height: 1.25;
   }
-  .intro .bignum .k { font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .intro .bignum .k {
+    font-size: 13px; line-height: 1.45;
+    color: color-mix(in srgb, var(--ink) 52%, var(--accent));
+  }
 
-  #results { display: flex; flex-direction: column; gap: 9px; }
+  #results { display: flex; flex-direction: column; gap: 8px; }
 
+  /* ── Движение ───────────────────────────────────────────────────
+     Одно поставленное движение вместо одинакового въезда у каждого блока.
+     Раньше вердикт, плашка и карточки выезжали одной и той же анимацией
+     на четыре пикселя — это читается как рябь при загрузке, а не как
+     замысел, и не сообщает ничего.
+
+     Теперь движение есть только там, где оно что-то значит: линия месяца
+     прочерчивается слева направо (то есть по времени), курс набегает до
+     своего значения, точка едет на своё место на шкале. Всё три —
+     в вердикте, всё три — один раз за открытие. Список способов
+     появляется со сдвигом сверху вниз, потому что читают его так же. */
   @media (prefers-reduced-motion: no-preference) {
-    .verdict, .card, .loss { animation: poyavit .22s ease-out both; }
-    @keyframes poyavit { from { opacity: 0; transform: translateY(4px); } }
+    #results .card, .loss {
+      animation: podnyat .34s cubic-bezier(.16,1,.3,1) both;
+    }
+    #results .card:nth-child(2) { animation-delay: .05s; }
+    #results .card:nth-child(3) { animation-delay: .1s; }
+    @keyframes podnyat { from { opacity: 0; transform: translateY(7px); } }
+
+    /* Месяц открывается слева направо — по времени, а не просто «красиво».
+       Открывается ВЕСЬ график разом: линия, заливка, среднее и сегодняшняя
+       точка. Точка поэтому и загорается последней, сама собой: до неё
+       раскрытие доходит в конце, как и положено сегодняшнему дню.
+
+       Раскрытием, а не прочерчиванием штриха. Штрих здесь был первым
+       решением и оказался ловушкой: stroke-dasharray в паре с
+       non-scaling-stroke считается в пикселях экрана, а не в долях длины
+       пути, и хвост линии не дорисовывался вовсе. На экране это выглядело
+       как оборванная линия и отдельно стоящая точка — причём обрывались
+       ровно последние дни, то есть самое важное место графика. */
+    .spark.risuetsya {
+      animation: razvernut 1.05s cubic-bezier(.16,1,.3,1) both;
+    }
+    @keyframes razvernut {
+      from { clip-path: inset(-10px 100% -10px 0); }
+      to   { clip-path: inset(-10px -10px -10px 0); }
+    }
   }
 </style>
 </head>
@@ -423,7 +639,7 @@
     </span>
 
     <div class="chart">
-      <svg class="spark" id="vSpark" viewBox="0 0 300 58" preserveAspectRatio="none"
+      <svg class="spark" id="vSpark" viewBox="0 0 300 104" preserveAspectRatio="none"
            role="img" aria-hidden="true"></svg>
       <div class="osi">
         <span id="vOsL"></span>
@@ -563,9 +779,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=44"></script>
-<script src="data.js?v=44"></script>
-<script src="calc.js?v=44"></script>
-<script src="app.js?v=44"></script>
+<script src="i18n.js?v=45"></script>
+<script src="data.js?v=45"></script>
+<script src="calc.js?v=45"></script>
+<script src="app.js?v=45"></script>
 </body>
 </html>

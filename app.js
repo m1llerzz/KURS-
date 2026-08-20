@@ -449,18 +449,42 @@
 
   /* ── Вердикт дня ─────────────────────────────────────────── */
 
+  /* Линия месяца прочерчивается один раз за открытие приложения.
+   *
+   * Вердикт рисуется дважды подряд: сначала по кешу — чтобы экран не
+   * пустовал ни секунды, — потом по живым курсам от бота. Анимация без
+   * этой памяти проигрывалась бы оба раза, с интервалом в полсекунды, и
+   * читалась бы как сбой отрисовки, а не как замысел. */
+  let grafikUzheRisovalsya = false;
+
   /** Рисует настоящий ряд курсов ЦБ за месяц. */
   function narisovatGrafik(ryad) {
     if (!el.vSpark || !ryad || ryad.length < 2) return;
 
-    const W = 300, H = 54, otstup = 5;
+    /* Поле выросло с 54 до 104: на прежней высоте месячный ход курса
+     * укладывался в полтора десятка пикселей и выглядел ровной чертой.
+     * То есть картинка, ради которой всё и затевалось, говорила ровно
+     * обратное тому, что говорят числа рядом с ней. */
+    const W = 300, H = 104, otstup = 11;
+
+    /* Поле шире линии на четырнадцать единиц с каждой стороны.
+     *
+     * График доходит до самых краёв панели, а панель обрезает всё, что за
+     * край вышло. Сегодняшняя точка — крайняя правая, и её кружок с ореолом
+     * разрезало ровно пополам: самая важная точка ряда оказалась
+     * единственной, которую не видно целиком.
+     *
+     * Поэтому ЛИНИЯ и точка живут внутри отступов, а ЗАЛИВКА по-прежнему
+     * идёт от края до края — её растворяющемуся низу ровные хвосты по бокам
+     * не мешают, а панель остаётся без полей. */
+    const bok = 14;
     const znacheniya = ryad.map(function (x) { return x.rub_uzs; });
     const mn = Math.min.apply(null, znacheniya);
     const mx = Math.max.apply(null, znacheniya);
     // Ровный курс дал бы деление на ноль и линию за краем поля.
     const razmah = (mx - mn) || 1;
 
-    function X(i) { return (i / (ryad.length - 1)) * W; }
+    function X(i) { return bok + (i / (ryad.length - 1)) * (W - bok * 2); }
     function Y(v) { return H - otstup - ((v - mn) / razmah) * (H - otstup * 2); }
 
     const tochki = znacheniya.map(function (v, i) {
@@ -474,20 +498,87 @@
     const cx = X(posledniy).toFixed(1);
     const cy = Y(znacheniya[posledniy]).toFixed(1);
 
+    el.vSpark.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
     el.vSpark.innerHTML =
       // Заливка градиентом, а не плоским цветом: плоская заливка под
       // линией спорит с ней за внимание, растворяющаяся — не спорит.
+      /* Гаснет быстро и с самого начала слабее. Заливка в четверть силы
+       * на поле в сто пикселей — это уже не тень под линией, а цветное
+       * пятно во всю панель: на светлой теме янтарный «плохой курс»
+       * перекрашивал в бежевое всё, вплоть до заголовка. */
       '<defs><linearGradient id="zaliv" x1="0" y1="0" x2="0" y2="1">' +
-      '<stop offset="0%" stop-color="currentColor" stop-opacity=".28"/>' +
+      '<stop offset="0%" stop-color="currentColor" stop-opacity=".22"/>' +
+      '<stop offset="55%" stop-color="currentColor" stop-opacity=".05"/>' +
       '<stop offset="100%" stop-color="currentColor" stop-opacity="0"/>' +
       '</linearGradient></defs>' +
-      '<polygon class="ar" points="0,' + H + ' ' + tochki.join(' ') + ' ' + W + ',' + H + '"/>' +
+      // Заливка от края до края: к ряду добавлены две точки на уровне
+      // первого и последнего значения — ровные хвосты у самых бортов.
+      '<polygon class="ar" points="0,' + H +
+        ' 0,' + Y(znacheniya[0]).toFixed(1) + ' ' + tochki.join(' ') +
+        ' ' + W + ',' + Y(znacheniya[znacheniya.length - 1]).toFixed(1) +
+        ' ' + W + ',' + H + '"/>' +
       // Пунктир среднего — это якорь. Без него линия просто «какая-то»,
       // с ним человек мгновенно видит, выше он сегодня обычного или ниже.
       '<line class="av" x1="0" y1="' + ySred + '" x2="' + W + '" y2="' + ySred + '"/>' +
+      /* Вертикаль от сегодняшней точки до низа поля. На ряду из тридцати
+       * значений первый вопрос человека — «где здесь сегодня», и кружок,
+       * утонувший в линии, на него не отвечает. */
+      '<line class="segodnya" x1="' + cx + '" y1="' + cy + '" x2="' + cx + '" y2="' + H + '"/>' +
       '<polyline class="ln" points="' + tochki.join(' ') + '"/>' +
-      '<circle class="dtg" cx="' + cx + '" cy="' + cy + '" r="7"/>' +
-      '<circle class="dt" cx="' + cx + '" cy="' + cy + '" r="3.4"/>';
+      '<circle class="dtg" cx="' + cx + '" cy="' + cy + '" r="9"/>' +
+      '<circle class="dt" cx="' + cx + '" cy="' + cy + '" r="4"/>';
+
+    if (!grafikUzheRisovalsya) {
+      el.vSpark.classList.add('risuetsya');
+      grafikUzheRisovalsya = true;
+    }
+  }
+
+  /* Курс крупно, единицы мелко.
+   *
+   * Строка курса на обоих языках устроена одинаково: «1 ₽ = {r} сум»,
+   * «1 ₽ = {r} so'm». Целиком в сорок шесть пикселей она не помещается ни
+   * на один телефон — да и не должна: крупным обязано быть значение, а не
+   * подпись к нему.
+   *
+   * Разбираем строку по МЕСТУ ПОДСТАНОВКИ, а не по словам и не по
+   * пробелам: слова в языках разные и завтра могут поменяться от вычитки
+   * носителем, а {r} стоит в обоих и никуда не денется. Если шаблон
+   * однажды окажется устроен иначе, ставим строку целиком — экран
+   * останется правильным, просто без разницы в кегле.
+   *
+   * Метка нарочно из обычных знаков, а не из служебного символа: невидимый
+   * символ в исходнике переживает не всякий редактор и не всякую выгрузку,
+   * а поймать его потом нечем — глазами он не виден. */
+  const MESTO_CHISLA = '[[#]]';
+
+  function postavitKurs(kurs) {
+    if (!el.vRate) return;
+    const znachenie = chislo(kurs);
+    const chasti = t('v.rate', { r: MESTO_CHISLA }).split(MESTO_CHISLA);
+
+    if (chasti.length !== 2) {
+      el.vRate.textContent = t('v.rate', { r: znachenie });
+      return;
+    }
+
+    // textContent, а не innerHTML: тексты свои, но подставлять их разметкой
+    // — привычка, из-за которой однажды приезжает чужая строка с тегами.
+    el.vRate.textContent = '';
+    const kusok = function (klass, tekst) {
+      if (!tekst) return;
+      const s = document.createElement('span');
+      s.className = klass;
+      s.textContent = tekst;
+      el.vRate.appendChild(s);
+    };
+    // Пробелы из шаблона оставляем как есть: они отделяют «1 ₽ =» от числа
+    // и число от «сум» не только на экране, но и для экранного диктора —
+    // он читает текст, а не отступы, которыми мы бы их заменили.
+    kusok('vru', chasti[0]);
+    kusok('vrn', znachenie);
+    kusok('vru', chasti[1]);
   }
 
   function pokazatVerdikt() {
@@ -508,7 +599,7 @@
     else if (ploho) el.verdict.classList.add('bad');
 
     el.vHead.textContent = t('v.' + o.verdikt);
-    el.vRate.textContent = t('v.rate', { r: chislo(o.segodnya) });
+    postavitKurs(o.segodnya);
     el.vAvg.textContent = t('v.avg', { r: chislo(o.srednee_30) });
 
     // Значок с отклонением — для тех, кто листает быстро и текст не читает.
@@ -556,10 +647,14 @@
       chasti.push(t('v.trend.' + o.trend));
     }
 
-    chasti.push(t('v.range', {
-      mn: o.min_30.toFixed(2).replace('.', ','),
-      mx: o.max_30.toFixed(2).replace('.', ','),
-    }));
+    /* Коридор месяца отсюда убран намеренно.
+     *
+     * Он стоял здесь третьим куском — «за месяц от 138,67 до 153,87», — и
+     * ровно те же два числа подписаны по краям графика прямо над этой
+     * строкой. Одно и то же, сказанное дважды подряд, читается не как
+     * надёжность, а как небрежность, и вместе с положением и недельным
+     * сдвигом строка переползала на две. Числа остались там, где им место:
+     * у концов оси, которую они и обозначают. */
     el.vMeta.textContent = chasti.join(' · ');
 
     obnovitVygodu();

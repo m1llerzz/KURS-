@@ -227,6 +227,37 @@ function dozhdatsya() {
     'без якоря человек не понимает, много это или мало');
   proverka('на графике отмечен сегодняшний день', !!grafik.querySelector('circle.dt'));
 
+  /* Отметка сегодняшнего дня обязана стоять в КОНЦЕ линии, а не рядом.
+   * Отступы по бокам поля появились ради того, чтобы кружок не срезало
+   * краем панели, и разъехаться этим двум местам теперь есть от чего:
+   * координата точки и координаты линии считаются в разных строках. */
+  const krug = grafik.querySelector('circle.dt');
+  const vseTochki = liniya ? liniya.getAttribute('points').trim().split(/\s+/) : [];
+  proverka('отметка дня стоит на конце линии',
+    !!krug && vseTochki.length > 0
+      && krug.getAttribute('cx') + ',' + krug.getAttribute('cy')
+         === vseTochki[vseTochki.length - 1],
+    (krug ? krug.getAttribute('cx') + ',' + krug.getAttribute('cy') : 'нет отметки')
+      + ' против ' + (vseTochki[vseTochki.length - 1] || 'нет линии'));
+
+  /* Линию месяца нельзя показывать штрихом.
+   *
+   * jsdom не рисует, и эту поломку прогон поймать не мог: на снимке
+   * настоящего браузера линия обрывалась, не доходя до сегодняшней точки —
+   * то есть пропадали последние дни, самое важное место графика.
+   * Причина: `stroke-dasharray` вместе с `vector-effect: non-scaling-stroke`
+   * считается в пикселях экрана, а не в долях длины пути, и хвост линии
+   * оставался ненарисованным. Раскрытие поля слева направо делает то же
+   * самое и ничего не прячет.
+   *
+   * У пунктиров среднего и вертикали сегодняшнего дня штрих законный —
+   * поэтому смотрим ровно на правило самой линии. */
+  const stili = fs.readFileSync(path.join(KORNI, 'index.html'), 'utf8');
+  const praviloLinii = stili.match(/\.spark[^{]*\.ln\s*\{[^}]*\}/g) || [];
+  proverka('линия месяца рисуется не штрихом',
+    praviloLinii.every(function (p) { return p.indexOf('stroke-dasharray') === -1; }),
+    'stroke-dasharray на .ln прячет конец линии в настоящем браузере');
+
   proverka('разница показана в сумах', /\d/.test(tekst(w, 'vOnSum')), tekst(w, 'vOnSum'));
 
   /* Ожидаемое считаем из тех же данных, а не пишем числом.
@@ -410,7 +441,7 @@ function dozhdatsya() {
     'v.trend.rastet', 'v.trend.padaet', 'v.trend.stoit',
     'v.onsum.plus', 'v.onsum.minus', 'v.onsum.zero',
     'v.do.otpravlyat', 'v.do.mozhno_zhdat', 'v.do.ne_zhdat', 'v.do.obychno',
-    'v.range', 'v.days', 'v.week.up', 'v.week.down', 'v.spread',
+    'v.days', 'v.week.up', 'v.week.down', 'v.spread',
     'src.t', 'src.cb', 'src.svc', 'src.upd', 'src.no',
     'svc.markup', 'svc.fee_unknown', 'svc.official', 'svc.lost',
     'sub.t', 'sub.p', 'sub.btn', 'popup.go', 'err.net',

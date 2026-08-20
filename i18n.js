@@ -123,7 +123,6 @@ window.I18N = (function () {
       // bo'yicha «bugun yaxshi kun» deyish — odamga pul yo'qotish
       // maslahatini berish bilan barobar.
       'v.do.stale':        'Ma’lumotlar eski — bugun uchun maslahat bermayman. Kursni tekshiring.',
-      'v.range':         'oyda {mn} dan {mx} gacha',
       'v.days':          '30 kun',
       'v.week.up':       'haftada +{p}%',
       'v.week.down':     'haftada −{p}%',
@@ -290,7 +289,6 @@ window.I18N = (function () {
       // курсу четырёхдневной давности — это совет потерять деньги,
       // такой же по сути, как «подождите» в падающем рынке.
       'v.do.stale':        'Данные устарели — совет на сегодня не даю. Проверьте курс.',
-      'v.range':         'за месяц от {mn} до {mx}',
       'v.days':          '30 дней',
       'v.week.up':       'за неделю +{p}%',
       'v.week.down':     'за неделю −{p}%',
