@@ -942,8 +942,16 @@
     // Никаких чужих сумов: у читателя другая сумма и другой банк, а
     // длинные числа в чате читаются как спам. Процент и курс переносятся
     // на любой перевод — потому они и остались.
-    const luchshiy = posledniyRaschet.results[0];
-    const bazovyi = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
+    /* Способов может не быть вовсе — когда все курсы протухли, а вердикт
+     * дня при этом жив: он считается по курсам ЦБ, у которых своя дата.
+     * Кнопку пересылки в таком случае прячет `narisovat`, но полагаться
+     * на то, что снаружи её никто не нажмёт, нельзя: здесь падало на
+     * `luchshiy.vilka`, и падало молча — исключение внутри обработчика
+     * никуда не всплывает, человек просто нажимает и ничего не происходит.
+     * Вердикт дня переслать можно и без единого способа. */
+    const luchshiy = posledniyRaschet.results[0] || null;
+    const bazovyi = !luchshiy ? 0
+      : luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
 
     let procent = null;
     const poterya = posledniyRaschet.hidden_loss_uzs;
