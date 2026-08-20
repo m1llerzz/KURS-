@@ -2110,6 +2110,57 @@ finally:
     _hr._vypolnit = _bylo_vypolnit
 
 
+# Запрос без параметров обязан уйти в базу БЕЗ подстановки.
+#
+# Зачем эта проверка. Пустой набор параметров и отсутствие параметров для
+# драйвера — разные вещи: получив пустой кортеж, он всё равно прогоняет
+# строку через подстановку, и одиночный процент в LIKE '{%' роняет
+# запрос. Оба запроса про источники содержат такой процент, то есть
+# разбивка посева не работала бы вовсе — а выглядело бы это как «людей не
+# было». Поймано в первый же день живой базы, 20 августа.
+class _KursorPodslushka:
+    poluchil = "не вызывали"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def execute(self, sql, parametry):
+        _KursorPodslushka.poluchil = parametry
+
+    def fetchall(self):
+        return []
+
+
+class _SoedinenieZaglushka:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def cursor(self):
+        return _KursorPodslushka()
+
+
+_bylo_soedinenie = _hr._soedinenie
+try:
+    _hr._soedinenie = lambda: _SoedinenieZaglushka()
+    _hr._vypolnit("SELECT 1 WHERE dannye LIKE '{%'", vernut=True)
+    proverka("запрос без параметров идёт без подстановки",
+             _KursorPodslushka.poluchil is None,
+             "пустой кортеж заставит драйвер разбирать проценты в LIKE, "
+             "и запрос упадёт: получено %r" % (_KursorPodslushka.poluchil,))
+
+    _hr._vypolnit("SELECT %s", (7,))
+    proverka("запрос с параметрами их не теряет",
+             _KursorPodslushka.poluchil == (7,))
+finally:
+    _hr._soedinenie = _bylo_soedinenie
+
+
 # ── Какой пост выходит в какой день ──────────────────────────────────
 
 from datetime import datetime as _dt      # noqa: E402

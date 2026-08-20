@@ -246,7 +246,14 @@ def _vypolnit(sql, parametry=(), vernut=False):
     try:
         with _soedinenie() as soed:
             with soed.cursor() as kursor:
-                kursor.execute(sql, parametry)
+                # Пустой набор параметров и ОТСУТСТВИЕ параметров — разные
+                # вещи, и разница дорогая. Получив пустой кортеж, драйвер
+                # всё равно прогоняет запрос через подстановку, а в
+                # запросах про источники стоит LIKE '{%' — одиночный
+                # процент, на котором подстановка и падает. Ровно поэтому
+                # разбивка «откуда пришли» отдавала пустоту в первый же
+                # день живой базы, а воронка — «запрос не прошёл».
+                kursor.execute(sql, parametry or None)
                 if vernut:
                     return kursor.fetchall()
         return True
