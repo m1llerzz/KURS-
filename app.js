@@ -818,45 +818,61 @@
     });
 
     /**
-     * Плашка над списком. Когда способов несколько — разница между ними.
-     * Когда способ один (а сейчас курсы сервисов совпадают) — показываем
-     * то, что действительно есть: сколько съел курс против официального.
+     * Плашка над списком показывает БОЛЬШУЮ из двух потерь.
      *
-     * Раньше при одинаковых курсах плашка просто исчезала, и главная
-     * потеря человека оставалась невидимой. Она никуда не делась —
-     * её просто не с чем было сравнивать внутри списка.
+     * Их всегда две, и они разного порядка. Первая — разница между
+     * способами: её видно прямо в списке под плашкой, и человек может на
+     * неё повлиять, выбрав другой сервис. Вторая — сколько забрал курс
+     * сервиса против официального: она одинакова у всех и потому в списке
+     * невидима вовсе.
+     *
+     * Раньше первая всегда побеждала: есть разница — показываем её. И
+     * получалось, что самым громким числом экрана становилось «4 000 сум»,
+     * пока курс тихо забирал сто восемьдесят три тысячи. Продукт обещает
+     * показать невидимое, а показывал то, что и так на виду, — причём
+     * крупнее всего остального.
+     *
+     * Теперь сравниваем и берём то, что больше. Разница между способами
+     * получает плашку, только когда она действительно главная потеря; в
+     * остальные дни она остаётся там, где ей место, — в списке.
      */
     const luchshiy = raschet.results[0];
-    if (raschet.hidden_loss_uzs > 0) {
+    const raznicaSposobov = raschet.hidden_loss_uzs > 0
+      ? Math.round(raschet.hidden_loss_uzs) : 0;
+
+    // Считаем от вилки так же, как разбор, иначе плашка и разбор под ней
+    // покажут разные числа за одно и то же.
+    const servisLuchshego = luchshiy
+      ? SERVISY.filter(function (s) { return s.id === luchshiy.service_id; })[0]
+      : null;
+    let poOficialnomu = 0;
+    let poteryaNaKurse = 0;
+    if (kursy && kursy.rub_uzs && luchshiy
+        && servisLuchshego && servisLuchshego.rate_rub_uzs) {
+      poOficialnomu = parseFloat(el.summa.value) * kursy.rub_uzs;
+      const doshlo = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
+      poteryaNaKurse = Math.max(0, Math.round(poOficialnomu - doshlo));
+    }
+
+    if (poteryaNaKurse > 0 && poteryaNaKurse >= raznicaSposobov) {
+      // Процент рядом с суммой обязателен. Само по себе «288 000 сум»
+      // не говорит ничего: много это или мало, человек не знает,
+      // пока не соотнесёт с переводом. «4,1%» соотносит мгновенно.
+      const dolya = (poteryaNaKurse / poOficialnomu) * 100;
+      // Подпись меняется вместе со смыслом числа. Раньше здесь всегда
+      // стояло «Разница между способами», а показывалась потеря на
+      // курсе: число под чужой подписью в денежном продукте — это
+      // не мелочь, а повод не верить всему остальному.
+      if (el.lossT) el.lossT.textContent = t('svc.lost.t');
+      el.lossNum.innerHTML = sum(poteryaNaKurse) + ' ' + t('unit.sum') +
+        '<small>' + dolya.toFixed(1).replace('.', ',') + '%</small>';
+      el.lossSub.textContent = t('svc.official');
+      el.loss.classList.remove('hidden');
+    } else if (raznicaSposobov > 0) {
       if (el.lossT) el.lossT.textContent = t('loss.t');
-      el.lossNum.textContent = sum(raschet.hidden_loss_uzs) + ' ' + t('unit.sum');
+      el.lossNum.textContent = sum(raznicaSposobov) + ' ' + t('unit.sum');
       el.lossSub.textContent = t('loss.sub', { sum: sum(el.summa.value) });
       el.loss.classList.remove('hidden');
-    } else if (kursy && kursy.rub_uzs && luchshiy) {
-      const servis = SERVISY.filter(function (s) { return s.id === luchshiy.service_id; })[0];
-      if (servis && servis.rate_rub_uzs) {
-        const poOficialnomu = parseFloat(el.summa.value) * kursy.rub_uzs;
-        const poteryano = Math.round(poOficialnomu - luchshiy.total_uzs);
-        if (poteryano > 0) {
-          // Процент рядом с суммой обязателен. Само по себе «288 000 сум»
-          // не говорит ничего: много это или мало, человек не знает,
-          // пока не соотнесёт с переводом. «4,1%» соотносит мгновенно.
-          const dolya = (poteryano / poOficialnomu) * 100;
-          // Подпись меняется вместе со смыслом числа. Раньше здесь всегда
-          // стояло «Разница между способами», а показывалась потеря на
-          // курсе: число под чужой подписью в денежном продукте — это
-          // не мелочь, а повод не верить всему остальному.
-          if (el.lossT) el.lossT.textContent = t('svc.lost.t');
-          el.lossNum.innerHTML = sum(poteryano) + ' ' + t('unit.sum') +
-            '<small>' + dolya.toFixed(1).replace('.', ',') + '%</small>';
-          el.lossSub.textContent = t('svc.official');
-          el.loss.classList.remove('hidden');
-        } else {
-          el.loss.classList.add('hidden');
-        }
-      } else {
-        el.loss.classList.add('hidden');
-      }
     } else {
       el.loss.classList.add('hidden');
     }
