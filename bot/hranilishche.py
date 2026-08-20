@@ -19,6 +19,7 @@
 """
 import json
 import os
+import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -68,14 +69,26 @@ class _Neizvestno(object):
 
 NEIZVESTNO = _Neizvestno()
 
+# Почему не поднялся драйвер, если не поднялся. Текст ошибки, а не факт
+# её наличия: «psycopg2 не установлен» одинаково звучит и когда сборка не
+# ставила пакетов вовсе, и когда пакет встал, но не нашёл системной
+# библиотеки. Лечится это по-разному, а без текста их не различить —
+# ровно на этом сгорел вечер 20 августа.
+POCHEMU_NET_DRAYVERA = ""
+
 if URL_BAZY:
     try:
         import psycopg2
         import psycopg2.extras
         _pg = psycopg2
-    except ImportError:
-        print("[хранилище] DATABASE_URL задан, но psycopg2 не установлен. "
-              "Работаю через файл — на хостинге данные будут теряться.", flush=True)
+    except Exception as oshibka:
+        # Ловим не только ImportError: пакет умеет падать и на попытке
+        # подтянуть libpq, и это уже другая поломка с другим лечением.
+        POCHEMU_NET_DRAYVERA = repr(oshibka)[:300]
+        print("[хранилище] DATABASE_URL задан, но psycopg2 не поднялся: "
+              + POCHEMU_NET_DRAYVERA
+              + ". Работаю через файл — на хостинге данные будут теряться.",
+              flush=True)
 
 
 def _teper():
@@ -116,6 +129,41 @@ def pochemu_net_pamyati():
     if _telegram is not None and _telegram.pochemu:
         return _telegram.pochemu
     return _pochemu_pamyati
+
+
+def diagnostika_sredy():
+    """Чем оказалась среда на хостинге на самом деле.
+
+    Зачем это в коде, а не в журнале. Журнал Render читает один человек,
+    вручную, и пересказывает увиденное — а пересказ теряет ровно ту
+    подробность, которая нужна. Здесь среда описывает себя сама, и ответ
+    приходит по сети тому, кто чинит.
+
+    Отдаётся ТОЛЬКО под ключом `STATS_KEY`: версии и пути — это карта для
+    того, кто ищет способ забраться. Значение `DATABASE_URL` не выходит
+    отсюда никогда, только признак «задан».
+    """
+    svedeniya = {
+        "python": sys.version.split()[0],
+        "gde_python": sys.executable,
+        "url_zadan": bool(URL_BAZY),
+        "dlina_url": len(URL_BAZY),
+        "drayver": bool(_pg),
+        "pochemu_net_drayvera": POCHEMU_NET_DRAYVERA,
+    }
+
+    # Что вообще встало при сборке. Пустой список означает, что сборка не
+    # ставила зависимостей вовсе, — а это другая поломка, чем «пакет есть,
+    # но сломан», и чинится она в настройках сервиса, а не в коде.
+    try:
+        from importlib import metadata
+        svedeniya["pakety"] = sorted(
+            r.metadata["Name"] for r in metadata.distributions()
+            if r.metadata and r.metadata["Name"])[:40]
+    except Exception as oshibka:
+        svedeniya["pakety"] = repr(oshibka)[:200]
+
+    return svedeniya
 
 
 def pamyat_perezhivet_perezapusk():

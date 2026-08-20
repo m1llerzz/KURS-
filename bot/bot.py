@@ -2343,6 +2343,11 @@ class Stranica(BaseHTTPRequestHandler):
                 # правда надо», — а это разные вопросы.
                 otvet["voronka_7d"] = hranilishche.voronka_istochnikov(7)
                 otvet["voronka_30d"] = hranilishche.voronka_istochnikov(30)
+                # Чем оказалась среда на хостинге. Нужно, только пока база
+                # не поднялась: тогда «почему» важнее всех остальных чисел
+                # вместе взятых, потому что без базы их просто нет.
+                if not hranilishche.na_postgres():
+                    otvet["sreda"] = hranilishche.diagnostika_sredy()
             else:
                 otvet["podrobnosti"] = "закрыто: нужен ?key="
 
