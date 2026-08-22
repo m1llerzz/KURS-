@@ -842,29 +842,36 @@
 
     // Считаем от вилки так же, как разбор, иначе плашка и разбор под ней
     // покажут разные числа за одно и то же.
+    //
+    // Имя переменной здесь было `poteryaNaKurse`, и оно врало: разность
+    // «по курсу ЦБ минус то, что дошло» вбирает В СЕБЯ всё, что забрали по
+    // дороге, — и курс сервиса, и комиссию. Пока у лучшего способа комиссии
+    // не было, курсовая часть и вся потеря совпадали до сума, и неправду
+    // имени нечем было заметить. Разошлись они в первый же день, когда
+    // сверху встал сервис с комиссией. Разложение на части — дело разбора.
     const servisLuchshego = luchshiy
       ? SERVISY.filter(function (s) { return s.id === luchshiy.service_id; })[0]
       : null;
     let poOficialnomu = 0;
-    let poteryaNaKurse = 0;
+    let poteryaVsego = 0;
     if (kursy && kursy.rub_uzs && luchshiy
         && servisLuchshego && servisLuchshego.rate_rub_uzs) {
       poOficialnomu = parseFloat(el.summa.value) * kursy.rub_uzs;
       const doshlo = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
-      poteryaNaKurse = Math.max(0, Math.round(poOficialnomu - doshlo));
+      poteryaVsego = Math.max(0, Math.round(poOficialnomu - doshlo));
     }
 
-    if (poteryaNaKurse > 0 && poteryaNaKurse >= raznicaSposobov) {
+    if (poteryaVsego > 0 && poteryaVsego >= raznicaSposobov) {
       // Процент рядом с суммой обязателен. Само по себе «288 000 сум»
       // не говорит ничего: много это или мало, человек не знает,
       // пока не соотнесёт с переводом. «4,1%» соотносит мгновенно.
-      const dolya = (poteryaNaKurse / poOficialnomu) * 100;
+      const dolya = (poteryaVsego / poOficialnomu) * 100;
       // Подпись меняется вместе со смыслом числа. Раньше здесь всегда
       // стояло «Разница между способами», а показывалась потеря на
       // курсе: число под чужой подписью в денежном продукте — это
       // не мелочь, а повод не верить всему остальному.
       if (el.lossT) el.lossT.textContent = t('svc.lost.t');
-      el.lossNum.innerHTML = sum(poteryaNaKurse) + ' ' + t('unit.sum') +
+      el.lossNum.innerHTML = sum(poteryaVsego) + ' ' + t('unit.sum') +
         '<small>' + dolya.toFixed(1).replace('.', ',') + '%</small>';
       el.lossSub.textContent = t('svc.official');
       el.loss.classList.remove('hidden');

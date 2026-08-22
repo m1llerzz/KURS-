@@ -539,11 +539,24 @@ function dozhdatsya() {
    * Здесь стояло /4[.,]1|4[.,]0/ — курс сервиса относительно ЦБ в тот день.
    * Курсы ходят: на пересборке запаса наценка стала 2,65%, и проверка
    * покраснела на совершенно исправной карточке. Такое красное учит не
-   * доверять прогону, а это дороже любого дефекта, который он ловит. */
-  const naProverke = w.SERVICES[0];
-  const zhdemNacenku = String(naProverke.nacenka_percent.toFixed(1)).replace('.', ',');
+   * доверять прогону, а это дороже любого дефекта, который он ловит.
+   *
+   * И берём наценку ТОГО сервиса, что стоит в карточке, а не первого из
+   * данных. Здесь стояло `w.SERVICES[0]`, и держалось это на совпадении:
+   * у Yubor и Avosend курс был одинаковый, значит сверху вставал первый же
+   * из списка. 22 августа курсы разъехались впервые — 136,0 против 137,0, —
+   * сверху встал второй, и проверка сравнила наценку одного сервиса с
+   * карточкой другого. Ищем по имени, которое карточка и печатает. */
+  const imyaVKartochke = kartochki.length
+    ? kartochki[0].querySelector('.svc').textContent : '';
+  const naProverke = w.SERVICES.filter(function (s) {
+    return s.name === imyaVKartochke;
+  })[0];
+  const zhdemNacenku = naProverke
+    ? String(naProverke.nacenka_percent.toFixed(1)).replace('.', ',') : null;
   proverka('в карточке видна наценка сервиса',
-    kartochki.length > 0 && kartochki[0].textContent.indexOf(zhdemNacenku) !== -1,
+    kartochki.length > 0 && !!naProverke
+      && kartochki[0].textContent.indexOf(zhdemNacenku) !== -1,
     'ждали ' + zhdemNacenku + '% — курс сервиса ниже официального, и это ' +
     'второй рычаг после дня; в карточке: ' +
     (kartochki.length ? kartochki[0].textContent.replace(/\s+/g, ' ') : 'нет карточки'));
@@ -641,7 +654,17 @@ function dozhdatsya() {
    *
    * Проверяем не ветку, а СООТВЕТСТВИЕ подписи числу и то, что выбрано
    * действительно большее. Оба числа берём с экрана: разницу — из
-   * карточек, потерю на курсе — из строки разбора. */
+   * карточек, потерю против ЦБ — из строк разбора.
+   *
+   * Подпись сверяем с самим словарём, а не с наличием слова «курс» в
+   * тексте. Слово держало проверку ровно до дня, когда подпись перестала
+   * называть один только курс: число под ней всегда было шире — курс И
+   * комиссия, — и заголовок пришлось поправить. Сравнение с ключом
+   * переживает любую правку формулировки и ловит ровно то, ради чего
+   * проверка стоит: число под чужой подписью. */
+  function podpisIzSlovarya(klyuch) {
+    return [w.I18N.t(klyuch, null, 'ru'), w.I18N.t(klyuch, null, 'uz')];
+  }
   proverka('плашка потери показана', vidno(w, 'loss'),
     'потеря есть всегда: либо между способами, либо к официальному курсу');
   proverka('в плашке есть число', /\d{3}/.test(tekst(w, 'lossNum')), tekst(w, 'lossNum'));
@@ -652,34 +675,41 @@ function dozhdatsya() {
     ? summaIzTeksta(kartochki[0].textContent) - summaIzTeksta(kartochki[1].textContent)
     : 0;
 
-  /* Строка «курс сервиса», а не первая попавшаяся со словом «курс»:
-   * самая верхняя строка разбора — «по официальному курсу ЦБ», и слово
-   * там то же самое. Отличает их класс minus: это строка вычитания. */
-  const strokaKursa = Array.prototype.filter.call(
+  /* Плашка показывает ВСЮ потерю против официального курса, а разбор
+   * разносит её по строкам вычитания: курс сервиса, комиссия. Значит и
+   * сверять надо с их суммой, а не с одной строкой.
+   *
+   * Здесь бралась только строка курса, и это держалось на том, что у
+   * лучшего способа комиссии не было: сумма из одного слагаемого равна
+   * слагаемому. 22 августа сверху впервые встал сервис с комиссией — и
+   * плашка разошлась с разбором на её величину. Сумма строк не зависит
+   * от того, сколько их сегодня. */
+  const strokiVychet = Array.prototype.map.call(
     w.document.querySelectorAll('#rRows .rl.minus'),
-    function (r) { return /курс|kurs/i.test(r.querySelector('.k').textContent); })[0];
-  const poteryaNaKurse = strokaKursa
-    ? summaIzTeksta(strokaKursa.querySelector('.v').textContent) : 0;
+    function (r) { return summaIzTeksta(r.querySelector('.v').textContent); });
+  const poteryaVsego = strokiVychet.reduce(function (a, b) { return a + b; }, 0);
 
   if (proMezhduSposobami) {
     proverka('подпись «между способами» стоит при реальной разнице',
       raznicaSposobov > 0,
       'способы дают одинаково, а подпись обещает разницу: ' + podpisPlashki);
     proverka('между способами попало в плашку только как большее',
-      raznicaSposobov >= poteryaNaKurse,
-      'разница способов ' + raznicaSposobov + ', а курс забрал ' + poteryaNaKurse +
+      raznicaSposobov >= poteryaVsego,
+      'разница способов ' + raznicaSposobov + ', а перевод забрал ' + poteryaVsego +
       ' — в плашке обязано стоять большее');
   } else {
-    proverka('подпись про курс стоит, когда курс и есть главная потеря',
-      /курс|kurs/i.test(podpisPlashki) && poteryaNaKurse >= raznicaSposobov,
-      podpisPlashki + ' — курс забрал ' + poteryaNaKurse +
+    proverka('подпись про потерю к ЦБ стоит, когда она и есть главная',
+      podpisIzSlovarya('svc.lost.t').indexOf(podpisPlashki) !== -1
+        && poteryaVsego >= raznicaSposobov,
+      podpisPlashki + ' — перевод забрал ' + poteryaVsego +
       ', разница способов ' + raznicaSposobov);
-    // Процент нужен только у потери на курсе: там он крупный и осмысленный.
+    // Процент нужен только у потери к ЦБ: там он крупный и осмысленный.
     proverka('у потери на курсе показан процент', /%/.test(tekst(w, 'lossNum')),
       tekst(w, 'lossNum') + ' — без процента непонятно, много это или мало');
     proverka('число в плашке — та же потеря, что в разборе',
-      Math.abs(summaIzTeksta(tekst(w, 'lossNum')) - poteryaNaKurse) <= 1,
-      'в плашке ' + summaIzTeksta(tekst(w, 'lossNum')) + ', в разборе ' + poteryaNaKurse +
+      Math.abs(summaIzTeksta(tekst(w, 'lossNum')) - poteryaVsego) <= 1,
+      'в плашке ' + summaIzTeksta(tekst(w, 'lossNum')) + ', в разборе ' +
+      strokiVychet.join(' + ') + ' = ' + poteryaVsego +
       ' — одно и то же число, посчитанное дважды по-разному, ловится только так');
   }
 

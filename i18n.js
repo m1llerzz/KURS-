@@ -150,7 +150,11 @@ window.I18N = (function () {
       // ── Servis kursi rasmiy kursga nisbatan ──────────────────────
       'svc.markup':      'kurs rasmiydan {p}% past',
       'svc.fee_unknown': 'komissiya e’lon qilinmagan — bu yuqori chegara',
-      'svc.lost.t':      'O’tkazma kursi olib qoldi',
+      // Sarlavha raqamda nima borligini aytadi: kurs ham, komissiya ham.
+      // Ilgari 'O’tkazma kursi olib qoldi' turardi, raqamda esa ikkalasi
+      // ham hisoblangan — eng yaxshi usulda komissiya paydo bo‘lgan kuni
+      // sarlavha yolg‘on bo‘lib qoldi. Pastdagi izoh — Markaziy bank kursi.
+      'svc.lost.t':      'O’tkazma olib qoldi',
       'svc.official':    'Markaziy bank kursi bilan solishtirganda',
       'svc.lost':        'Kurs farqi: {n} so’m',
 
@@ -320,7 +324,13 @@ window.I18N = (function () {
       // ── Курс сервиса против официального ─────────────────────────
       'svc.markup':      'курс на {p}% ниже официального',
       'svc.fee_unknown': 'комиссию не публикуют — это верхняя граница',
-      'svc.lost.t':      'Забрал курс перевода',
+      // Заголовок называет ровно то, что стоит в числе: курс И комиссию.
+      // Здесь было «Забрал курс перевода», а число всё это время равнялось
+      // «по курсу ЦБ минус то, что дошло», то есть включало и комиссию.
+      // Пока у лучшего способа комиссии не было, эти два совпадали; в день,
+      // когда сверху встал сервис с комиссией, заголовок стал неправдой.
+      // Из чего сложилась потеря — говорит разбор строкой ниже.
+      'svc.lost.t':      'Перевод забрал',
       'svc.official':    'по сравнению с официальным курсом ЦБ',
       'svc.lost':        'Разница на курсе: {n} сум',
 
