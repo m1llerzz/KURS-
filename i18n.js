@@ -26,7 +26,14 @@ window.I18N = (function () {
       // банка получателя — гипотезу, которая на замере не подтвердилась
       // (0,84%). Первое, что читает человек, обязано быть правдой.
       'intro.h1':        'Bugun yuborishmi yoki kutishmi',
-      'intro.p1':        'Oy ichida rubl kursi <b>155 dan 141 gacha</b> tushdi. Bu 9,5% — 50 000 rublda 670 ming so’m. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
+      // Raqamlar jonli ma’lumotdan qo‘yiladi, so‘z bilan yozilmaydi.
+      // Bu yerda «155 dan 141 gacha, 9,5% — 670 ming so‘m» turardi: matn
+      // yozilgan kunning haqiqati. 22 avgustga kelib oyna surilib,
+      // 138,67–153,87 bo‘ldi — ya’ni 10,96% va 760 000 so‘m, — va odam
+      // birinchi o‘qigan gap pastdagi panel bilan bir ekranda ziddiyatga
+      // tushdi.
+      'intro.p1':        'Oy ichida rubl kursi <b>{mn} dan {mx} gacha</b> yurdi. Bu {p}% — 50 000 rublda {n} so’m. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
+      'intro.p1.bez':    'Oy ichida rubl kursi sezilarli yo‘l bosadi, va o‘tkazmada bu servislar orasidagi farqdan ko‘proq. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
       'intro.big.v':     'Kun servisdan ko’ra ko’proq hal qiladi',
       'intro.big.k':     'Servislar buni aytmaydi: ular aylanmadan ishlaydi va ularga «hozir yuboring» kerak',
       'intro.p2':        'Biz bugungi kursni oyning o’rtachasi bilan solishtiramiz va kartaga qancha yetib borishini hisoblaymiz. Kelajakni bashorat qilmaymiz — faqat faktni ko’rsatamiz. Pul o’tkazmaymiz va qabul qilmaymiz.',
@@ -43,8 +50,10 @@ window.I18N = (function () {
       'idle.rate':       '1 ₽ = {r} so’m',
       'idle.rate.sub':   'Markaziy bank kursi, {d} — hisob shundan boshlanadi',
       'idle.rate.old':   'Markaziy bank kursi yangilanmadi — raqamlar taxminiy',
-      'idle.s1':         'Eng ko’pini kun kursi hal qiladi — oyda 9,5% gacha',
-      'idle.s2':         'Servis kursi rasmiydan yana 4% ga past',
+      'idle.s1':         'Eng ko’pini kun kursi hal qiladi — oyda {p}%',
+      'idle.s1.bez':     'Eng ko’pini kun kursi hal qiladi',
+      'idle.s2':         'Servis kursi rasmiydan yana {p}% ga past',
+      'idle.s2.bez':     'Servis kursi rasmiydan past',
       'idle.s3':         'Hammasini birga hisoblab, kartaga qancha tushishini ko’rsatamiz',
 
       'err.min':         'Eng kami {min} ₽ — kichikroq summani hech kim yubormaydi',
@@ -193,7 +202,17 @@ window.I18N = (function () {
       'app.name':        'Сколько дойдёт',
 
       'intro.h1':        'Отправлять сегодня или подождать',
-      'intro.p1':        'За месяц курс рубля прошёл путь <b>от 155 до 141</b>. Это 9,5% — на 50 000 ₽ это 670 тысяч сум. Не какой сервис, а какой <b>день</b> — вот где основные деньги.',
+      // Числа сюда подставляются из живых данных, а не пишутся словами.
+      // Здесь стояло «от 155 до 141, это 9,5% — 670 тысяч сум»: правда
+      // того дня, когда текст писали. К 22 августа окно съехало на
+      // 138,67–153,87, то есть 10,96% и 760 000 сум, и первое, что читал
+      // человек, расходилось с панелью прямо под ним — на одном экране
+      // два разных ответа на один вопрос. Прогон этого поймать не мог:
+      // числа были в словаре, а не в расчёте.
+      'intro.p1':        'За месяц курс рубля прошёл путь <b>от {mn} до {mx}</b>. Это {p}% — на 50 000 ₽ это {n} сум. Не какой сервис, а какой <b>день</b> — вот где основные деньги.',
+      // Данных за месяц нет — говорим без чисел. Выдуманное число здесь
+      // хуже отсутствующего: на нём стоит всё обещание продукта.
+      'intro.p1.bez':    'За месяц курс рубля успевает пройти заметный путь, и на переводе это больше, чем разница между сервисами. Не какой сервис, а какой <b>день</b> — вот где основные деньги.',
       'intro.big.v':     'День решает больше, чем сервис',
       'intro.big.k':     'Сервисы об этом молчат: они зарабатывают на объёме, и им нужно «отправьте сейчас»',
       'intro.p2':        'Мы сравниваем сегодняшний курс со средним за месяц и считаем, сколько дойдёт до карты. Будущее не предсказываем — показываем факт. Деньги не переводим и не принимаем.',
@@ -210,8 +229,10 @@ window.I18N = (function () {
       'idle.rate':       '1 ₽ = {r} сум',
       'idle.rate.sub':   'Курс ЦБ, {d} — с него начинается расчёт',
       'idle.rate.old':   'Курс ЦБ обновить не удалось — цифры ориентировочные',
-      'idle.s1':         'Курс дня решает больше всего — до 9,5% за месяц',
-      'idle.s2':         'Курс сервиса ниже официального ещё примерно на 4%',
+      'idle.s1':         'Курс дня решает больше всего — {p}% за месяц',
+      'idle.s1.bez':     'Курс дня решает больше всего',
+      'idle.s2':         'Курс сервиса ниже официального ещё на {p}%',
+      'idle.s2.bez':     'Курс сервиса ниже официального',
       'idle.s3':         'Считаем всё вместе и показываем, сколько ляжет на карту',
 
       'err.min':         'Минимум {min} ₽ — меньше никто не отправляет',

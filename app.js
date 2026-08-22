@@ -587,6 +587,9 @@
     if (!ocenkaDnya) {
       // Меньше недели данных — вердикта нет. Молчим, а не гадаем.
       el.verdict.classList.add('hidden');
+      // Вступление при этом остаётся на экране, и числа в нём брать
+      // неоткуда: обновляем и его — вариантом без чисел.
+      pokazatVstuplenie();
       return;
     }
 
@@ -675,6 +678,10 @@
     el.vHint.textContent = staryeDannye
       ? t('v.do.stale')
       : t('v.do.' + (o.deystvie || 'obychno'));
+
+    // Вступление считается из тех же данных и обновляется здесь же, чтобы
+    // разойтись с панелью было негде: одни данные — один ответ.
+    pokazatVstuplenie();
   }
 
   /**
@@ -729,6 +736,59 @@
       return;
     }
     el.vSpread.innerHTML = t('v.spread', { n: '<b>' + sum(razmah) + '</b>' });
+  }
+
+  /**
+   * Числа во вступлении и в трёх шагах — из тех же данных, что и вердикт.
+   *
+   * Они стояли прямо в словаре словами: «от 155 до 141», «9,5%», «670
+   * тысяч сум», «примерно на 4%». Это была правда того дня, когда текст
+   * писали, и она тихо разошлась с продуктом: к 22 августа окно месяца
+   * съехало на 138,67–153,87, то есть 10,96% и 760 000 сум. Человек читал
+   * одно число во вступлении и видел другое в панели под ним — на одном
+   * экране, без прокрутки.
+   *
+   * Прогон поймать этого не мог: с точки зрения кода строка словаря
+   * подставилась правильно. Видно только глазами и только на снимке.
+   *
+   * Нет данных за месяц — берём вариант без чисел. Выдуманное число здесь
+   * дороже отсутствующего: на нём стоит главное обещание продукта.
+   */
+  function pokazatVstuplenie() {
+    const o = ocenkaDnya;
+    const estRazmah = !!o && o.max_30 > o.min_30 && o.min_30 > 0;
+    const razmahP = estRazmah ? (o.max_30 - o.min_30) / o.min_30 * 100 : 0;
+    const razmahSum = estRazmah ? Math.round((o.max_30 - o.min_30) * 50000) : 0;
+
+    const p1 = document.querySelector('[data-i18n-html="intro.p1"]');
+    if (p1) {
+      p1.innerHTML = estRazmah
+        ? t('intro.p1', {
+            mn: chislo(o.min_30), mx: chislo(o.max_30),
+            p: chislo(razmahP, 1), n: sum(razmahSum),
+          })
+        : t('intro.p1.bez');
+    }
+
+    const s1 = document.querySelector('[data-i18n="idle.s1"]');
+    if (s1) {
+      s1.textContent = estRazmah
+        ? t('idle.s1', { p: chislo(razmahP, 1) })
+        : t('idle.s1.bez');
+    }
+
+    // Наценка берётся наименьшая из известных — то есть у сервиса с лучшим
+    // курсом. Это нижняя граница потери: у остальных она больше, и
+    // обещать человеку меньшее из зол честнее, чем среднее по больнице.
+    const nacenki = SERVISY
+      .map(function (s) { return s.nacenka_percent; })
+      .filter(function (n) { return typeof n === 'number' && n >= 0.1; });
+    const s2 = document.querySelector('[data-i18n="idle.s2"]');
+    if (s2) {
+      s2.textContent = nacenki.length
+        ? t('idle.s2', { p: chislo(Math.min.apply(null, nacenki), 1) })
+        : t('idle.s2.bez');
+    }
   }
 
   /* ── Отрисовка расчёта ───────────────────────────────────── */
