@@ -1688,22 +1688,30 @@ TEKSTY_POSEVA = {
             "за месяц: {ssylka}"
         ),
     },
+    # Здесь стояло «проверял, курс у них одинаковый» — утверждение о мире,
+    # зашитое в текст. Оно было правдой ровно до 22 августа: у Yubor и
+    # Avosend курс совпадал каждый день наблюдений, и на этом совпадении
+    # молча держались и код приложения, и две проверки. В тот день курсы
+    # разошлись — 136,0 против 137,0, — и человек, открывший bank.uz после
+    # такого поста, поймал бы нас на неправде в первом же предложении.
+    #
+    # Теперь оба числа берутся из живых данных и просто ставятся рядом.
+    # Вывод про день делает читатель, а пост выдаётся только тогда, когда
+    # данные этот вывод подтверждают, — см. `vydat_teksty_dlya_poseva`.
     "otvet": {
         "uz": (
-            "Ochig‘ini aytsam, servislar orasidagi farq deyarli yo‘q — "
-            "tekshirdim, kurs bir xil.\n\n"
-            "Haqiqiy farq boshqa joyda: qaysi KUNI yuborasiz.\n"
-            "Oy ichida kurs {razmah_percent}% ga o‘zgardi. Servis tanlash "
-            "bunchalik bermaydi.\n\n"
+            "Ochig‘ini aytsam, o‘zim solishtirdim: servislar orasidagi farq "
+            "bugun {raznica_servisov}%.\n"
+            "Oy ichida esa kurs {razmah_percent}% ga o‘zgardi.\n\n"
+            "Ya‘ni nima orqali emas, qaysi KUNI yuborish hal qiladi.\n\n"
             "Men bugungi kurs odatdagidan yaxshimi yoki yomonmi — shu yerdan "
             "qarayman: {ssylka}"
         ),
         "ru": (
-            "Если честно — разницы между сервисами почти нет, "
-            "проверял, курс у них одинаковый.\n\n"
-            "Настоящая разница в другом: в какой ДЕНЬ отправляешь.\n"
-            "За месяц курс менялся на {razmah_percent}%. Выбор сервиса "
-            "столько не даёт.\n\n"
+            "Если честно, сам сравнивал: разница между сервисами сегодня "
+            "{raznica_servisov}%.\n"
+            "А за месяц курс ходил на {razmah_percent}%.\n\n"
+            "То есть решает не через что отправлять, а в какой ДЕНЬ.\n\n"
             "Я смотрю здесь, лучше сегодня курс обычного или хуже: {ssylka}"
         ),
     },
@@ -1760,11 +1768,21 @@ def vydat_teksty_dlya_poseva(chat_id, metka=""):
     luchshiy = max(servisy, key=lambda s: s["rate_rub_uzs"]) if servisy else None
     kurs_cb = (d.get("cbu") or {}).get("rub_uzs") or ocenka["segodnya"]
 
+    # Разница между сервисами — из сегодняшних курсов, а не из памяти о
+    # том, что «курс у них одинаковый». Ноль здесь означает «сравнивать не
+    # с чем»: на одном сервисе разницы не существует, и пост про выбор
+    # сервиса в этот день не выдаётся вовсе.
+    kursy_servisov = [s["rate_rub_uzs"] for s in servisy]
+    raznica_servisov = (
+        (max(kursy_servisov) - min(kursy_servisov)) / max(kursy_servisov) * 100
+        if len(kursy_servisov) > 1 else None)
+
     obshchee = {
         "mn": chislo(ocenka["min_30"]), "mx": chislo(ocenka["max_30"]),
         "razmah_percent": chislo(razmah_percent),
         "razmah": summa_slovom(razmah),
         "kurs": chislo(kurs_cb),
+        "raznica_servisov": chislo(raznica_servisov or 0),
         "ssylka": ssylka_posta,
     }
 
@@ -1774,7 +1792,26 @@ def vydat_teksty_dlya_poseva(chat_id, metka=""):
         "nacenka": "ПОСТ 3 — про скрытую наценку, через неделю после первого",
     }
 
+    propushcheno = []
     for vid in ("otkrytie", "otvet", "nacenka"):
+        # Пост про выбор сервиса стоит на выводе «решает день, а не сервис».
+        # Выдаём его, только пока данные этот вывод подтверждают: сравнивать
+        # должно быть с чем, и разница между сервисами должна быть меньше
+        # месячного размаха. Иначе Видадий отправит в чат утверждение,
+        # которое опровергается нашими же числами в том же посте.
+        if vid == "otvet":
+            if raznica_servisov is None:
+                propushcheno.append(
+                    "пост 2 (про выбор сервиса) — виден только один сервис, "
+                    "сравнивать не с чем")
+                continue
+            if raznica_servisov >= razmah_percent:
+                propushcheno.append(
+                    "пост 2 (про выбор сервиса) — сегодня разница между "
+                    "сервисами %s%% против %s%% за месяц, и вывод «решает "
+                    "день» перестал быть правдой"
+                    % (chislo(raznica_servisov), chislo(razmah_percent)))
+                continue
         if vid == "nacenka":
             if not luchshiy:
                 continue
@@ -1799,8 +1836,10 @@ def vydat_teksty_dlya_poseva(chat_id, metka=""):
     poslat(chat_id,
            "Числа на %s. Метка чата: <code>%s</code> — по ней будет видно, "
            "сколько людей пришло именно оттуда.\n\n"
-           "Метку задавать так: <code>/tekst moskva1</code>"
-           % (data_slovom(ocenka.get("data"), "ru"), chistaya or "нет"))
+           "Метку задавать так: <code>/tekst moskva1</code>%s"
+           % (data_slovom(ocenka.get("data"), "ru"), chistaya or "нет",
+              ("\n\nСегодня не выдал: " + "; ".join(propushcheno))
+              if propushcheno else ""))
     hranilishche.sobytie(chat_id, "teksty_vydany", {"metka": chistaya})
 
 

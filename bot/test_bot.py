@@ -1964,9 +1964,34 @@ def _perehvat_tekstov(metod, telo=None):
     return {"ok": True, "result": {}}
 
 
+# Данные задаём свои, а не берём те, что окажутся под рукой. Пост про
+# выбор сервиса стоит на сравнении двух чисел — разницы между сервисами и
+# месячного размаха, — и проверять его на данных, где сервисов может не
+# оказаться вовсе, значит не проверять его совсем.
+_ryad_poseva = [{"date": "2026-08-%02d" % (i + 1), "rub_uzs": v}
+                for i, v in enumerate([140, 141, 142, 143, 144,
+                                       145, 146, 147, 148, 150])]
+
+
+def _dannye_poseva(*kursy_servisov):
+    return lambda *a, **k: {
+        "sovet": sovet.analiz(_ryad_poseva),
+        "history": _ryad_poseva,
+        "cbu": {"rub_uzs": 150.0, "usd_uzs": 12000.0, "date": "2026-08-10"},
+        "services": [
+            {"id": "s%d" % n, "name": "Servis %d" % n, "rate_rub_uzs": k}
+            for n, k in enumerate(kursy_servisov)
+        ],
+    }
+
+
 _byl_svoi = os.environ.get("SVOI")
 _byl_vyzov2 = bot.vyzov
+_bylo_svezh_posev = bot.svezhie_dannye
 bot.vyzov = _perehvat_tekstov
+# Размах ряда — (150 − 140) / 140, то есть 7,14%. Сервисы 136 и 137
+# расходятся на 0,73%: вывод «решает день» данными подтверждён.
+bot.svezhie_dannye = _dannye_poseva(136.0, 137.0)
 try:
     os.environ.pop("SVOI", None)
     os.environ.pop("ADMIN_CHAT_ID", None)
@@ -2002,6 +2027,40 @@ try:
              or any(m in _vse for m in bot.MESYACY["ru"]),
              "число без даты — ложь, а этот текст уйдёт в чужой чат")
 
+    proverka("разница между сервисами взята из данных",
+             "0,73%" in _vse,
+             "136 и 137 дают 0,73% — число обязано считаться, а не помниться")
+    proverka("про одинаковый курс сервисов больше не утверждается",
+             "одинаков" not in _vse and "bir xil" not in _vse,
+             "это было правдой до 22 августа; человек проверит на bank.uz")
+
+    # Сервисы разошлись сильнее, чем ходил курс за месяц: 100 против 137 —
+    # это 27% при размахе 7,14%. Вывод «решает день, а не сервис» перестал
+    # быть правдой, и пост, который на нём стоит, выдавать нельзя. Иначе
+    # Видадий отправит в чат утверждение, опровергаемое числами из того же
+    # поста, — и поймает нас на этом первый же внимательный читатель.
+    bot.svezhie_dannye = _dannye_poseva(100.0, 137.0)
+    _poslannye_teksty.clear()
+    bot.vydat_teksty_dlya_poseva(777, "moskva1")
+    _razoshlis = "\n".join(_poslannye_teksty)
+    proverka("разошедшиеся сервисы отменяют пост про выбор сервиса",
+             "ПОСТ 2" not in _razoshlis,
+             "вывод «решает день» данными не подтверждён, а пост на нём стоит")
+    proverka("остальные посты при этом выданы", "ПОСТ 1" in _razoshlis,
+             "молчать обо всём из-за одного поста — терять два рабочих")
+    proverka("сказано, почему пост не выдан", "не выдал" in _razoshlis,
+             "иначе человек решит, что бот сломался, и перестанет ему верить")
+
+    # Виден один сервис — сравнивать не с чем, и разница между сервисами
+    # не «ноль», а «неизвестна». Ноль здесь был бы утверждением.
+    bot.svezhie_dannye = _dannye_poseva(137.0)
+    _poslannye_teksty.clear()
+    bot.vydat_teksty_dlya_poseva(777, "moskva1")
+    proverka("на одном сервисе про разницу между ними не говорим",
+             "ПОСТ 2" not in "\n".join(_poslannye_teksty),
+             "с одним сервисом любая цифра разницы выдумана")
+
+    bot.svezhie_dannye = _dannye_poseva(136.0, 137.0)
     _poslannye_teksty.clear()
     bot.vydat_teksty_dlya_poseva(777, "чат <script>алерт")
     proverka("мусор из метки вычищен",
@@ -2009,6 +2068,7 @@ try:
              "чужой текст не должен доезжать до ссылки как есть")
 finally:
     bot.vyzov = _byl_vyzov2
+    bot.svezhie_dannye = _bylo_svezh_posev
     os.environ.pop("SVOI", None)
     if _byl_svoi is not None:
         os.environ["SVOI"] = _byl_svoi
