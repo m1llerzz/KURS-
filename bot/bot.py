@@ -242,78 +242,78 @@ VERDIKTY = {
 
 TEKSTY = {
     "uz": {
-        "vybran": "Til: O‘zbekcha",
+        "vybran": "Til: Oʻzbekcha",
         "privet": (
             "<b>Yuborishdan oldin: bugunmi yoki kutamizmi?</b>\n\n"
-            "Oy ichida rubl kursi 9% ga o‘zgardi. 50 000 rublda bu — 670 ming "
-            "so‘m. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.\n\n"
+            "Oy ichida rubl kursi 9% ga oʻzgardi. 50 000 rublda bu — 670 ming "
+            "soʻm. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.\n\n"
             "{stroka_kursa}\n\n"
-            "Bepul. Pul o‘tkazmaymiz — faqat hisoblaymiz."
+            "Bepul. Pul oʻtkazmaymiz — faqat hisoblaymiz."
         ),
         # Живая строка курса прямо в приветствии. Человек получает пользу
         # в первом же сообщении, до всякого нажатия, — и сразу видит, что
         # цифры тут настоящие, а не рассказ о том, какие мы хорошие.
-        "privet_kurs": "{podpis}: <b>{kurs}</b> so‘m · oyda o‘rtacha {srednee} — {verdikt}",
+        "privet_kurs": "{podpis}: <b>{kurs}</b> soʻm · oyda oʻrtacha {srednee} — {verdikt}",
         "privet_bez_kursa": "Summani kiriting — kartaga qancha yetib borishini aytaman.",
         "knopka": "Hisoblash",
         "knopka_kurs": "Bugungi kurs",
         "knopka_kanal": "Kanal — har kuni kurs",
         "podpiska_predlozhenie": (
             "Kurs yaxshilanganda sizga xabar berayinmi?\n\n"
-            "Faqat kurs odatdagidan yaxshi bo‘lganda yozaman — ya’ni "
+            "Faqat kurs odatdagidan yaxshi boʻlganda yozaman — yaʼni "
             "jim turishim sizga pulga tushadigan paytda. Uch kunda bir martadan "
-            "ko‘p emas. Istalgan payt to‘xtataman."
+            "koʻp emas. Istalgan payt toʻxtataman."
         ),
         "podpiska_da": "Ha, xabar bering",
         "podpiska_net": "Kerak emas",
         "podpisan": (
-            "Yozib qo‘ydim. Kurs yaxshilanganda birinchi bo‘lib bilasiz.\n\n"
-            "Odatda qancha jo‘natasiz? Summani yozing — shunda xabarda "
-            "foiz emas, aynan sizning so‘mingizni ko‘rsataman."
+            "Yozib qoʻydim. Kurs yaxshilanganda birinchi boʻlib bilasiz.\n\n"
+            "Odatda qancha joʻnatasiz? Summani yozing — shunda xabarda "
+            "foiz emas, aynan sizning soʻmingizni koʻrsataman."
         ),
-        "otpisan": "Yaxshi, kurs haqida yozmayman. /kurs orqali o‘zingiz ko‘ra olasiz.",
-        "summa_prinyata": "Eslab qoldim: {summa} rubl. Endi hisob aniq siznikiga mos bo‘ladi.",
+        "otpisan": "Yaxshi, kurs haqida yozmayman. /kurs orqali oʻzingiz koʻra olasiz.",
+        "summa_prinyata": "Eslab qoldim: {summa} rubl. Endi hisob aniq siznikiga mos boʻladi.",
         "summa_ne_ponyal": "Summani raqam bilan yozing, masalan: 50000",
         "kurs_zagolovok": "Rubl kursi",
-        "kurs_segodnya": "{podpis}: <b>{kurs}</b> so‘m",
-        "kurs_srednee": "Oydagi o‘rtacha: {srednee} so‘m",
+        "kurs_segodnya": "{podpis}: <b>{kurs}</b> soʻm",
+        "kurs_srednee": "Oydagi oʻrtacha: {srednee} soʻm",
         "kurs_koridor": "Oy koridori: {mn} — {mx}",
         "kurs_nedelya_up": "Haftada: +{p}%",
         "kurs_nedelya_down": "Haftada: −{p}%",
-        "kurs_na_summe": "Sizning {summa} rublingizda bu odatdagiga nisbatan {znak}{raznica} so‘m",
-        "kurs_net": "Hozircha kurs ma’lumotlari yig‘ilmoqda. Bir necha daqiqadan keyin urinib ko‘ring.",
+        "kurs_na_summe": "Sizning {summa} rublingizda bu odatdagiga nisbatan {znak}{raznica} soʻm",
+        "kurs_net": "Hozircha kurs maʼlumotlari yigʻilmoqda. Bir necha daqiqadan keyin urinib koʻring.",
         "uvedomlenie": (
             "<b>{verdikt}</b>\n\n"
-            "Rubl: {kurs} so‘m, {data} (oydagi o‘rtacha {srednee})\n"
+            "Rubl: {kurs} soʻm, {data} (oydagi oʻrtacha {srednee})\n"
             "{stroka_summy}\n\n"
             "{sovet}"
         ),
         "stop_knopka": "Boshqa yozmang",
-        "trend": {"rastet": "kurs ko‘tarilmoqda",
+        "trend": {"rastet": "kurs koʻtarilmoqda",
                   "padaet": "kurs tushmoqda",
                   "stoit": "kurs turibdi"},
         "cel_sprosit": (
             "Qaysi kursda sizga xabar berishim kerak?\n\n"
             "Raqam yozing — masalan <b>148</b>. Rubl shu darajaga chiqqan "
-            "kuni bir marta yozaman va to‘xtayman.\n\n"
+            "kuni bir marta yozaman va toʻxtayman.\n\n"
             "{podpis}: {kurs} · oydagi eng yuqori: {mx}"
         ),
         "cel_prinyata": (
-            "Yozib qo‘ydim: <b>{cel}</b> so‘m.\n\n"
-            "Kurs shu darajaga chiqqanda birinchi bo‘lib bilasiz. "
+            "Yozib qoʻydim: <b>{cel}</b> soʻm.\n\n"
+            "Kurs shu darajaga chiqqanda birinchi boʻlib bilasiz. "
             "Bekor qilish — /maqsad va 0 raqami."
         ),
         "cel_snyata": "Maqsad bekor qilindi.",
         "cel_slishkom": (
-            "Ogohlantiraman: bu kurs oxirgi oyda bo‘lmagan (eng yuqori {mx}). "
-            "Kutish uzoq cho‘zilishi mumkin."
+            "Ogohlantiraman: bu kurs oxirgi oyda boʻlmagan (eng yuqori {mx}). "
+            "Kutish uzoq choʻzilishi mumkin."
         ),
         "cel_ne_ponyal": "Kursni raqam bilan yozing, masalan: 148",
         "cel_dostignuta": (
             "<b>Siz kutgan kurs keldi.</b>\n\n"
-            "Rubl: {kurs} so‘m — siz so‘ragan {cel} dan yuqori.\n"
+            "Rubl: {kurs} soʻm — siz soʻragan {cel} dan yuqori.\n"
             "{stroka_summy}\n\n"
-            "Maqsad o‘chirildi. Yangisini /maqsad orqali qo‘yasiz."
+            "Maqsad oʻchirildi. Yangisini /maqsad orqali qoʻyasiz."
         ),
         "cel_knopka": "Kursni kutish",
         "pomoshch": (
@@ -321,9 +321,9 @@ TEKSTY = {
             "/kurs — bugungi kurs va u odatdagidan qanday farq qilishi\n"
             "/hisob — kartaga qancha tushishini hisoblash\n"
             "/maqsad — kerakli kursni belgilash, kelganda aytaman\n"
-            "/xabar — kurs haqida xabarlarni yoqish yoki o‘chirish\n"
+            "/xabar — kurs haqida xabarlarni yoqish yoki oʻchirish\n"
             "/til — tilni almashtirish\n\n"
-            "Pul o‘tkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz."
+            "Pul oʻtkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz."
         ),
     },
     "ru": {
@@ -613,7 +613,7 @@ def sprosit_yazyk(chat_id, posle=""):
     пришёл по ссылке «хочу оповещения» из приложения.
     """
     poslat(chat_id, VYBOR_YAZYKA, [[
-        {"text": "O‘zbekcha", "callback_data": "lang:uz:" + posle},
+        {"text": "Oʻzbekcha", "callback_data": "lang:uz:" + posle},
         {"text": "Русский", "callback_data": "lang:ru:" + posle},
     ]], html=False)
 
@@ -1221,12 +1221,12 @@ def razoslat_uvedomleniya():
 POST_KANALA = {
     "uz": (
         "<b>Rubl kursi — {den}</b>\n\n"
-        "1 ₽ = <b>{kurs}</b> so‘m\n"
-        "Oyda o‘rtacha: {srednee}\n"
+        "1 ₽ = <b>{kurs}</b> soʻm\n"
+        "Oyda oʻrtacha: {srednee}\n"
         "{verdikt}\n\n"
         "Oy davomida kurs {mn} dan {mx} gacha yurdi. "
         "50 000 rublda eng yaxshi va eng yomon kun orasidagi farq — "
-        "<b>{razmah} so‘m</b>.\n\n"
+        "<b>{razmah} soʻm</b>.\n\n"
         "{sovet}"
     ),
     "ru": (
@@ -1250,7 +1250,7 @@ POST_NEDELI = {
         "Rubl kursi: {nachalo} → {konec} ({izmenenie}%)\n"
         "Eng yaxshi kun — {max_data}, kurs {mx}\n"
         "Eng yomon kun — {min_data}, kurs {mn}\n\n"
-        "50 000 rublda shu ikki kun orasidagi farq — <b>{razmah} so‘m</b>.\n\n"
+        "50 000 rublda shu ikki kun orasidagi farq — <b>{razmah} soʻm</b>.\n\n"
         "{upushcheno}\n\n"
         "{sovet}"
     ),
@@ -1268,7 +1268,7 @@ POST_NEDELI = {
 
 UPUSHCHENO = {
     "uz": {
-        "est": "{kurs} haftaning eng yaxshi kunidan {skolko} so‘mga "
+        "est": "{kurs} haftaning eng yaxshi kunidan {skolko} soʻmga "
                "past (50 000 rublda).",
         "net": "{den} — haftaning eng yaxshi kuni.",
     },
@@ -1287,8 +1287,8 @@ POST_MESYACA = {
         "Kurs {mn} dan {mx} gacha yurdi — bu {razmah_percent}%.\n"
         "Eng yaxshi kun {max_data}, eng yomon {min_data}.\n\n"
         "50 000 rubl yuborganda shu ikki kun orasidagi farq — "
-        "<b>{razmah} so‘m</b>.\n\n"
-        "Servis tanlash bunchalik farq bermaydi. Eng ko‘p pulni "
+        "<b>{razmah} soʻm</b>.\n\n"
+        "Servis tanlash bunchalik farq bermaydi. Eng koʻp pulni "
         "yuborish KUNI hal qiladi — buni hech kim aytmaydi.\n\n"
         "{sovet}"
     ),
@@ -1310,17 +1310,17 @@ POST_MESYACA = {
 POST_RYVOK = {
     "uz": {
         "vverh": (
-            "<b>Kurs keskin ko‘tarildi</b>\n\n"
+            "<b>Kurs keskin koʻtarildi</b>\n\n"
             "{data_vchera}: {vchera}\n"
             "{data}: <b>{segodnya}</b> — {percent}%\n\n"
-            "50 000 rublda bu <b>{na_50k} so‘m</b> ko‘proq.\n\n"
+            "50 000 rublda bu <b>{na_50k} soʻm</b> koʻproq.\n\n"
             "{sovet}"
         ),
         "vniz": (
             "<b>Kurs keskin tushdi</b>\n\n"
             "{data_vchera}: {vchera}\n"
             "{data}: <b>{segodnya}</b> — {percent}%\n\n"
-            "50 000 rublda bu <b>{na_50k} so‘m</b> kam.\n\n"
+            "50 000 rublda bu <b>{na_50k} soʻm</b> kam.\n\n"
             "{sovet}"
         ),
     },
@@ -1347,13 +1347,13 @@ POST_RYVOK = {
 # когда каждый следующий день хуже предыдущего.
 DEYSTVIYA = {
     "uz": {
-        "otpravlyat":   "Yubormoqchi bo‘lsangiz — bugun yaxshi kun.",
-        "mozhno_zhdat": "Kurs past, lekin ko‘tarilmoqda — kutish ma’noli.",
+        "otpravlyat":   "Yubormoqchi boʻlsangiz — bugun yaxshi kun.",
+        "mozhno_zhdat": "Kurs past, lekin koʻtarilmoqda — kutish maʼnoli.",
         "ne_zhdat":     "Kurs tushmoqda — qancha kutsangiz, shuncha kam yetadi.",
         "obychno":      "Kurs odatdagidek.",
         # Ma'lumotlar eski bo'lsa — maslahat yo'q. Ko'p kunlik kurs
         # bo'yicha «bugun yaxshi kun» deyish odamga pulga tushadi.
-        "stale":        "Ma’lumotlar eski — bugun uchun maslahat bermayman.",
+        "stale":        "Maʼlumotlar eski — bugun uchun maslahat bermayman.",
     },
     "ru": {
         "otpravlyat":   "Если собирались отправлять — сегодня хороший день.",
@@ -1667,15 +1667,15 @@ def svoi(chat_id):
 TEKSTY_POSEVA = {
     "otkrytie": {
         "uz": (
-            "Hisoblab ko‘rdim va o‘zim ham hayron qoldim.\n\n"
+            "Hisoblab koʻrdim va oʻzim ham hayron qoldim.\n\n"
             "Oxirgi 30 kunda rubl kursi {mx} dan {mn} gacha yurdi. "
             "Bu {razmah_percent}%.\n"
-            "50 000 rublda — {razmah} so‘m.\n\n"
+            "50 000 rublda — {razmah} soʻm.\n\n"
             "Komissiya-yu servis tanlash bunga nisbatan mayda gap.\n"
-            "Eng ko‘p pulni yuborish KUNI hal qiladi, lekin buni hech kim "
+            "Eng koʻp pulni yuborish KUNI hal qiladi, lekin buni hech kim "
             "aytmaydi.\n\n"
-            "Bugungi kurs oyning o‘rtachasidan qanday farq qilishini shu "
-            "yerda ko‘rsatyapti: {ssylka}"
+            "Bugungi kurs oyning oʻrtachasidan qanday farq qilishini shu "
+            "yerda koʻrsatyapti: {ssylka}"
         ),
         "ru": (
             "Посчитал и сам удивился.\n\n"
@@ -1700,10 +1700,10 @@ TEKSTY_POSEVA = {
     # данные этот вывод подтверждают, — см. `vydat_teksty_dlya_poseva`.
     "otvet": {
         "uz": (
-            "Ochig‘ini aytsam, o‘zim solishtirdim: servislar orasidagi farq "
+            "Ochigʻini aytsam, oʻzim solishtirdim: servislar orasidagi farq "
             "bugun {raznica_servisov}%.\n"
-            "Oy ichida esa kurs {razmah_percent}% ga o‘zgardi.\n\n"
-            "Ya‘ni nima orqali emas, qaysi KUNI yuborish hal qiladi.\n\n"
+            "Oy ichida esa kurs {razmah_percent}% ga oʻzgardi.\n\n"
+            "Yaʼni nima orqali emas, qaysi KUNI yuborish hal qiladi.\n\n"
             "Men bugungi kurs odatdagidan yaxshimi yoki yomonmi — shu yerdan "
             "qarayman: {ssylka}"
         ),
@@ -1717,10 +1717,10 @@ TEKSTY_POSEVA = {
     },
     "nacenka": {
         "uz": (
-            "Yana bir narsa, buni hech kim ko‘rsatmaydi.\n\n"
-            "Markaziy bank kursi {data} holatiga {kurs}. Pul o‘tkazma esa "
-            "{kurs_servisa} bo‘yicha o‘tadi.\n"
-            "Farqi {nacenka_percent}% — 50 000 rublda {nacenka} so‘m.\n\n"
+            "Yana bir narsa, buni hech kim koʻrsatmaydi.\n\n"
+            "Markaziy bank kursi {data} holatiga {kurs}. Pul oʻtkazma esa "
+            "{kurs_servisa} boʻyicha oʻtadi.\n"
+            "Farqi {nacenka_percent}% — 50 000 rublda {nacenka} soʻm.\n\n"
             "Bu komissiya emas. Bu kurs. Va u hech qayerda yozilmagan.\n\n"
             "{ssylka}"
         ),

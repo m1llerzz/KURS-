@@ -259,7 +259,7 @@ def main():
     # объявление на подъезде: глазу негде было начать.
     sleva(risuyu, LEVOE, 58, vrazryadku("QANCHA YETADI"),
           shrift(19), TUSKLY)
-    sprava(risuyu, PRAVOE, 58, "Rossiya - O‘zbekiston",
+    sprava(risuyu, PRAVOE, 58, "Rossiya - Oʻzbekiston",
            shrift(19, zhirny=False), TUSKLY)
 
     # Курс дня — второе число обложки и единственное, ради которого
@@ -267,10 +267,10 @@ def main():
     # и вес композиции сваливался влево. Кегль вчетверо меньше главного:
     # это спутник размаха, а не соперник ему.
     sprava(risuyu, PRAVOE, 104,
-           "1 ₽ = %s so‘m" % ("%.2f" % ocenka["segodnya"]).replace(".", ","),
+           "1 ₽ = %s soʻm" % ("%.2f" % ocenka["segodnya"]).replace(".", ","),
            shrift(37), BELY)
     sprava(risuyu, PRAVOE, 152,
-           "%s%% oyning o‘rtachasidan · от среднего" % (
+           "%s%% oyning oʻrtachasidan · от среднего" % (
                ("%+.1f" % ocenka["otklonenie_percent"])
                .replace(".", ",")
                # Минус, а не дефис: рядом с плюсом дефис короче и сидит
@@ -289,7 +289,7 @@ def main():
     shrift_chisla = shrift(134)
     sleva(risuyu, LEVOE, 104, chislo, shrift_chisla, BELY)
     sleva(risuyu, LEVOE + risuyu.textlength(chislo, font=shrift_chisla) + 18,
-          202, "so‘m", shrift(34), PRIGLUSHENNY)
+          202, "soʻm", shrift(34), PRIGLUSHENNY)
 
     sleva(risuyu, LEVOE, 262,
           "50 000 rublda oyning eng yaxshi va eng yomon kuni farqi",

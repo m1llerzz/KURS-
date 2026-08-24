@@ -26,47 +26,47 @@ window.I18N = (function () {
       // банка получателя — гипотезу, которая на замере не подтвердилась
       // (0,84%). Первое, что читает человек, обязано быть правдой.
       'intro.h1':        'Bugun yuborishmi yoki kutishmi',
-      // Raqamlar jonli ma’lumotdan qo‘yiladi, so‘z bilan yozilmaydi.
-      // Bu yerda «155 dan 141 gacha, 9,5% — 670 ming so‘m» turardi: matn
+      // Raqamlar jonli maʼlumotdan qoʻyiladi, soʻz bilan yozilmaydi.
+      // Bu yerda «155 dan 141 gacha, 9,5% — 670 ming soʻm» turardi: matn
       // yozilgan kunning haqiqati. 22 avgustga kelib oyna surilib,
-      // 138,67–153,87 bo‘ldi — ya’ni 10,96% va 760 000 so‘m, — va odam
-      // birinchi o‘qigan gap pastdagi panel bilan bir ekranda ziddiyatga
+      // 138,67–153,87 boʻldi — yaʼni 10,96% va 760 000 soʻm, — va odam
+      // birinchi oʻqigan gap pastdagi panel bilan bir ekranda ziddiyatga
       // tushdi.
-      'intro.p1':        'Oy ichida rubl kursi <b>{mn} dan {mx} gacha</b> yurdi. Bu {p}% — 50 000 rublda {n} so’m. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
-      'intro.p1.bez':    'Oy ichida rubl kursi sezilarli yo‘l bosadi, va o‘tkazmada bu servislar orasidagi farqdan ko‘proq. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
-      'intro.big.v':     'Kun servisdan ko’ra ko’proq hal qiladi',
+      'intro.p1':        'Oy ichida rubl kursi <b>{mn} dan {mx} gacha</b> yurdi. Bu {p}% — 50 000 rublda {n} soʻm. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
+      'intro.p1.bez':    'Oy ichida rubl kursi sezilarli yoʻl bosadi, va oʻtkazmada bu servislar orasidagi farqdan koʻproq. Qaysi servis emas, qaysi <b>kun</b> — asosiy pul shunda.',
+      'intro.big.v':     'Kun servisdan koʻra koʻproq hal qiladi',
       'intro.big.k':     'Servislar buni aytmaydi: ular aylanmadan ishlaydi va ularga «hozir yuboring» kerak',
-      'intro.p2':        'Biz bugungi kursni oyning o’rtachasi bilan solishtiramiz va kartaga qancha yetib borishini hisoblaymiz. Kelajakni bashorat qilmaymiz — faqat faktni ko’rsatamiz. Pul o’tkazmaymiz va qabul qilmaymiz.',
+      'intro.p2':        'Biz bugungi kursni oyning oʻrtachasi bilan solishtiramiz va kartaga qancha yetib borishini hisoblaymiz. Kelajakni bashorat qilmaymiz — faqat faktni koʻrsatamiz. Pul oʻtkazmaymiz va qabul qilmaymiz.',
       'intro.ok':        'Tushunarli, yopish',
 
       'lbl.send':        'Yuboraman',
       'hint.rub':        'rubl, Rossiyadan',
       'lbl.bank':        'Qabul qiluvchi bank',
-      'hint.bank':       'bilmasangiz - oraliqni ko’rsatamiz',
+      'hint.bank':       'bilmasangiz - oraliqni koʻrsatamiz',
       'bank.any':        'Bilmayman',
       'btn.calc':        'Hisoblash',
       'btn.share':       'Yaqinlaringizga yuborish',
 
-      'idle.rate':       '1 ₽ = {r} so’m',
+      'idle.rate':       '1 ₽ = {r} soʻm',
       'idle.rate.sub':   'Markaziy bank kursi, {d} — hisob shundan boshlanadi',
       'idle.rate.old':   'Markaziy bank kursi yangilanmadi — raqamlar taxminiy',
-      'idle.s1':         'Eng ko’pini kun kursi hal qiladi — oyda {p}%',
-      'idle.s1.bez':     'Eng ko’pini kun kursi hal qiladi',
+      'idle.s1':         'Eng koʻpini kun kursi hal qiladi — oyda {p}%',
+      'idle.s1.bez':     'Eng koʻpini kun kursi hal qiladi',
       'idle.s2':         'Servis kursi rasmiydan yana {p}% ga past',
       'idle.s2.bez':     'Servis kursi rasmiydan past',
-      'idle.s3':         'Hammasini birga hisoblab, kartaga qancha tushishini ko’rsatamiz',
+      'idle.s3':         'Hammasini birga hisoblab, kartaga qancha tushishini koʻrsatamiz',
 
       'err.min':         'Eng kami {min} ₽ — kichikroq summani hech kim yubormaydi',
-      'err.max':         'Eng ko’pi {max} ₽ — bundan katta o’tkazmani xizmatlar bir amalda qabul qilmaydi',
+      'err.max':         'Eng koʻpi {max} ₽ — bundan katta oʻtkazmani xizmatlar bir amalda qabul qilmaydi',
       'err.nan':         'Summani raqam bilan kiriting',
 
       'loss.t':          'Usullar orasidagi farq',
-      'loss.sub':        '{sum} ₽ da eng yaxshi usul shuncha qo’shadi',
+      'loss.sub':        '{sum} ₽ da eng yaxshi usul shuncha qoʻshadi',
 
-      'tag.best':        'Eng ko’p',
+      'tag.best':        'Eng koʻp',
       'tag.stale':       'kecha yangilangan',
 
-      'unit.sum':        'so’m',
+      'unit.sum':        'soʻm',
       'time.min':        '{n} daqiqada',
       'time.hour':       '{n} soatda',
       'time.day':        '{n} kunda',
@@ -76,21 +76,21 @@ window.I18N = (function () {
       'detail.better':   'bank kursi rasmiydan {p}% yuqori',
       'detail.stale':    'bank kursi aniqlanmoqda',
       'detail.limit':    'limitdan yuqori - hujjat tekshiruvi kerak',
-      // Pastki chegara ham bor: Yubor 100 dollardan kam o‘tkazmani
-      // qabul qilmaydi. Buni aytmasak, odam buni servisning o‘zidan
+      // Pastki chegara ham bor: Yubor 100 dollardan kam oʻtkazmani
+      // qabul qilmaydi. Buni aytmasak, odam buni servisning oʻzidan
       // bilib oladi — biz hisoblab bergandan keyin.
       'detail.min':      'bu summa uchun juda kam - servis qabul qilmaydi',
 
-      'empty':           'Ma’lumotlar yangilanmoqda. Bir soatdan keyin kiring — noto’g’ri raqam ko’rsatmaymiz.',
-      'test':            'TEST MA’LUMOT, raqamlar o’ylab topilgan. ',
-      'disclaimer.main': 'Biz pul o’tkazmaymiz. Qabul qiluvchi bank kursi taxminiy — bank uni pul tushgan kuni belgilaydi, yakuniy summa farq qilishi mumkin.',
+      'empty':           'Maʼlumotlar yangilanmoqda. Bir soatdan keyin kiring — notoʻgʻri raqam koʻrsatmaymiz.',
+      'test':            'TEST MAʼLUMOT, raqamlar oʻylab topilgan. ',
+      'disclaimer.main': 'Biz pul oʻtkazmaymiz. Qabul qiluvchi bank kursi taxminiy — bank uni pul tushgan kuni belgilaydi, yakuniy summa farq qilishi mumkin.',
 
-      'kurs.fail':       'Markaziy bank kursini yangilab bo’lmadi — zaxira qiymatlar bo’yicha, raqamlar taxminiy',
+      'kurs.fail':       'Markaziy bank kursini yangilab boʻlmadi — zaxira qiymatlar boʻyicha, raqamlar taxminiy',
       'kurs.date':       'Markaziy bank kursi {d} holatiga',
 
       'popup.total':     'Kartaga tushadi',
       'popup.est':       'Qabul qiluvchi bank kursi taxminiy — bank uni pul tushgan kuni belgilaydi.',
-      'popup.go':        'Xizmatga o’tish',
+      'popup.go':        'Xizmatga oʻtish',
 
       'razbor.sent':        'Yuborildi',
       'razbor.fee':         'Xizmat komissiyasi',
@@ -98,102 +98,102 @@ window.I18N = (function () {
       'razbor.rate_serv':   'Xizmat kursi',
       'razbor.rate_rubusd': 'Rubl → dollar kursi',
       'razbor.in_currency': 'Valyutada ketdi',
-      'razbor.rate_bank':   'Bank kursi → so’m',
+      'razbor.rate_bank':   'Bank kursi → soʻm',
 
       // ── Verdikt: bugun yubormoqmi yoki kutmoqmi ──────────────────
-      // Mahsulotning asosiy ekrani. Oyda kurs 9,5% ga o‘zgardi — bu
-      // servis tanlashdan ham, bank tanlashdan ham ko‘proq pul.
+      // Mahsulotning asosiy ekrani. Oyda kurs 9,5% ga oʻzgardi — bu
+      // servis tanlashdan ham, bank tanlashdan ham koʻproq pul.
       // Verdikt KURSNI tasvirlaydi, kunni emas — shuning uchun «bugun»
-      // so‘zisiz. Markaziy bank dam olish kunlari kurs e’lon qilmaydi, va
+      // soʻzisiz. Markaziy bank dam olish kunlari kurs eʼlon qilmaydi, va
       // dushanba kuni eng yangi kurs — juma kuniniki. «Bugungi kurs»
-      // deyish haftada uch kun yolg‘on bo‘lardi. Sana yonida turadi.
+      // deyish haftada uch kun yolgʻon boʻlardi. Sana yonida turadi.
       'v.otlichno':       'Kurs odatdagidan sezilarli yaxshi',
       'v.horosho':        'Kurs odatdagidan yaxshiroq',
       'v.obychno':        'Kurs odatdagidek',
       'v.nize_obychnogo': 'Kurs odatdagidan pastroq',
       'v.ploho':          'Kurs odatdagidan sezilarli yomon',
 
-      'v.rate':          '1 ₽ = {r} so’m',
-      'v.avg':           'oydagi o’rtacha {r}',
+      'v.rate':          '1 ₽ = {r} soʻm',
+      'v.avg':           'oydagi oʻrtacha {r}',
       'v.pos':           'oyning {p}% kunidan yaxshi',
       'v.pos.worst':     'oyning eng yomon kuni',
       'v.pos.best':      'oyning eng yaxshi kuni',
-      'v.trend.rastet':  'kurs ko’tarilmoqda',
+      'v.trend.rastet':  'kurs koʻtarilmoqda',
       'v.trend.padaet':  'kurs tushmoqda',
       'v.trend.stoit':   'kurs turibdi',
-      'v.onsum.plus':    '{sum} ₽ uchun odatdagidan {n} so’m ko’p olasiz',
-      'v.onsum.minus':   '{sum} ₽ uchun odatdagidan {n} so’m kam olasiz',
-      'v.onsum.zero':    'Kurs odatdagidek — shoshilishning hojati yo’q',
-      'v.do.otpravlyat':   'Yubormoqchi bo’lsangiz — bugun yaxshi kun.',
-      'v.do.mozhno_zhdat': 'Kurs odatdagidan past, lekin ko’tarilmoqda — kutish ma’noli.',
+      'v.onsum.plus':    '{sum} ₽ uchun odatdagidan {n} soʻm koʻp olasiz',
+      'v.onsum.minus':   '{sum} ₽ uchun odatdagidan {n} soʻm kam olasiz',
+      'v.onsum.zero':    'Kurs odatdagidek — shoshilishning hojati yoʻq',
+      'v.do.otpravlyat':   'Yubormoqchi boʻlsangiz — bugun yaxshi kun.',
+      'v.do.mozhno_zhdat': 'Kurs odatdagidan past, lekin koʻtarilmoqda — kutish maʼnoli.',
       'v.do.ne_zhdat':     'Kurs tushmoqda — qancha kutsangiz, shuncha kam yetadi.',
       'v.do.obychno':      'Kurs odatdagidek. Quyida — kartaga qancha tushishi.',
       // Ma'lumotlar eski bo'lsa, maslahat bermaymiz. To'rt kunlik kurs
       // bo'yicha «bugun yaxshi kun» deyish — odamga pul yo'qotish
       // maslahatini berish bilan barobar.
-      'v.do.stale':        'Ma’lumotlar eski — bugun uchun maslahat bermayman. Kursni tekshiring.',
+      'v.do.stale':        'Maʼlumotlar eski — bugun uchun maslahat bermayman. Kursni tekshiring.',
       'v.days':          '30 kun',
       'v.week.up':       'haftada +{p}%',
       'v.week.down':     'haftada −{p}%',
-      'v.spread':        'Oyning eng yaxshi va eng yomon kuni orasida — sizning summangizda {n} so’m',
+      'v.spread':        'Oyning eng yaxshi va eng yomon kuni orasida — sizning summangizda {n} soʻm',
 
       // ── Raqamlar qayerdan ────────────────────────────────────────
       'src.t':           'Raqamlar qayerdan',
-      'src.cb':          'Rasmiy kurs — O‘zbekiston Markaziy bankining ochiq API si',
-      // bank.uz o‘z sahifasida kurs QAY KUNGI ekanini yozmaydi. Biz faqat
-      // qachon o‘qiganimizni bilamiz — buni aytib qo‘yish kerak, chunki
-      // «sana yo‘q raqam — bu yolg‘on» qoidasi bizga ham tegishli.
-      'src.svc':         'O‘tkazma kurslari — bank.uz (u yerda e’lon sanasi ko‘rsatilmagan)',
+      'src.cb':          'Rasmiy kurs — Oʻzbekiston Markaziy bankining ochiq API si',
+      // bank.uz oʻz sahifasida kurs QAY KUNGI ekanini yozmaydi. Biz faqat
+      // qachon oʻqiganimizni bilamiz — buni aytib qoʻyish kerak, chunki
+      // «sana yoʻq raqam — bu yolgʻon» qoidasi bizga ham tegishli.
+      'src.svc':         'Oʻtkazma kurslari — bank.uz (u yerda eʼlon sanasi koʻrsatilmagan)',
       // Ikki xil narsani chalkashtirmaslik kerak: MA'LUMOT har soatda
-      // yig‘iladi, KURS esa Markaziy bank e'lon qilgan kunga tegishli.
+      // yigʻiladi, KURS esa Markaziy bank e'lon qilgan kunga tegishli.
       // Ilgari bu yerda «har soatda yangilanadi, oxirgi marta 14.08» deb
       // yozilgan edi — ya'ni «ikki kundan beri yangilanmagan» degandek
-      // o‘qilardi, holbuki hammasi joyida edi.
-      'src.upd':         'Har soatda yig‘amiz. Markaziy bank kursi — {d} holatiga',
-      // Odam ro‘yxatni to‘liq deb o‘ylamasligi kerak. Koridorda Zolotaya
+      // oʻqilardi, holbuki hammasi joyida edi.
+      'src.upd':         'Har soatda yigʻamiz. Markaziy bank kursi — {d} holatiga',
+      // Odam roʻyxatni toʻliq deb oʻylamasligi kerak. Koridorda Zolotaya
       // Korona, Contact, Unistream va banklar ham ishlaydi — lekin ular
-      // kurslarini ochiq e’lon qilmaydi, shuning uchun bizda yo‘q.
-      'src.chastichno':  'Kurslarini ochiq e’lon qiladiganlarni ko‘rsatamiz. Koridorda boshqa servislar ham bor.',
-      'src.no':          'Biz pul o‘tkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz.',
+      // kurslarini ochiq eʼlon qilmaydi, shuning uchun bizda yoʻq.
+      'src.chastichno':  'Kurslarini ochiq eʼlon qiladiganlarni koʻrsatamiz. Koridorda boshqa servislar ham bor.',
+      'src.no':          'Biz pul oʻtkazmaymiz va qabul qilmaymiz. Faqat hisoblaymiz.',
 
       // ── Servis kursi rasmiy kursga nisbatan ──────────────────────
       'svc.markup':      'kurs rasmiydan {p}% past',
-      'svc.fee_unknown': 'komissiya e’lon qilinmagan — bu yuqori chegara',
+      'svc.fee_unknown': 'komissiya eʼlon qilinmagan — bu yuqori chegara',
       // Sarlavha raqamda nima borligini aytadi: kurs ham, komissiya ham.
-      // Ilgari 'O’tkazma kursi olib qoldi' turardi, raqamda esa ikkalasi
-      // ham hisoblangan — eng yaxshi usulda komissiya paydo bo‘lgan kuni
-      // sarlavha yolg‘on bo‘lib qoldi. Pastdagi izoh — Markaziy bank kursi.
-      'svc.lost.t':      'O’tkazma olib qoldi',
+      // Ilgari 'Oʻtkazma kursi olib qoldi' turardi, raqamda esa ikkalasi
+      // ham hisoblangan — eng yaxshi usulda komissiya paydo boʻlgan kuni
+      // sarlavha yolgʻon boʻlib qoldi. Pastdagi izoh — Markaziy bank kursi.
+      'svc.lost.t':      'Oʻtkazma olib qoldi',
       'svc.official':    'Markaziy bank kursi bilan solishtirganda',
-      'svc.lost':        'Kurs farqi: {n} so’m',
+      'svc.lost':        'Kurs farqi: {n} soʻm',
 
       // ── Xabarnomaga obuna ────────────────────────────────────────
       'sub.t':           'Kurs yaxshilanganda aytaymi?',
-      'sub.p':           'Faqat kurs odatdagidan yaxshi bo’lganda yozaman — ya’ni jim turishim sizga pulga tushadigan paytda. Uch kunda bir martadan ko’p emas.',
+      'sub.p':           'Faqat kurs odatdagidan yaxshi boʻlganda yozaman — yaʼni jim turishim sizga pulga tushadigan paytda. Uch kunda bir martadan koʻp emas.',
       'sub.btn':         'Ha, xabar bering',
       'sub.ch':          'Yoki har kuni ertalab kanalda kurs',
 
       // ── Pul qayerga ketadi ───────────────────────────────────────
       'br.t':            'Pul qayerga ketadi',
-      'br.cb':           'Markaziy bank kursi bo‘yicha',
+      'br.cb':           'Markaziy bank kursi boʻyicha',
       'br.rate':         'Xizmat kursi',
       'br.fee':          'Komissiya',
-      'br.fee_unknown':  'e’lon qilinmagan',
+      'br.fee_unknown':  'eʼlon qilinmagan',
       'br.total':        'Kartaga tushadi',
 
-      'err.net':         'Yangi kurslarni olib bo’lmadi — {d} holatidagi ma’lumot bilan hisobladim',
+      'err.net':         'Yangi kurslarni olib boʻlmadi — {d} holatidagi maʼlumot bilan hisobladim',
 
       // Пересылка — главный способ, которым про нас узнают. Поэтому здесь
       // не только цифры: нужна строка, объясняющая чужому человеку, что он видит.
       'share.title':     '{sum} ₽ yuboryapman — avval kursni tekshirdim.',
       'share.diff':      'Usullar orasidagi farq {p}% chiqdi.',
-      // Xabar ketadigan raqam. Bu — mahsulotning butun ma’nosi: kunni
-      // tanlash servisni tanlashdan ko‘proq pul hal qiladi. Ilgari bu yerda
-      // birorta ham pul raqami yo‘q edi, ya’ni xabarni uzatishga sabab
-      // ham yo‘q edi.
-      'share.spread':    'Oy davomida kurs {p}% ga o‘zgardi — 50 000 rublda bu {n} so‘m.',
-      // Sana majburiy: raqam sanasiz — bu yolg‘on, va bu xabar begona
-      // chatlarga ketadi, u yerda uni tuzatib bo‘lmaydi.
+      // Xabar ketadigan raqam. Bu — mahsulotning butun maʼnosi: kunni
+      // tanlash servisni tanlashdan koʻproq pul hal qiladi. Ilgari bu yerda
+      // birorta ham pul raqami yoʻq edi, yaʼni xabarni uzatishga sabab
+      // ham yoʻq edi.
+      'share.spread':    'Oy davomida kurs {p}% ga oʻzgardi — 50 000 rublda bu {n} soʻm.',
+      // Sana majburiy: raqam sanasiz — bu yolgʻon, va bu xabar begona
+      // chatlarga ketadi, u yerda uni tuzatib boʻlmaydi.
       'share.date':      'Markaziy bank kursi, {d}',
       'share.cta':       'Yuborishdan oldin kursga qarang.',
     },

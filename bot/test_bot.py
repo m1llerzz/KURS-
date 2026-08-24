@@ -45,6 +45,21 @@ def preduprezhdenie(imya, podskazka=""):
     predupredit.append(imya + ("  << " + podskazka if podskazka else ""))
 
 
+_APOSTROFY = str.maketrans({z: "'" for z in "ʻʼ‘’´`"})
+
+
+def bez_apostrofa(tekst):
+    """Текст, у которого все виды апострофа сведены к одному.
+
+    В узбекской латинице `oʻ` — не буква с апострофом, а буква целиком, и
+    набрать её можно четырьмя разными кодами. Проверка, которая ищет слово
+    вместе с конкретным кодом, краснеет от правки типографики и молчит о
+    том, ради чего написана. 22 августа так уже вышло с подписью на плашке:
+    слово в проверке пережило ровно до смены формулировки.
+    """
+    return tekst.translate(_APOSTROFY)
+
+
 # ── Тексты: два языка обязаны совпадать по составу ───────────────────
 
 klyuchi_uz = set(bot.TEKSTY["uz"])
@@ -797,7 +812,7 @@ _rost = [{"date": "2026-08-01", "rub_uzs": 140.0},
          {"date": "2026-08-02", "rub_uzs": 145.0}]
 _tekst_rosta = bot.sobrat_post("ryvok", {"sovet": ocenka, "history": _rost})[0]
 proverka("рост назван ростом",
-         "ko‘tarildi" in _tekst_rosta and "вырос" in _tekst_rosta)
+         "ko'tarildi" in bez_apostrofa(_tekst_rosta) and "вырос" in _tekst_rosta)
 
 
 # ── Ссылка на канал: строится из CHANNEL_ID ──────────────────────────
@@ -1153,7 +1168,7 @@ _ZAPRESHCHENO = [
      "обещание экономии — это обещание, а мы только считаем"),
     ("«гарантируем»", r"гарантир|kafolat", "мы ничего не гарантируем"),
     ("предсказание курса",
-     r"курс вырастет|курс упадёт|kurs ko‘tariladi|kurs tushadi",
+     r"курс вырастет|курс упадёт|kurs ko'tariladi|kurs tushadi",
      "за предсказание курса нужна лицензия ЦБ — это закон"),
     ("«без комиссии»", r"без комисси|komissiyasiz",
      "комиссии сервисов как раз и неизвестны"),
@@ -1181,7 +1196,7 @@ def _vse_teksty_bota():
     return "\n".join(kuski)
 
 
-_teksty_bota = _vse_teksty_bota()
+_teksty_bota = bez_apostrofa(_vse_teksty_bota())
 for _imya, _shablon, _pochemu in _ZAPRESHCHENO:
     _najdeno = _re_zapret.search(_shablon, _teksty_bota, _re_zapret.I)
     proverka("в текстах бота нет " + _imya, _najdeno is None,
