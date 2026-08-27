@@ -28,6 +28,11 @@ node_modules/
 package-lock.json
 package.json
 
+# Виртуальное окружение Python. Нужно только инструментам сборки: Pillow для
+# обложки, sqlglot для проверки SQL. У самого бота зависимость одна
+# (psycopg2-binary), и её ставит Render по requirements.txt.
+.venv/
+
 # Мусор системы
 .DS_Store
 Thumbs.db

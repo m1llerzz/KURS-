@@ -62,29 +62,84 @@ GRAFIK_POLE = 34          # воздух над самой высокой точ
 MESYACY = ["yanvar", "fevral", "mart", "aprel", "may", "iyun",
            "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"]
 
-SHRIFTY = [
+# Веса держим двумя раздельными списками, а не одним со срезами. Раньше это
+# был один список, и обычный вес брался как SHRIFTY[2:] + SHRIFTY[:2] — на
+# Linux первым в этом порядке оказывался DejaVuSans-Bold, то есть обычному
+# тексту доставался жирный шрифт. Списки по весам такую ошибку не позволяют.
+#
+# macOS появился здесь 27.08.2026 при переезде с Windows: без него шрифт не
+# находился вовсе и сборка обложки падала с SystemExit.
+#
+# Элемент — либо путь, либо пара (путь, номер начертания внутри .ttc).
+SHRIFTY_ZHIRNYE = [
     "C:/Windows/Fonts/segoeuib.ttf",
     "C:/Windows/Fonts/seguisb.ttf",
-    "C:/Windows/Fonts/segoeui.ttf",
+    ("/System/Library/Fonts/HelveticaNeue.ttc", 1),      # Helvetica Neue Bold
+    ("/System/Library/Fonts/Supplemental/PTSans.ttc", 7),  # PT Sans Bold
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+]
+
+SHRIFTY_OBYCHNYE = [
+    "C:/Windows/Fonts/segoeui.ttf",
+    ("/System/Library/Fonts/HelveticaNeue.ttc", 0),      # Helvetica Neue
+    ("/System/Library/Fonts/Supplemental/PTSans.ttc", 0),  # PT Sans
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 ]
 
+# Обложка печатает суммы в рублях, поэтому шрифт без знака ₽ (U+20BD) для неё
+# не годится: PIL молча рисует пустой квадрат, и картинка уходит в чаты с
+# дырой посреди числа. Ровно это случилось 27.08.2026 на macOS, когда сюда
+# подставили Arial: кириллица есть, рубля нет.
+PROVERKA_RUBLYA = "\u20bd"
+
+
+def _umeet_rubl(fnt):
+    """True, если шрифт рисует ₽, а не пустой квадрат."""
+    try:
+        maska = fnt.getmask(PROVERKA_RUBLYA)
+        return maska.getbbox() is not None
+    except Exception:
+        return False
+
+
+def _otkryt(zapis, razmer):
+    put, nomer = zapis if isinstance(zapis, tuple) else (zapis, 0)
+    if not os.path.exists(put):
+        return None
+    try:
+        return ImageFont.truetype(put, razmer, index=nomer)
+    except Exception:
+        return None
+
 
 def shrift(razmer, zhirny=True):
-    """Первый найденный шрифт нужного веса.
+    """Первый найденный шрифт нужного веса, умеющий кириллицу и ₽.
 
     Кириллица и латиница обязаны рисоваться оба: обложка двуязычная.
     Встроенный шрифт PIL умеет только латиницу, и на нём русская строка
     превратилась бы в квадраты.
+
+    Если нужного веса в системе нет, берём другой вес — кривое начертание
+    лучше, чем отсутствие обложки. Шрифт без ₽ идёт в самый конец очереди:
+    он годится, только когда других нет вовсе.
     """
-    poryadok = SHRIFTY if zhirny else SHRIFTY[2:] + SHRIFTY[:2]
-    for put in poryadok:
-        if os.path.exists(put):
-            try:
-                return ImageFont.truetype(put, razmer)
-            except Exception:
-                continue
+    nuzhnyy = SHRIFTY_ZHIRNYE if zhirny else SHRIFTY_OBYCHNYE
+    zapasnoy = SHRIFTY_OBYCHNYE if zhirny else SHRIFTY_ZHIRNYE
+
+    bez_rublya = None
+    for zapis in nuzhnyy + zapasnoy:
+        fnt = _otkryt(zapis, razmer)
+        if fnt is None:
+            continue
+        if _umeet_rubl(fnt):
+            return fnt
+        if bez_rublya is None:
+            bez_rublya = fnt
+
+    if bez_rublya is not None:
+        print("  ВНИМАНИЕ: в найденном шрифте нет знака ₽ — на обложке будет "
+              "пустой квадрат вместо него", flush=True)
+        return bez_rublya
     raise SystemExit("не найден ни один шрифт с кириллицей — обложку не собрать")
 
 
