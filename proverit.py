@@ -26,6 +26,7 @@
 Есть красное — не заливать. Это правило проекта, а не пожелание.
 """
 import os
+import re
 import subprocess
 import sys
 
@@ -228,6 +229,61 @@ def proverit_krakozyabry():
     return "proshlo"
 
 
+def proverit_utverzhdeniya():
+    """Утверждения о мире, которые нельзя набирать руками.
+
+    Зачем. 22 августа 2026 записали правило: не утверждать, что курс у
+    сервисов одинаковый — это было правдой и кончилось. Проверку на него
+    поставили в `test_bot.py`, но она смотрит только тексты бота. Страницу
+    под поиск она не видела, и `kurs.html` до 28 августа отдавал
+    поисковикам «на открытых данных их два, и курс у них одинаковый» —
+    при Yubor 131 и Avosend 134.
+
+    Правило без проверки возвращается. Эта смотрит на все текстовые файлы
+    продукта, а не на один.
+
+    Ищем не слово, а утверждение. Голое «одинаков» стоит в CSS-комментариях
+    про радиусы и карточки — проверка, которая кричит на невиновных, не
+    лучше той, что молчит. Совпадением считается «курс» и «одинаков» в
+    пределах одного предложения.
+    """
+    zapreshcheno = [
+        (re.compile(r"курс[^.!?]{0,80}одинаков|одинаков[^.!?]{0,80}курс",
+                    re.IGNORECASE),
+         "утверждение «курс у сервисов одинаковый» — было правдой до "
+         "22 августа 2026 и кончилось"),
+        (re.compile(r"kurs[^.!?]{0,80}bir xil|bir xil[^.!?]{0,80}kurs",
+                    re.IGNORECASE),
+         "то же самое на узбекском"),
+    ]
+    fayly = ["kurs.html", "index.html", "i18n.js", "bot/privet-uz.txt"]
+
+    plohie = []
+    for imya in fayly:
+        put = os.path.join(KORNI, imya)
+        if not os.path.exists(put):
+            continue
+        with open(put, "r", encoding="utf-8") as f:
+            tekst = f.read()
+        for shablon, pochemu in zapreshcheno:
+            najdeno = shablon.search(tekst)
+            if najdeno:
+                plohie.append("%s: %s\n        нашлось: %s"
+                              % (imya, pochemu,
+                                 " ".join(najdeno.group(0).split())[:90]))
+
+    if plohie:
+        print("%s- %-28s запрещённое утверждение в тексте%s"
+              % (KRASNY, "утверждения о мире", SBROS))
+        for p in plohie:
+            print("      " + p)
+        return "upalo"
+
+    print("%s+ %-28s запрещённых утверждений нет%s"
+          % (ZELYONY, "утверждения о мире", SBROS))
+    return "proshlo"
+
+
 def main():
     print("Проверки проекта Qancha yetadi")
     print("=" * 58)
@@ -238,6 +294,7 @@ def main():
     itogi = [
         proverit_bom(),
         proverit_krakozyabry(),
+        proverit_utverzhdeniya(),
         zapustit("сбор курсов (rates.py)", [sys.executable, "test_rates.py"], BOT),
         zapustit("вердикт (sovet.py)", [sys.executable, "test_sovet.py"], BOT),
         zapustit("бот и /api/rates", [sys.executable, "test_bot.py"], BOT),
