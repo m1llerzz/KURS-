@@ -413,10 +413,29 @@
    * он применяется, лишь когда СВЕЖЕЕ уже известного, иначе страховка
    * начнёт откатывать данные назад.
    */
+  /* Сеть, которой может не быть вовсе.
+   *
+   * `fetch` есть не во всяком webview: в старых его нет, и обращение к
+   * нему бросает исключение прямо здесь, а не отказывает промисом. Дальше
+   * падает вся загрузка — и человек видит пустой экран вместо запаса,
+   * который лежит рядом и работает без сети. Тот же случай уже ловили с
+   * `requestAnimationFrame` в вердикте: место другое, причина одна.
+   */
+  function poprosit(adres, nastroyki) {
+    try {
+      if (typeof fetch !== 'function') {
+        return Promise.reject(new Error('в этом браузере нет fetch'));
+      }
+      return fetch(adres, nastroyki);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
+
   const CBU_JSON = 'https://cbu.uz/ru/arkhiv-kursov-valyut/json/';
 
   function sprositCB(hvost, zaprosheno) {
-    return fetch(CBU_JSON + hvost, { cache: 'no-store' })
+    return poprosit(CBU_JSON + hvost, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (spisok) {
         return window.CALC.razborKursaCB(spisok, zaprosheno);
@@ -520,7 +539,7 @@
   function zagruzitOtBota(kesh) {
     if (!window.API_URL) return Promise.resolve(kesh || zapasnoy());
 
-    return fetch(window.API_URL, { cache: 'no-store' })
+    return poprosit(window.API_URL, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d || !d.cbu || !d.cbu.rub_uzs) throw new Error('неполный ответ');

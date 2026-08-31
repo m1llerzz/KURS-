@@ -61,7 +61,7 @@ function bezApostrofa(tekst) {
  * pamyat — что лежит в localStorage ДО запуска: у каждого окна jsdom своё
  * хранилище, и без этого прошлый визит человека не воспроизвести.
  */
-function podnyat(otvet, pamyat, startParam, otvetCB) {
+function podnyat(otvet, pamyat, startParam, otvetCB, bezFetch) {
   const html = fs.readFileSync(path.join(KORNI, 'index.html'), 'utf8')
     // Внешний скрипт Telegram в проверке не нужен и тянуть его неоткуда.
     .replace(/<script src="https:\/\/telegram[^<]*<\/script>/, '');
@@ -97,7 +97,10 @@ function podnyat(otvet, pamyat, startParam, otvetCB) {
   // курс у ЦБ напрямую, помимо бота. Общий на оба ответ означал бы, что
   // проверка «бот молчит» на самом деле молчащего бота не проверяет —
   // курс всё равно приезжал бы, только из другой двери.
-  w.fetch = function (adres) {
+  // Браузер без fetch — не выдумка: в старых webview его нет вовсе.
+  // Тогда мы его и не заводим, чтобы приложение встретило ровно то же
+  // самое, что встретит там.
+  w.fetch = bezFetch ? undefined : function (adres) {
     const vCB = String(adres || '').indexOf('cbu.uz') !== -1;
     const chto = vCB ? otvetCB : otvet;
     return chto
@@ -1764,6 +1767,43 @@ function dozhdatsya() {
   proverka('молчащий ЦБ не роняет приложение',
     vidno(wBezCB, 'verdict') && tekst(wBezCB, 'vRate').length > 0,
     tekst(wBezCB, 'vRate'));
+
+  /* ── Браузера без fetch тоже хватает ───────────────────────────
+   *
+   * В старом webview `fetch` отсутствует целиком, и обращение к нему
+   * бросает исключение, а не отказывает промисом. Загрузка падала бы
+   * вместе с ним — и человек видел бы пустой экран вместо запаса,
+   * который лежит рядом и работает вообще без сети. Ровно ради этого
+   * случая запас в файле и существует.
+   */
+  /* Поднимаем в try: без защиты приложение бросает исключение прямо на
+     старте, и весь прогон умирает вместе с ним — красное без имени и без
+     остальных проверок. Пойманное исключение краснеет одной строкой и
+     называет причину. */
+  let wBezSeti = null;
+  let upalNaStarte = '';
+  try {
+    wBezSeti = podnyat(null, { intro_pokazan: '1' }, null, null, true);
+  } catch (e) {
+    upalNaStarte = String(e && e.message).slice(0, 120);
+  }
+  proverka('без fetch приложение вообще поднимается', !!wBezSeti,
+    upalNaStarte || 'исключение на старте');
+  if (wBezSeti) await dozhdatsya();
+
+  proverka('без fetch вердикт всё равно на экране',
+    !!wBezSeti && vidno(wBezSeti, 'verdict') && tekst(wBezSeti, 'vRate').length > 0,
+    wBezSeti ? tekst(wBezSeti, 'vRate') : 'приложение не поднялось');
+
+  if (wBezSeti) {
+    wBezSeti.document.getElementById('summa').value = '50000';
+    wBezSeti.document.getElementById('schitat').click();
+    await dozhdatsya();
+  }
+  proverka('без fetch расчёт по запасу считается',
+    !!wBezSeti && (wBezSeti.document.querySelectorAll('#results .card').length > 0
+      || tekst(wBezSeti, 'results').length > 0),
+    'пустой экран вместо запаса — худшее, что можно показать');
 
   /* ── Ноль ошибок в консоли ─────────────────────────────────────── */
   //
