@@ -1736,24 +1736,22 @@ TEKSTY_POSEVA = {
 }
 
 
-def vydat_teksty_dlya_poseva(chat_id, metka=""):
-    """Готовые посты для чатов, с сегодняшними числами и меткой чата.
+def sobrat_teksty_poseva(d, metka=""):
+    """Готовые посты для чатов на сегодняшних числах. Ни сети, ни отправки.
 
-    Зачем команда, а не файл. Тексты в документе устаревают молча: числа
-    в них остаются от того дня, когда документ писали. Человек копирует
-    пост, публикует — и первый же читатель сверяет с cbu.uz и ловит нас
-    на неправде. Здесь числа всегда сегодняшние, а у каждого чата своя
-    метка, без которой посев превращается в гадание.
+    Зачем отдельно от отправки. Тексты нужны и там, где послать некуда:
+    бот на Render приостановлен с 21 августа, а посев — единственный
+    канал, который приводит людей. Пока эти тексты умел выдавать только
+    живой бот, вместе с ним останавливался и посев. Теперь ту же работу
+    делает `teksty.py` с той же машины, где лежит проект.
+
+    Возвращает `(posty, propushcheno, metka, data_ru)` или None, если
+    данных нет: тексты с выдуманными числами не выдаются вовсе.
+    `posty` — список `(заголовок, язык, текст)`.
     """
-    if not svoi(chat_id):
-        return                       # чужому команды просто не существует
-
-    ocenka = (svezhie_dannye() or {}).get("sovet")
-    d = svezhie_dannye() or {}
+    ocenka = (d or {}).get("sovet")
     if not ocenka:
-        poslat(chat_id, "Данных нет — тексты с выдуманными числами "
-                        "не выдаю.", html=False)
-        return
+        return None
 
     chistaya = "".join(z for z in metka.lower()
                        if (z.isalnum() and z.isascii()) or z in "_-")[:24]
@@ -1792,6 +1790,7 @@ def vydat_teksty_dlya_poseva(chat_id, metka=""):
         "nacenka": "ПОСТ 3 — про скрытую наценку, через неделю после первого",
     }
 
+    posty = []
     propushcheno = []
     for vid in ("otkrytie", "otvet", "nacenka"):
         # Пост про выбор сервиса стоит на выводе «решает день, а не сервис».
@@ -1826,18 +1825,43 @@ def vydat_teksty_dlya_poseva(chat_id, metka=""):
         else:
             polya = polya_uz = obshchee
 
-        # Каждый пост отдельным сообщением: их копируют по одному, и
-        # склеенные в кучу пришлось бы разбирать руками.
-        poslat(chat_id, "<b>%s · UZ</b>\n\n<code>%s</code>" % (
-            zagolovki[vid], TEKSTY_POSEVA[vid]["uz"].format(**polya_uz)))
-        poslat(chat_id, "<b>%s · RU</b>\n\n<code>%s</code>" % (
-            zagolovki[vid], TEKSTY_POSEVA[vid]["ru"].format(**polya)))
+        posty.append((zagolovki[vid], "UZ", TEKSTY_POSEVA[vid]["uz"].format(**polya_uz)))
+        posty.append((zagolovki[vid], "RU", TEKSTY_POSEVA[vid]["ru"].format(**polya)))
+
+    return posty, propushcheno, chistaya, data_slovom(ocenka.get("data"), "ru")
+
+
+def vydat_teksty_dlya_poseva(chat_id, metka=""):
+    """Те же тексты, но в чат. Числа сегодняшние, метка — своя у каждого чата.
+
+    Зачем команда, а не файл. Тексты в документе устаревают молча: числа
+    в них остаются от того дня, когда документ писали. Человек копирует
+    пост, публикует — и первый же читатель сверяет с cbu.uz и ловит нас
+    на неправде. Здесь числа всегда сегодняшние, а у каждого чата своя
+    метка, без которой посев превращается в гадание.
+    """
+    if not svoi(chat_id):
+        return                       # чужому команды просто не существует
+
+    sobrano = sobrat_teksty_poseva(svezhie_dannye() or {}, metka)
+    if not sobrano:
+        poslat(chat_id, "Данных нет — тексты с выдуманными числами "
+                        "не выдаю.", html=False)
+        return
+
+    posty, propushcheno, chistaya, data_ru = sobrano
+
+    # Каждый пост отдельным сообщением: их копируют по одному, и
+    # склеенные в кучу пришлось бы разбирать руками.
+    for zagolovok, yazyk, tekst in posty:
+        poslat(chat_id, "<b>%s · %s</b>\n\n<code>%s</code>"
+               % (zagolovok, yazyk, tekst))
 
     poslat(chat_id,
            "Числа на %s. Метка чата: <code>%s</code> — по ней будет видно, "
            "сколько людей пришло именно оттуда.\n\n"
            "Метку задавать так: <code>/tekst moskva1</code>%s"
-           % (data_slovom(ocenka.get("data"), "ru"), chistaya or "нет",
+           % (data_ru, chistaya or "нет",
               ("\n\nСегодня не выдал: " + "; ".join(propushcheno))
               if propushcheno else ""))
     hranilishche.sobytie(chat_id, "teksty_vydany", {"metka": chistaya})

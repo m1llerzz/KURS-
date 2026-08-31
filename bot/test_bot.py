@@ -2081,6 +2081,33 @@ try:
     proverka("мусор из метки вычищен",
              "<script>" not in "\n".join(_poslannye_teksty),
              "чужой текст не должен доезжать до ссылки как есть")
+
+    # ── Те же тексты без бота ────────────────────────────────────────
+    #
+    # Их печатает `teksty.py` с нашей машины: бот на Render
+    # приостановлен, а посев — единственный канал, который приводит
+    # людей. Сборка текстов вынута из отправки, и проверять её надо там
+    # же, где она теперь живёт: отправка чужого дефекта не покажет.
+    _sobrano = bot.sobrat_teksty_poseva(_dannye_poseva(136.0, 137.0)(), "moskva1")
+    proverka("тексты собираются без отправки", _sobrano is not None)
+    if _sobrano:
+        _posty, _propushcheno, _metka, _data_ru = _sobrano
+        proverka("три поста на двух языках", len(_posty) == 6,
+                 "постов вышло %d" % len(_posty))
+        proverka("метка вычищена и в сборке", _metka == "moskva1", _metka)
+
+        # Незакрытая подстановка уехала бы в чужой чат как «{kurs}» —
+        # и это первое, что там прочитают.
+        _syrye = [z for z, _, t in _posty if "{" in t or "}" in t]
+        proverka("в текстах не осталось подстановок", not _syrye, str(_syrye))
+
+        # Ссылка с меткой — то, ради чего метка и заводится.
+        proverka("в каждом посте ссылка с меткой чата",
+                 all("start=chat_moskva1" in t for _, _, t in _posty))
+
+    proverka("без вердикта тексты не собираются",
+             bot.sobrat_teksty_poseva({"services": []}, "") is None,
+             "текст с выдуманным числом ловится первым же читателем")
 finally:
     bot.vyzov = _byl_vyzov2
     bot.svezhie_dannye = _bylo_svezh_posev
