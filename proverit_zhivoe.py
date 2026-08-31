@@ -32,6 +32,13 @@ _CTX.check_hostname = False
 _CTX.verify_mode = ssl.CERT_NONE
 
 ZELYONY, KRASNY, ZHELTY, SBROS = "\033[32m", "\033[91m", "\033[33m", "\033[0m"
+
+# Цвет — только живому терминалу. В журнал GitHub и в файл уезжают голые
+# управляющие последовательности: их читает не человек, а сторож, и
+# «\033[91m- бот отвечает» он должен видеть как «- бот отвечает».
+if not sys.stdout.isatty():
+    ZELYONY = KRASNY = ZHELTY = SBROS = ""
+
 if sys.platform == "win32":
     try:
         import ctypes

@@ -39,6 +39,12 @@ ZHELTY = "\033[33m"
 SEROY = "\033[90m"
 SBROS = "\033[0m"
 
+# Цвет — только живому терминалу. Журнал работы GitHub и перенаправление
+# в файл читает не человек, и escape-последовательности там только мешают
+# искать слова в выводе.
+if not sys.stdout.isatty():
+    ZELYONY = KRASNY = ZHELTY = SEROY = SBROS = ""
+
 if os.name == "nt":
     # Windows-консоль понимает цвета только после явного включения.
     # Не вышло — работаем без цвета, это не повод падать.
@@ -301,13 +307,22 @@ def proverit_rabotu_github():
     вперёд: всё, на что работа опирается, обязано быть в коммите.
     """
     imya_nabora = "работа GitHub"
-    put = os.path.join(KORNI, ".github", "workflows", "obnovlenie-dannyh.yml")
-    if not os.path.exists(put):
-        print("%s- %-28s файла работы нет%s" % (KRASNY, imya_nabora, SBROS))
+    papka = os.path.join(KORNI, ".github", "workflows")
+    if not os.path.isdir(papka):
+        print("%s- %-28s папки с работами нет%s" % (KRASNY, imya_nabora, SBROS))
         return "upalo"
 
-    with open(put, "r", encoding="utf-8") as f:
-        rabota = f.read()
+    raboty = {}
+    for imya in sorted(os.listdir(papka)):
+        if imya.endswith((".yml", ".yaml")):
+            with open(os.path.join(papka, imya), "r", encoding="utf-8") as f:
+                raboty[imya] = f.read()
+
+    if not raboty:
+        print("%s- %-28s работ нет вовсе%s" % (KRASNY, imya_nabora, SBROS))
+        return "upalo"
+
+    rabota = raboty.get("obnovlenie-dannyh.yml", "")
 
     try:
         v_repozitorii = set(subprocess.run(
@@ -320,11 +335,21 @@ def proverit_rabotu_github():
 
     plohie = []
 
-    # 1. Скрипты, которые работа запускает, обязаны лежать в коммите.
-    for skript, gde in (("obnovit_vsyo.py", "bot/obnovit_vsyo.py"),
-                        ("proverit.py", "proverit.py")):
-        if skript in rabota and gde not in v_repozitorii:
-            plohie.append("работа запускает %s, а его нет в репозитории" % skript)
+    # 1. Каждый скрипт, который запускает любая из работ, обязан лежать в
+    #    коммите. Ищем по всем файлам работ, а не по одному: вторая работа
+    #    заводится позже первой, и проверка, знающая только про первую,
+    #    молчит ровно там, где ошибиться проще всего.
+    for imya, tekst in raboty.items():
+        for stroka in tekst.splitlines():
+            golaya = stroka.strip()
+            if golaya.startswith("#"):
+                continue                      # в комментариях объяснения
+            for skript in re.findall(r"[\w./-]+\.py", golaya):
+                chistyy = skript.lstrip("./")
+                gde = [p for p in v_repozitorii if p.endswith(chistyy)]
+                if not gde:
+                    plohie.append("%s запускает %s, а его нет в репозитории"
+                                  % (imya, skript))
 
     # 2. Манифеста npm в коммите нет — значит jsdom ставится по имени.
     #    Голый `npm install` на чистой машине падает с ENOENT.
