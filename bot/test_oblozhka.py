@@ -67,21 +67,43 @@ for kegl, zhirny, imya in ((obl.KEGL_PROVERKI, False, "обычный"),
 # Мера: «е» — это «о» с короткой перекладиной, «ө» — «о» с перекладиной во
 # всю ширину. У исправного шрифта площадь «е» ближе к «о», чем к «ө».
 
-for zapis in obl.SHRIFTY_OBYCHNYE + obl.SHRIFTY_ZHIRNYE:
-    put = zapis[0] if isinstance(zapis, tuple) else zapis
+def _put_i_nomer(zapis):
+    return (zapis[0], zapis[1]) if isinstance(zapis, tuple) else (zapis, 0)
+
+
+# Читаемый шрифт нужного веса обязан побеждать нечитаемый: если в списке
+# есть и тот и другой, выбор не должен останавливаться на первом.
+_est_chitaemyy = False
+for zapis in obl.SHRIFTY_OBYCHNYE:
+    put, nomer = _put_i_nomer(zapis)
     if not os.path.exists(put):
         continue
     fnt = obl._otkryt(zapis, obl.KEGL_PROVERKI)
     if fnt is None or not obl._umeet_bukvy(fnt):
         continue
-    # Шрифт из списка, который умеет все буквы, но рисует «е» как «ө», не
-    # запрещён — он просто должен стоять ПОСЛЕ читаемого. Проверяем, что
-    # выбор до него не доходит.
-    if not obl._e_ostayotsya_e(zapis):
-        vybran = obl.shrift(obl.KEGL_PROVERKI, zhirny=False)
-        proverka("нечитаемый на мелком кегле шрифт не выбран",
-                 (vybran.path, vybran.index) != (put, zapis[1] if isinstance(zapis, tuple) else 0),
-                 "выбран %s — «е» на нём неотличима от «ө»" % put)
+    if obl._e_ostayotsya_e(zapis):
+        _est_chitaemyy = True
+    elif _est_chitaemyy is False:
+        pass    # нечитаемый стоит раньше читаемого — это и проверяем ниже
+
+if _est_chitaemyy:
+    vybran = obl.shrift(obl.KEGL_PROVERKI, zhirny=False)
+    proverka("выбран шрифт, у которого «е» остаётся «е»",
+             obl._chernila(vybran, "е") and obl._chernila(vybran, "ө")
+             and abs(obl._chernila(vybran, "е") - obl._chernila(vybran, "ө"))
+             / obl._chernila(vybran, "ө") >= obl.PORAG_RAZLICHIYA,
+             "выбран %s — на нём «от среднего» читается как «от срөднөго»"
+             % getattr(vybran, "path", "?"))
+
+# Вес важнее читаемости мелкого кегля: обычному тексту жирный шрифт
+# доставаться не должен ни при каких обстоятельствах. Это уже ломалось
+# однажды на Linux, когда два списка перебирались подряд.
+_obychnyy = obl.shrift(obl.KEGL_PROVERKI, zhirny=False)
+_zhirnye_puti = {_put_i_nomer(z) for z in obl.SHRIFTY_ZHIRNYE}
+proverka("обычному тексту не достался жирный шрифт",
+         (getattr(_obychnyy, "path", ""), getattr(_obychnyy, "index", 0))
+         not in _zhirnye_puti,
+         "выбран %s" % getattr(_obychnyy, "path", "?"))
 
 # Мера должна уметь сказать «нет»: на macOS обычное начертание Helvetica
 # Neue — тот самый случай, ради которого она написана.

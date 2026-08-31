@@ -124,30 +124,39 @@ def _chernila(fnt, bukva):
         return None
 
 
-def _e_ostayotsya_e(zapis):
-    """«е» на мелком кегле обязана остаться «е», а не превратиться в «ө».
+# Насколько «е» обязана отличаться от «ө» по площади. Замеры на живых
+# шрифтах: у Helvetica Neue Regular на двадцатом кегле — 1,6%, то есть
+# буквы стали одной картинкой; у здоровых шрифтов — от 5,5% (DejaVu Sans)
+# до 17% (PT Sans). Порог посередине, ближе к плохому концу: проверка,
+# которая кричит на невиновных, не лучше той, что молчит.
+PORAG_RAZLICHIYA = 0.04
 
-    Зачем. Обложка печатает русскую строку двадцатым кеглем, и Helvetica
-    Neue на нём закрывает просвет: перекладина доходит до правого края, и
-    «от среднего» читается как «от срөднөго». Знак рубля при этом на
-    месте, кириллица на месте — прежние проверки такой шрифт пропускали.
-    Картинка уходит в чаты, и первое, что человек видит, — слово с
-    ошибкой.
+
+def _e_ostayotsya_e(zapis):
+    """«е» на мелком кегле обязана остаться «е», а не стать «ө».
+
+    Зачем. Обложка печатает русскую строку двадцатым кеглем, и обычное
+    начертание Helvetica Neue на нём закрывает просвет: перекладина
+    доходит до правого края, и «от среднего» читается как «от срөднөго».
+    Знак рубля при этом на месте, кириллица на месте — прежние проверки
+    такой шрифт пропускали. Картинка уходит в чаты, и первое, что человек
+    видит, — русское слово с ошибкой.
 
     Как меряем. «е» — это «о» с короткой перекладиной, «ө» — «о» с
-    перекладиной во всю ширину. Значит у исправного шрифта площадь «е»
-    ближе к «о», чем к «ө». У Helvetica Neue на двадцатом кегле «е» и «ө»
-    расходятся на полтора процента, а «е» и «о» — на шестнадцать: буквы
-    стали одинаковыми, и никакой другой признак этого не покажет.
+    перекладиной во всю ширину. Если шрифт рисует их одной и той же
+    картинкой, площадь чернил совпадёт. Мера грубая нарочно: тонкая
+    начала бы браковать здоровые шрифты, а цена ошибки тут
+    несимметрична — забракованный здоровый шрифт стоит нам гарнитуры,
+    пропущенный больной уходит людям в чаты.
     """
     fnt = _otkryt(zapis, KEGL_PROVERKI)
     if fnt is None:
         return False
-    e, o_s_chertoy, o = (_chernila(fnt, "е"), _chernila(fnt, "ө"),
-                         _chernila(fnt, "о"))
-    if not e or not o_s_chertoy or not o:
+    e = _chernila(fnt, "е")
+    o_s_chertoy = _chernila(fnt, "ө")
+    if not e or not o_s_chertoy:
         return False       # нет кириллицы — обложка двуязычная, не годится
-    return abs(e - o) / o < abs(e - o_s_chertoy) / o_s_chertoy
+    return abs(e - o_s_chertoy) / o_s_chertoy >= PORAG_RAZLICHIYA
 
 
 def _est_bukva(fnt, bukva):
@@ -202,36 +211,57 @@ def shrift(razmer, zhirny=True):
     nuzhnyy = SHRIFTY_ZHIRNYE if zhirny else SHRIFTY_OBYCHNYE
     zapasnoy = SHRIFTY_OBYCHNYE if zhirny else SHRIFTY_ZHIRNYE
 
-    bez_rublya = None
-    nechitaemye = None
-    for zapis in nuzhnyy + zapasnoy:
-        fnt = _otkryt(zapis, razmer)
-        if fnt is None:
-            continue
-        if not _umeet_bukvy(fnt):
-            if bez_rublya is None:
-                bez_rublya = fnt
-            continue
-        # Буквы проверяем на САМОМ МЕЛКОМ кегле обложки, а не на текущем:
-        # иначе крупные надписи достались бы одному шрифту, мелкие —
-        # другому, и картинка собралась бы из двух гарнитур.
-        if not _e_ostayotsya_e(zapis):
-            if nechitaemye is None:
-                nechitaemye = fnt
-            continue
-        return fnt
+    def perebrat(spisok):
+        """(годный, читаемый_но_последний, без_нужных_букв) из одного списка."""
+        nechitaemyy = bez_bukv = None
+        for zapis in spisok:
+            fnt = _otkryt(zapis, razmer)
+            if fnt is None:
+                continue
+            if not _umeet_bukvy(fnt):
+                bez_bukv = bez_bukv or fnt
+                continue
+            # Буквы проверяем на САМОМ МЕЛКОМ кегле обложки, а не на
+            # текущем: иначе крупные надписи достались бы одному шрифту,
+            # мелкие — другому, и картинка собралась бы из двух гарнитур.
+            if not _e_ostayotsya_e(zapis):
+                nechitaemyy = nechitaemyy or fnt
+                continue
+            return fnt, None, None
+        return None, nechitaemyy, bez_bukv
 
-    if nechitaemye is not None:
-        print("  ВНИМАНИЕ: в найденном шрифте «е» на мелком кегле "
-              "неотличима от «ө» — русские слова на обложке будут "
-              "читаться с ошибкой", flush=True)
-        return nechitaemye
+    # Сначала весь нужный вес, и только потом — чужой.
+    #
+    # Порядок именно такой, потому что обратный уже ломал обложку: на
+    # Linux при переборе двух списков подряд обычному тексту доставался
+    # DejaVuSans-Bold. Вес виден на картинке всегда, а закрытый просвет
+    # у «е» — только на мелких строках, поэтому нечитаемый шрифт нужного
+    # веса лучше читаемого чужого.
+    godnyy, nechitaemyy, bez_bukv = perebrat(nuzhnyy)
+    if godnyy is not None:
+        return godnyy
 
-    if bez_rublya is not None:
+    if nechitaemyy is not None:
+        print("  ВНИМАНИЕ: в шрифте нужного веса «е» на мелком кегле почти "
+              "неотличима от «ө» — русские слова на обложке будут читаться "
+              "с ошибкой", flush=True)
+        return nechitaemyy
+
+    chuzhoy, chuzhoy_nechitaemyy, chuzhoy_bez_bukv = perebrat(zapasnoy)
+    if chuzhoy is not None:
+        print("  ВНИМАНИЕ: шрифта нужного веса нет — беру чужой", flush=True)
+        return chuzhoy
+    if chuzhoy_nechitaemyy is not None:
+        print("  ВНИМАНИЕ: беру чужой вес, и в нём «е» почти неотличима "
+              "от «ө»", flush=True)
+        return chuzhoy_nechitaemyy
+
+    ostalos = bez_bukv or chuzhoy_bez_bukv
+    if ostalos is not None:
         print("  ВНИМАНИЕ: в найденном шрифте нет то ли ₽, то ли узбекской "
               "`ʻ`, то ли кириллицы — на обложке будет пустой квадрат "
               "посреди слова", flush=True)
-        return bez_rublya
+        return ostalos
     raise SystemExit("не найден ни один шрифт с кириллицей — обложку не собрать")
 
 
