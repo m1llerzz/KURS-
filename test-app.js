@@ -61,7 +61,7 @@ function bezApostrofa(tekst) {
  * pamyat — что лежит в localStorage ДО запуска: у каждого окна jsdom своё
  * хранилище, и без этого прошлый визит человека не воспроизвести.
  */
-function podnyat(otvet, pamyat, startParam, otvetCB, bezFetch) {
+function podnyat(otvet, pamyat, startParam, otvetCB, bezFetch, bezPamyati) {
   const html = fs.readFileSync(path.join(KORNI, 'index.html'), 'utf8')
     // Внешний скрипт Telegram в проверке не нужен и тянуть его неоткуда.
     .replace(/<script src="https:\/\/telegram[^<]*<\/script>/, '');
@@ -111,6 +111,17 @@ function podnyat(otvet, pamyat, startParam, otvetCB, bezFetch) {
   Object.keys(pamyat || {}).forEach(function (k) {
     w.localStorage.setItem(k, pamyat[k]);
   });
+
+  /* Браузер с запрещёнными данными сайта бросает исключение на самом
+     обращении к localStorage — не возвращает пусто, а именно бросает.
+     Подменяем ДО запуска скриптов: подмена после запуска проверяет не то,
+     приложение к этому моменту уже прочитало хранилище. */
+  if (bezPamyati) {
+    Object.defineProperty(w, 'localStorage', {
+      configurable: true,
+      get: function () { throw new Error('данные сайта запрещены'); },
+    });
+  }
 
   /* Метка источника кладётся ДО запуска приложения — так же, как её
    * кладёт Telegram при переходе по ссылке из чата или канала.
@@ -1805,7 +1816,44 @@ function dozhdatsya() {
       || tekst(wBezSeti, 'results').length > 0),
     'пустой экран вместо запаса — худшее, что можно показать');
 
-  /* ── Ноль ошибок в консоли ─────────────────────────────────────── */
+  /* ── Браузер с запрещёнными данными сайта ──────────────────────
+   *
+   * Обращение к localStorage там бросает исключение, а не возвращает
+   * пусто. Приложение обязано пережить это молча: запас лежит в файле и
+   * работает вообще без хранилища.
+   */
+  let wBezPamyati = null;
+  let upalBezPamyati = '';
+  try {
+    // Бот молчит, хранилище запрещено, ЦБ отвечает: именно здесь видно,
+    // доезжает ли свежий курс. Оборванная цепочка загрузки не дошла бы до
+    // второго слоя, и на экране остался бы курс из запаса.
+    wBezPamyati = podnyat(null, null, null,
+      otvetCBna(segodnyaRu, KURS_CB), false, true);
+  } catch (e) {
+    upalBezPamyati = String(e && e.message).slice(0, 120);
+  }
+  proverka('без хранилища приложение поднимается', !!wBezPamyati,
+    upalBezPamyati || 'исключение на старте');
+  if (wBezPamyati) await dozhdatsya();
+  if (wBezPamyati) {
+    wBezPamyati.document.getElementById('summa').value = '50000';
+    wBezPamyati.document.getElementById('schitat').click();
+    await dozhdatsya();
+  }
+  proverka('без хранилища вердикт на экране',
+    !!wBezPamyati && vidno(wBezPamyati, 'verdict')
+      && tekst(wBezPamyati, 'vRate').length > 0,
+    wBezPamyati ? tekst(wBezPamyati, 'vRate') : 'приложение не поднялось');
+  proverka('без хранилища расчёт считается',
+    !!wBezPamyati
+      && wBezPamyati.document.querySelectorAll('#results .card').length > 0,
+    'запас лежит в файле и от хранилища не зависит');
+  proverka('без хранилища свежий курс ЦБ всё равно доезжает',
+    !!wBezPamyati && tekst(wBezPamyati, 'vRate').indexOf('149,55') !== -1,
+    wBezPamyati ? tekst(wBezPamyati, 'vRate') : 'приложение не поднялось');
+
+
   //
   // Считаем за весь прогон: все сценарии выше, включая мёртвую сеть,
   // протухшие данные, пустые поля и переходы по меткам. Ошибка в

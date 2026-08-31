@@ -551,15 +551,21 @@
       .catch(function () {
         // Бот спит или сети нет. Отдаём последнее, что знаем, и говорим
         // об этом словами — цифра без даты хуже отсутствия цифры.
-        const staryi = localStorage.getItem('dannye');
-        if (staryi) {
-          try {
+        //
+        // Чтение хранилища тоже в try, и не для красоты: браузер с
+        // запрещёнными данными сайта бросает исключение на самом
+        // обращении к localStorage. Здесь оно уронило бы всю цепочку
+        // загрузки — то есть в браузере без сети И без хранилища человек
+        // не увидел бы даже запаса, который лежит в файле рядом.
+        try {
+          const staryi = localStorage.getItem('dannye');
+          if (staryi) {
             const d = JSON.parse(staryi);
             primenit(d);
             dannyeUstareli = (d.cbu && d.cbu.date) || null;
             return d;
-          } catch (e) {}
-        }
+          }
+        } catch (e) {}
         return zapasnoy();
       });
   }
@@ -1484,7 +1490,14 @@
   zapasnoy();
   pokazatVerdikt();
 
-  zagruzitDannye().then(function () {
+  /* Хвост у цепочки обязателен.
+   *
+   * Без него любое неожиданное исключение внутри загрузки превращается в
+   * необработанный отказ промиса: дорисовки не будет — ни банков, ни
+   * вердикта, ни учёта открытия, — и понять это снаружи нельзя, экран
+   * просто останется на первом кадре. Запас к этому моменту уже нарисован,
+   * значит дорисовать по нему можно и после сбоя. */
+  function posleZagruzki() {
     zapolnitBanki();
     pokazatIstochniki();
     pokazatVerdikt();
@@ -1504,6 +1517,13 @@
       // считать её надо, даже если разметку источников однажды поменяют.
       iz_peresylki: otkuda === 'share',
     });
+  }
+
+  zagruzitDannye().then(posleZagruzki).catch(function (e) {
+    // Сбой уже случился, и молчать о нём в консоли нельзя: прогон
+    // приложения считает ошибки консоли и краснеет на них.
+    if (window.console && console.error) console.error('загрузка данных:', e);
+    posleZagruzki();
   });
 
   document.querySelectorAll('.lang').forEach(function (b) {
