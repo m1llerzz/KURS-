@@ -175,6 +175,14 @@ def razobrat_kursy(spisok, zaprosheno=None):
               % (zapis_usd.get("Date"),), flush=True)
         return None
 
+    # Обе валюты обязаны быть одного дня: из них выводится кросс-курс
+    # рубль→доллар, и взятые за разные дни они дадут курс, которого не
+    # было ни в один из них.
+    if _data_v_iso(zapis_rub.get("Date")) != opublikovano:
+        print("[rates] ЦБ отдал доллар и рубль за разные дни: %s и %s"
+              % (zapis_usd.get("Date"), zapis_rub.get("Date")), flush=True)
+        return None
+
     # Архив отдаёт прошлое. Дата позже запрошенной — это не «выходные», а
     # сломавшийся источник, и такому числу верить нельзя.
     if zaprosheno and opublikovano > str(zaprosheno)[:10]:

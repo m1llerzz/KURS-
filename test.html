@@ -276,6 +276,9 @@
     '2026-08-31');
   var cbBezDaty = C.razborKursaCB(
     otvetCB([['USD', 11801.23, 1], ['RUB', 136.73, 1]], 'позавчера'), null);
+  var cbRaznyeDni = C.razborKursaCB([
+    { Ccy: 'USD', Rate: '11801.23', Nominal: '1', Date: '28.08.2026' },
+    { Ccy: 'RUB', Rate: '136.73', Nominal: '1', Date: '27.08.2026' }], null);
   var cbNol = C.razborKursaCB(
     otvetCB([['USD', 11801.23, 1], ['RUB', 0, 1]], '28.08.2026'), null);
 
@@ -292,6 +295,8 @@
     ['Дата из будущего отвергается', cbIzBudushchego === null],
     ['Незнакомая дата не подменяется днём запроса', cbBezDaty === null],
     ['Нулевой курс — не курс', cbNol === null],
+    ['Доллар и рубль за разные дни — не берём: из них выводится кросс-курс',
+      cbRaznyeDni === null],
     ['Пустой ответ не роняет разбор', C.razborKursaCB([], '2026-08-31') === null],
     ['Не список — не курс', C.razborKursaCB(null, null) === null],
     ['Витрина без даты запроса разбирается',
