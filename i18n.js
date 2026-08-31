@@ -86,7 +86,7 @@ window.I18N = (function () {
       // «bir soatdan keyin kiring» deyish — bajarilmaydigan vaʼda: kurslar
       // yangilanmayotgani uchun ular yashirilgan. Sana aytiladi, vaʼda —
       // yoʻq.
-      'empty.stale':     'Xizmatlar kurslari {d} dan beri yangilanmagan — uch kundan eski raqamlarni koʻrsatmaymiz.',
+      'empty.stale':     'Xizmatlar kurslari {d} holatiga — uch kundan eski raqamlarni koʻrsatmaymiz.',
       'test':            'TEST MAʼLUMOT, raqamlar oʻylab topilgan. ',
       'disclaimer.main': 'Biz pul oʻtkazmaymiz. Qabul qiluvchi bank kursi taxminiy — bank uni pul tushgan kuni belgilaydi, yakuniy summa farq qilishi mumkin.',
 
