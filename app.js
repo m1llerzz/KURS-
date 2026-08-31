@@ -905,6 +905,36 @@
 
   /* ── Отрисовка расчёта ───────────────────────────────────── */
 
+  /**
+   * Что написать вместо списка способов. Состояний два, и человеку они
+   * говорят разное.
+   *
+   * «Данные обновляются, загляните через час» написано для первого:
+   * сервисов ещё нет, сбор идёт. Но выводилось оно и во втором — когда
+   * сервисы известны, а их курсы старше трёх суток и потому скрыты. Там
+   * это обещание, которого продукт выполнить не может: курсы и скрыты
+   * ровно потому, что обновлять их некому. Пять дней подряд, с 24 по
+   * 29 августа, приложение звало человека вернуться через час — и через
+   * час говорило ему то же самое.
+   *
+   * Во втором состоянии называем дату последнего сбора и причину.
+   * Утверждение о мире живёт только пока данные его подтверждают, а
+   * дата — единственное, что здесь подтверждено.
+   */
+  function tekstPustogo() {
+    let poslednii = null;
+    SERVISY.forEach(function (s) {
+      if (s.checked_at && (!poslednii || s.checked_at > poslednii)) {
+        poslednii = s.checked_at;
+      }
+    });
+    if (!poslednii) return t('empty');
+
+    return window.CALC.statusSvezhesti(poslednii) === 'skryt'
+      ? t('empty.stale', { d: dataSlovom(poslednii) })
+      : t('empty');
+  }
+
   function narisovat(raschet, kursy) {
     el.results.innerHTML = '';
     if (el.idle) el.idle.classList.add('hidden');
@@ -912,7 +942,7 @@
     if (!raschet.results.length) {
       const pusto = document.createElement('p');
       pusto.className = 'note';
-      pusto.textContent = t('empty');
+      pusto.textContent = tekstPustogo();
       el.results.appendChild(pusto);
       el.loss.classList.add('hidden');
       el.share.classList.add('hidden');

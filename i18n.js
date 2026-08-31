@@ -82,6 +82,11 @@ window.I18N = (function () {
       'detail.min':      'bu summa uchun juda kam - servis qabul qilmaydi',
 
       'empty':           'Maʼlumotlar yangilanmoqda. Bir soatdan keyin kiring — notoʻgʻri raqam koʻrsatmaymiz.',
+      // Ikkinchi holat: xizmatlar bor, lekin kurslari eskirgan. Bu yerda
+      // «bir soatdan keyin kiring» deyish — bajarilmaydigan vaʼda: kurslar
+      // yangilanmayotgani uchun ular yashirilgan. Sana aytiladi, vaʼda —
+      // yoʻq.
+      'empty.stale':     'Xizmatlar kurslari {d} dan beri yangilanmagan — uch kundan eski raqamlarni koʻrsatmaymiz.',
       'test':            'TEST MAʼLUMOT, raqamlar oʻylab topilgan. ',
       'disclaimer.main': 'Biz pul oʻtkazmaymiz. Qabul qiluvchi bank kursi taxminiy — bank uni pul tushgan kuni belgilaydi, yakuniy summa farq qilishi mumkin.',
 
@@ -261,6 +266,11 @@ window.I18N = (function () {
       'detail.min':      'меньше минимума - сервис не примет',
 
       'empty':           'Данные обновляются. Загляните через час — показывать неверные цифры мы не будем.',
+      // Второе состояние: сервисы известны, но их курсы протухли. «Загляните
+      // через час» здесь — обещание, которого продукт выполнить не может:
+      // курсы и скрыты ровно потому, что не обновляются. Называем дату и
+      // ничего не обещаем.
+      'empty.stale':     'Курсы сервисов не обновлялись с {d} — старше трёх суток мы их не показываем.',
       'test':            'ТЕСТОВЫЕ ДАННЫЕ, цифры выдуманы. ',
       'disclaimer.main': 'Мы не переводим деньги. Курс банка получателя оценочный — банк ставит его в день зачисления, итог может отличаться.',
 
