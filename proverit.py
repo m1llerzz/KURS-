@@ -284,6 +284,78 @@ def proverit_utverzhdeniya():
     return "proshlo"
 
 
+def proverit_rabotu_github():
+    """Работа GitHub опирается только на то, что есть в репозитории.
+
+    Зачем. Данные пересобирает GitHub четыре раза в сутки, и его машина
+    видит РОВНО то, что лежит в коммите. Шаг зависимостей был написан как
+    `npm install` — а `package.json` в репозиторий не входит: он в
+    `.gitignore` рядом с `node_modules`, потому что приложение обязано
+    остаться статическими файлами, а корень репозитория Pages раздаёт как
+    есть. На чистой машине npm не находит манифест и выходит с ошибкой.
+    То есть работа падала бы при каждом запуске, и узнали бы мы об этом
+    в тот день, когда наконец пройдёт заливка.
+
+    Поймано клоном, а не чтением: репозиторий склонировали в пустую папку
+    и прошли по шагам работы руками. Эта проверка ловит тот же класс
+    вперёд: всё, на что работа опирается, обязано быть в коммите.
+    """
+    imya_nabora = "работа GitHub"
+    put = os.path.join(KORNI, ".github", "workflows", "obnovlenie-dannyh.yml")
+    if not os.path.exists(put):
+        print("%s- %-28s файла работы нет%s" % (KRASNY, imya_nabora, SBROS))
+        return "upalo"
+
+    with open(put, "r", encoding="utf-8") as f:
+        rabota = f.read()
+
+    try:
+        v_repozitorii = set(subprocess.run(
+            ["git", "ls-files"], cwd=KORNI, capture_output=True,
+            text=True, encoding="utf-8", timeout=30).stdout.split())
+    except (OSError, subprocess.SubprocessError):
+        print("%s~ %-28s пропущено: git не ответил%s"
+              % (ZHELTY, imya_nabora, SBROS))
+        return "propushcheno"
+
+    plohie = []
+
+    # 1. Скрипты, которые работа запускает, обязаны лежать в коммите.
+    for skript, gde in (("obnovit_vsyo.py", "bot/obnovit_vsyo.py"),
+                        ("proverit.py", "proverit.py")):
+        if skript in rabota and gde not in v_repozitorii:
+            plohie.append("работа запускает %s, а его нет в репозитории" % skript)
+
+    # 2. Манифеста npm в коммите нет — значит jsdom ставится по имени.
+    #    Голый `npm install` на чистой машине падает с ENOENT.
+    if "package.json" not in v_repozitorii:
+        # Читаем ТОЛЬКО рабочие строки: в комментариях рядом объяснено,
+        # почему голого `npm install` тут больше нет, и проверка, которая
+        # ловит собственное объяснение, краснеет на исправной работе.
+        stavyat = [stroka.strip() for stroka in rabota.splitlines()
+                   if "npm install" in stroka
+                   and not stroka.strip().startswith("#")]
+        if not stavyat:
+            plohie.append("работа не ставит jsdom вовсе — три набора "
+                          "проверок из девяти пропустятся")
+        for stroka in stavyat:
+            if "jsdom" not in stroka:
+                plohie.append(
+                    "package.json не в репозитории, а работа ставит "
+                    "зависимости по нему: %s" % stroka)
+
+    if plohie:
+        print("%s- %-28s работа опирается на то, чего нет%s"
+              % (KRASNY, imya_nabora, SBROS))
+        for p in plohie:
+            print("      " + p)
+        return "upalo"
+
+    print("%s+ %-28s опирается только на коммит%s"
+          % (ZELYONY, imya_nabora, SBROS))
+    return "proshlo"
+
+
 def main():
     print("Проверки проекта Qancha yetadi")
     print("=" * 58)
@@ -295,6 +367,7 @@ def main():
         proverit_bom(),
         proverit_krakozyabry(),
         proverit_utverzhdeniya(),
+        proverit_rabotu_github(),
         zapustit("сбор курсов (rates.py)", [sys.executable, "test_rates.py"], BOT),
         zapustit("вердикт (sovet.py)", [sys.executable, "test_sovet.py"], BOT),
         zapustit("бот и /api/rates", [sys.executable, "test_bot.py"], BOT),
