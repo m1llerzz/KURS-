@@ -1789,6 +1789,30 @@ function dozhdatsya() {
     tekst(wNePoPoryadku, 'vAvg').indexOf(ozhidaemoeSrednee) !== -1,
     tekst(wNePoPoryadku, 'vAvg') + ' — ждали среднее ' + ozhidaemoeSrednee);
 
+  /* ЦБ подтвердил дату запаса — значит цифра не «ориентировочная».
+   *
+   * Бот молчит, приложение считает по запасу, ЦБ отвечает тем же числом,
+   * что в запасе. Внизу экрана стояло «курс ЦБ обновить не удалось,
+   * цифры ориентировочные» — под курсом, который источник только что
+   * подтвердил. Найдено глазами, в настоящем браузере. */
+  const zapasnayaData = w.KURSY_ZAPAS.date;
+  const zapasnayaRu = String(zapasnayaData).indexOf('-') === 4
+    ? String(zapasnayaData).slice(8, 10).replace(/^0/, '') + '.'
+      + String(zapasnayaData).slice(5, 7) + '.' + String(zapasnayaData).slice(0, 4)
+    : String(zapasnayaData);
+  const wPodtverdil = podnyat(null, { intro_pokazan: '1' }, null,
+    otvetCBna(zapasnayaRu, w.KURSY_ZAPAS.rub_uzs));
+  await dozhdatsya();
+  wPodtverdil.document.getElementById('summa').value = '50000';
+  wPodtverdil.document.getElementById('schitat').click();
+  await dozhdatsya();
+  proverka('подтверждённый курс не называется ориентировочным',
+    !/не удалось|boʻlmadi|bo'lmadi/i.test(tekst(wPodtverdil, 'kursDate')),
+    tekst(wPodtverdil, 'kursDate'));
+  proverka('и под ним стоит дата публикации',
+    /\d/.test(tekst(wPodtverdil, 'kursDate')),
+    tekst(wPodtverdil, 'kursDate'));
+
   // Дата из будущего — признак сломавшегося источника, а не свежести.
   const zavtra = new Date(Date.now() + 5 * 3600000 + 3 * 86400000)
     .toISOString().slice(0, 10);
