@@ -147,13 +147,30 @@ if kod == 200:
             preduprezhdenie("в запасе нет даты сбора",
                             "без неё возраст курсов не узнать")
         else:
-            svezhaya = max(sobrano)
-            try:
-                kogda = datetime.fromisoformat(svezhaya.replace("Z", "+00:00"))
-                chasov = (datetime.now(timezone.utc) - kogda).total_seconds() / 3600
-            except ValueError:
+            # Разбираем ВСЕ отметки и берём самую позднюю по времени, а не
+            # по алфавиту: строки со смещением «+05:00» и «+00:00»
+            # сравниваются как текст неправильно, и «свежайшей» оказалась бы
+            # не та. Отметка без часового пояса считается UTC — так её и
+            # пишет сборщик; молча вычесть её из времени с поясом нельзя,
+            # это не ошибка значения, а ошибка типа, и она уронила бы всю
+            # проверку боевого вместе со сторожем.
+            kogdy = []
+            for syraya in sobrano:
+                try:
+                    t = datetime.fromisoformat(syraya.strip().replace("Z", "+00:00"))
+                except Exception:
+                    continue
+                if t.tzinfo is None:
+                    t = t.replace(tzinfo=timezone.utc)
+                kogdy.append((t, syraya))
+
+            if not kogdy:
                 chasov = None
-                preduprezhdenie("не разобрал дату сбора в запасе", svezhaya)
+                preduprezhdenie("не разобрал ни одной даты сбора в запасе",
+                                ", ".join(sobrano[:2])[:80])
+            else:
+                kogda, svezhaya = max(kogdy)
+                chasov = (datetime.now(timezone.utc) - kogda).total_seconds() / 3600
 
             if chasov is not None:
                 # Пороги те же, что в calc.js: до 24 часов точно, до 72 —
