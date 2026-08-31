@@ -62,7 +62,7 @@ window.SERVICES = [
     "limit_per_operation": 100000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-31T12:50:00+00:00",
+    "checked_at": "2026-08-31T13:09:41+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
     "nacenka_percent": 4.19,
@@ -83,7 +83,7 @@ window.SERVICES = [
     "limit_per_operation": 200000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-08-31T12:50:00+00:00",
+    "checked_at": "2026-08-31T13:09:41+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
     "nacenka_percent": 2.73,
@@ -112,7 +112,7 @@ window.BANKS = [];
  * Флаг zapas заставляет приложение честно предупредить: без свежего
  * курса весь расчёт становится ориентировочным.
  */
-window.KURSY_ZAPAS = {"usd_uzs": 11801.23, "rub_uzs": 136.73, "date": "28.08.2026", "zapas": true};
+window.KURSY_ZAPAS = {"usd_uzs": 11801.23, "rub_uzs": 136.73, "date": "2026-08-28", "zapas": true};
 
 /**
  * Запасная история курса рубля за 30 дней (курсы ЦБ, замер 15.08.2026).
