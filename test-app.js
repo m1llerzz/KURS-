@@ -1761,6 +1761,34 @@ function dozhdatsya() {
     !/июл|iyul/i.test(tekst(wStaryiCB, 'kursDate')),
     tekst(wStaryiCB, 'kursDate'));
 
+  /* Ряд не по порядку: самая поздняя точка стоит не в конце.
+   *
+   * Порядок ряда нам никто не обещал — он приходит от бота, из кеша или
+   * из запаса. Сверка с крайним элементом добавила бы вторую точку на ту
+   * же дату, и сегодняшний день посчитался бы в среднем месяца дважды. */
+  const vcheraUZ = new Date(Date.now() + 5 * 3600000 - 86400000)
+    .toISOString().slice(0, 10);
+  const ryadNePoPoryadku = w.HISTORY_ZAPAS.slice();
+  ryadNePoPoryadku.unshift({ date: segodnyaUZ, rub_uzs: KURS_CB });
+  /* Бот отдаёт ВЧЕРАШНИЙ снимок, а сегодняшняя точка в его же ряду уже
+     есть и стоит не в конце. Тогда слой ЦБ применяется — его дата свежее
+     снимка бота, — и ровно здесь видно, с чем он сверяет ряд. */
+  const wNePoPoryadku = podnyat({
+    cbu: { usd_uzs: 11801.23, rub_uzs: 140.0, date: vcheraUZ },
+    services: [], banks: [], history: ryadNePoPoryadku,
+  }, { intro_pokazan: '1' }, null, otvetCBna(segodnyaRu, KURS_CB));
+  await dozhdatsya();
+
+  /* Смотрим на СРЕДНЕЕ МЕСЯЦА на экране, а не на арифметику рядом со
+     стендом. Вторая точка на ту же дату сдвинула бы среднее к
+     сегодняшнему курсу — это единственный след, по которому задвоение
+     видно снаружи, и потому единственный, за которым стоит следить. */
+  const ozhidaemoeSrednee = String(
+    wNePoPoryadku.CALC.sovet(ryadNePoPoryadku).srednee_30).replace('.', ',');
+  proverka('точка на сегодня не задваивается при ряде не по порядку',
+    tekst(wNePoPoryadku, 'vAvg').indexOf(ozhidaemoeSrednee) !== -1,
+    tekst(wNePoPoryadku, 'vAvg') + ' — ждали среднее ' + ozhidaemoeSrednee);
+
   // Дата из будущего — признак сломавшегося источника, а не свежести.
   const zavtra = new Date(Date.now() + 5 * 3600000 + 3 * 86400000)
     .toISOString().slice(0, 10);

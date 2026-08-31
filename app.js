@@ -491,8 +491,19 @@
      * поставили бы сегодняшний курс рядом с вердиктом за вчера — на одном
      * экране, друг под другом, и разошлись бы они ровно в тот день, когда
      * курс дёрнулся, то есть когда совет важнее всего. */
-    const posledniaya = ISTORIYA.length ? ISTORIYA[ISTORIYA.length - 1] : null;
-    if (!posledniaya || cb.date > window.CALC.vISO(posledniaya.date)) {
+    /* Сравниваем с САМОЙ ПОЗДНЕЙ датой ряда, а не с последним элементом.
+     *
+     * Порядок в ряду нам никто не обещал: он приходит от бота, из кеша или
+     * из запаса, и правило проекта на этот счёт уже записано — не сверять
+     * с крайним элементом то, что требует сравнения всех. Ряд, пришедший
+     * не по порядку, получил бы вторую точку на ту же дату, и день посчи
+     * тался бы в среднем месяца дважды. */
+    let pozdnyaya = null;
+    ISTORIYA.forEach(function (t) {
+      const d = window.CALC.vISO(t && t.date);
+      if (d && (!pozdnyaya || d > pozdnyaya)) pozdnyaya = d;
+    });
+    if (!pozdnyaya || cb.date > pozdnyaya) {
       ISTORIYA = ISTORIYA.concat([{ date: cb.date, rub_uzs: cb.rub_uzs }]);
     }
 
