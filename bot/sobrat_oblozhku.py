@@ -71,6 +71,16 @@ MESYACY = ["yanvar", "fevral", "mart", "aprel", "may", "iyun",
 # находился вовсе и сборка обложки падала с SystemExit.
 #
 # Элемент — либо путь, либо пара (путь, номер начертания внутри .ttc).
+# На macOS обычный вес берётся СРЕДНИМ начертанием Helvetica Neue, а не
+# обычным, и это не вкусовщина. Обычное на двадцатом кегле закрывает
+# просвет у «е»: на обложке, собранной 31.08.2026, «от среднего»
+# читалось как «от срөднөго», и то же самое случалось с латинской «e».
+# Среднее рисует букву как букву. Поймано глазами, на той самой картинке,
+# которую люди пересылают в чаты.
+#
+# PT Sans сюда не годится, хотя кириллицу рисует лучше всех: в нём нет
+# `ʻ` (U+02BB), а это не апостроф, а часть узбекской буквы. «soʻm» с
+# пустым квадратом посреди слова хуже, чем неидеальная «е».
 SHRIFTY_ZHIRNYE = [
     "C:/Windows/Fonts/segoeuib.ttf",
     "C:/Windows/Fonts/seguisb.ttf",
@@ -81,6 +91,7 @@ SHRIFTY_ZHIRNYE = [
 
 SHRIFTY_OBYCHNYE = [
     "C:/Windows/Fonts/segoeui.ttf",
+    ("/System/Library/Fonts/HelveticaNeue.ttc", 10),     # Helvetica Neue Medium
     ("/System/Library/Fonts/HelveticaNeue.ttc", 0),      # Helvetica Neue
     ("/System/Library/Fonts/Supplemental/PTSans.ttc", 0),  # PT Sans
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -92,14 +103,79 @@ SHRIFTY_OBYCHNYE = [
 # подставили Arial: кириллица есть, рубля нет.
 PROVERKA_RUBLYA = "\u20bd"
 
+# `ʻ` — не апостроф, а часть узбекской буквы `oʻ`.
+PROVERKA_UZ = "\u02bb"
 
-def _umeet_rubl(fnt):
-    """True, если шрифт рисует ₽, а не пустой квадрат."""
+# Знака из частной области нет ни в одном шрифте: его картинка и есть
+# «пустой квадрат» этого шрифта.
+PUSTOY_KVADRAT = "\ue000"
+
+
+# Самый мелкий кегль обложки. На нём и проверяем буквы: то, что читается
+# на двадцатом, прочтётся и на сто тридцать четвёртом, а наоборот — нет.
+KEGL_PROVERKI = 20
+
+
+def _chernila(fnt, bukva):
+    """Сколько «чернил» уходит на букву. Мера площади, а не формы."""
     try:
-        maska = fnt.getmask(PROVERKA_RUBLYA)
-        return maska.getbbox() is not None
+        return sum(bytes(fnt.getmask(bukva, mode="L"))) / 255.0
+    except Exception:
+        return None
+
+
+def _e_ostayotsya_e(zapis):
+    """«е» на мелком кегле обязана остаться «е», а не превратиться в «ө».
+
+    Зачем. Обложка печатает русскую строку двадцатым кеглем, и Helvetica
+    Neue на нём закрывает просвет: перекладина доходит до правого края, и
+    «от среднего» читается как «от срөднөго». Знак рубля при этом на
+    месте, кириллица на месте — прежние проверки такой шрифт пропускали.
+    Картинка уходит в чаты, и первое, что человек видит, — слово с
+    ошибкой.
+
+    Как меряем. «е» — это «о» с короткой перекладиной, «ө» — «о» с
+    перекладиной во всю ширину. Значит у исправного шрифта площадь «е»
+    ближе к «о», чем к «ө». У Helvetica Neue на двадцатом кегле «е» и «ө»
+    расходятся на полтора процента, а «е» и «о» — на шестнадцать: буквы
+    стали одинаковыми, и никакой другой признак этого не покажет.
+    """
+    fnt = _otkryt(zapis, KEGL_PROVERKI)
+    if fnt is None:
+        return False
+    e, o_s_chertoy, o = (_chernila(fnt, "е"), _chernila(fnt, "ө"),
+                         _chernila(fnt, "о"))
+    if not e or not o_s_chertoy or not o:
+        return False       # нет кириллицы — обложка двуязычная, не годится
+    return abs(e - o) / o < abs(e - o_s_chertoy) / o_s_chertoy
+
+
+def _est_bukva(fnt, bukva):
+    """True, если шрифт рисует именно эту букву, а не пустой квадрат.
+
+    Прежняя проверка спрашивала «есть ли хоть что-нибудь», и заглушка её
+    проходила: у пустого квадрата тоже есть очертания. Сравниваем с
+    картинкой знака из частной области — его нет ни в одном шрифте,
+    значит его картинка и есть заглушка этого шрифта.
+    """
+    try:
+        nasha = bytes(fnt.getmask(bukva, mode="L"))
+        zaglushka = bytes(fnt.getmask(PUSTOY_KVADRAT, mode="L"))
+        return bool(nasha) and any(nasha) and nasha != zaglushka
     except Exception:
         return False
+
+
+def _umeet_bukvy(fnt):
+    """Шрифт обязан рисовать ₽, узбекскую `ʻ` и кириллицу.
+
+    Обложка двуязычная и денежная: без любого из трёх в чат уходит
+    картинка с дырой посреди слова или числа. Про ₽ это узнали
+    27.08.2026 на Arial, про `ʻ` — 31.08.2026 на PT Sans.
+    """
+    return (_est_bukva(fnt, PROVERKA_RUBLYA)
+            and _est_bukva(fnt, PROVERKA_UZ)
+            and _est_bukva(fnt, "ы"))
 
 
 def _otkryt(zapis, razmer):
@@ -127,18 +203,34 @@ def shrift(razmer, zhirny=True):
     zapasnoy = SHRIFTY_OBYCHNYE if zhirny else SHRIFTY_ZHIRNYE
 
     bez_rublya = None
+    nechitaemye = None
     for zapis in nuzhnyy + zapasnoy:
         fnt = _otkryt(zapis, razmer)
         if fnt is None:
             continue
-        if _umeet_rubl(fnt):
-            return fnt
-        if bez_rublya is None:
-            bez_rublya = fnt
+        if not _umeet_bukvy(fnt):
+            if bez_rublya is None:
+                bez_rublya = fnt
+            continue
+        # Буквы проверяем на САМОМ МЕЛКОМ кегле обложки, а не на текущем:
+        # иначе крупные надписи достались бы одному шрифту, мелкие —
+        # другому, и картинка собралась бы из двух гарнитур.
+        if not _e_ostayotsya_e(zapis):
+            if nechitaemye is None:
+                nechitaemye = fnt
+            continue
+        return fnt
+
+    if nechitaemye is not None:
+        print("  ВНИМАНИЕ: в найденном шрифте «е» на мелком кегле "
+              "неотличима от «ө» — русские слова на обложке будут "
+              "читаться с ошибкой", flush=True)
+        return nechitaemye
 
     if bez_rublya is not None:
-        print("  ВНИМАНИЕ: в найденном шрифте нет знака ₽ — на обложке будет "
-              "пустой квадрат вместо него", flush=True)
+        print("  ВНИМАНИЕ: в найденном шрифте нет то ли ₽, то ли узбекской "
+              "`ʻ`, то ли кириллицы — на обложке будет пустой квадрат "
+              "посреди слова", flush=True)
         return bez_rublya
     raise SystemExit("не найден ни один шрифт с кириллицей — обложку не собрать")
 

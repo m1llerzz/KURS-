@@ -408,6 +408,7 @@ def main():
         proverit_rabotu_github(),
         zapustit("сбор курсов (rates.py)", [sys.executable, "test_rates.py"], BOT),
         zapustit("вердикт (sovet.py)", [sys.executable, "test_sovet.py"], BOT),
+        zapustit("обложка и шрифты", [sys.executable, "test_oblozhka.py"], BOT),
         zapustit("бот и /api/rates", [sys.executable, "test_bot.py"], BOT),
         zapustit("паритет py и js", [sys.executable, "test_parity.py"], BOT,
                  net_node, "не найден node"),
