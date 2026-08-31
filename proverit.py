@@ -322,12 +322,10 @@ def proverit_rabotu_github():
         print("%s- %-28s работ нет вовсе%s" % (KRASNY, imya_nabora, SBROS))
         return "upalo"
 
-    rabota = raboty.get("obnovlenie-dannyh.yml", "")
-
     try:
         v_repozitorii = set(subprocess.run(
             ["git", "ls-files"], cwd=KORNI, capture_output=True,
-            text=True, encoding="utf-8", timeout=30).stdout.split())
+            text=True, encoding="utf-8", timeout=30).stdout.splitlines())
     except (OSError, subprocess.SubprocessError):
         print("%s~ %-28s пропущено: git не ответил%s"
               % (ZHELTY, imya_nabora, SBROS))
@@ -354,10 +352,14 @@ def proverit_rabotu_github():
     # 2. Манифеста npm в коммите нет — значит jsdom ставится по имени.
     #    Голый `npm install` на чистой машине падает с ENOENT.
     if "package.json" not in v_repozitorii:
-        # Читаем ТОЛЬКО рабочие строки: в комментариях рядом объяснено,
-        # почему голого `npm install` тут больше нет, и проверка, которая
-        # ловит собственное объяснение, краснеет на исправной работе.
-        stavyat = [stroka.strip() for stroka in rabota.splitlines()
+        # Читаем ТОЛЬКО рабочие строки и во ВСЕХ работах: в комментариях
+        # рядом объяснено, почему голого `npm install` тут больше нет, и
+        # проверка, ловящая собственное объяснение, краснеет на исправной
+        # работе. А имя файла работы может однажды измениться — проверка,
+        # знающая его наизусть, замолчала бы вместе с ним.
+        stavyat = [stroka.strip()
+                   for tekst in raboty.values()
+                   for stroka in tekst.splitlines()
                    if "npm install" in stroka
                    and not stroka.strip().startswith("#")]
         if not stavyat:
