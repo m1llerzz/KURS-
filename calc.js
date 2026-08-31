@@ -370,6 +370,9 @@ window.CALC = (function () {
   // КАЛЕНДАРНЫХ дней за «обычный курс», не публикаций. ЦБ печатает курс по
   // рабочим дням, и за тридцать дней приходит около двадцати одной точки.
   // Считать окно точками значит незаметно растянуть месяц до полутора.
+  // Меньше семи публикаций — «среднее» это не среднее, а случайность.
+  // Порог один и на ряд целиком, и на окно месяца.
+  const MIN_TOCHEK = 7;
   const OKNO_DNEY = 30;
   const NEDELYA_DNEY = 7;
 
@@ -435,7 +438,7 @@ window.CALC = (function () {
    *          на случайности строить нельзя.
    */
   function sovet(istoriya) {
-    if (!istoriya || istoriya.length < 7) return null;
+    if (!istoriya || istoriya.length < MIN_TOCHEK) return null;
 
     const ryad = istoriya.slice().sort(function (a, b) {
       return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
@@ -446,6 +449,20 @@ window.CALC = (function () {
     const okno = oknoPoDatam(ryad, OKNO_DNEY).map(function (x) {
       return x.rub_uzs;
     });
+
+    /* Публикаций в окне должно хватать, чтобы называть его месяцем.
+     *
+     * Порог тот же, что и у ряда целиком: семь. И причина та же — на трёх
+     * днях «среднее» это не среднее, а случайность. Раньше хватало
+     * проверки длины ряда: историю приносил бот, и она всегда была за
+     * тридцать дней. Теперь приложение умеет добавить в ряд СЕГОДНЯШНЮЮ
+     * точку от ЦБ само — и, если запас не пересобирался неделями, ряд
+     * останется длинным, а окно month-to-date истончится до пары старых
+     * точек и одной свежей. Вердикт при этом продолжал бы бодро говорить
+     * «в среднем за месяц», считая его по двум публикациям трёхнедельной
+     * давности. Молчать тут честнее. */
+    if (okno.length < MIN_TOCHEK) return null;
+
     const sred = srednee(okno);
     const minimum = Math.min.apply(null, okno);
     const maksimum = Math.max.apply(null, okno);
