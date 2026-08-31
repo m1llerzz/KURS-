@@ -27,6 +27,17 @@ from datetime import datetime, timezone
 PRILOZHENIE = "https://m1llerzz.github.io/KURS-/"
 BOT = "https://qanchayetadi-bot.onrender.com"
 
+# Папка приложения — отсюда берётся calc.js, чтобы разбирать ответ ЦБ тем
+# же кодом, что стоит у людей.
+KORNI_APP = os.path.dirname(os.path.abspath(__file__))
+
+# Сегодняшнее ТАШКЕНТСКОЕ число: курс датируется днём того места, где его
+# публикуют, и приложение спрашивает архив именно за него.
+_SEGODNYA_UZ = (datetime.now(timezone.utc).timestamp() + 5 * 3600)
+_SEGODNYA_UZ = datetime.fromtimestamp(_SEGODNYA_UZ, timezone.utc).date().isoformat()
+CBU_SEGODNYA = ("https://cbu.uz/ru/arkhiv-kursov-valyut/json/all/%s/"
+                % _SEGODNYA_UZ)
+
 _CTX = ssl.create_default_context()
 _CTX.check_hostname = False
 _CTX.verify_mode = ssl.CERT_NONE
@@ -213,6 +224,56 @@ if kod == 200:
                      dney_ <= 5,
                      "%s — это %d дней назад. Человек из поиска пришёл за "
                      "сегодняшним числом" % (syraya, dney_))
+
+# ── Второй слой курса: ЦБ прямо из браузера ──────────────────────────
+#
+# Официальный курс приложение спрашивает у ЦБ само, минуя наш сервер. Всё
+# это держится на двух вещах, которые нам никто не обещал: на заголовке
+# `access-control-allow-origin` у cbu.uz и на том, что поля в их ответе
+# называются так же, как вчера. Пропадёт первое — слой умрёт молча, у
+# каждого человека в браузере и ни у кого в журналах. Изменится второе —
+# разбор вернёт None, и приложение тихо откатится к запасу.
+#
+# Проверяем оба, на живом ответе и тем же кодом, что стоит в приложении.
+
+print("\nВторой слой курса: " + CBU_SEGODNYA)
+kod_cb, otvet_cb, zagolovki_cb = skachat(CBU_SEGODNYA, timeout=30)
+proverka("ЦБ отвечает приложению", kod_cb == 200, "код " + str(kod_cb))
+
+if kod_cb == 200:
+    proverka("ЦБ разрешает читать себя из браузера",
+             zagolovki_cb.get("access-control-allow-origin") == "*",
+             "без этого заголовка приложение не сможет спросить курс само: "
+             + str(zagolovki_cb.get("access-control-allow-origin")))
+
+    # Разбираем ТЕМ ЖЕ кодом, что стоит в приложении. Своя проверка полей
+    # здесь проверяла бы себя: разойтись она может ровно так же, как и
+    # приложение, и молча.
+    try:
+        gotovo = subprocess.run(
+            ["node", "-e",
+             "global.window={};require(process.argv[1]);"
+             "const d=JSON.parse(process.argv[2]);"
+             "process.stdout.write(JSON.stringify("
+             "window.CALC.razborKursaCB(d, process.argv[3])||null));",
+             os.path.join(KORNI_APP, "calc.js"), otvet_cb, _SEGODNYA_UZ],
+            capture_output=True, text=True, encoding="utf-8", timeout=60)
+        razobrano = json.loads(gotovo.stdout or "null")
+    except FileNotFoundError:
+        razobrano = None
+        preduprezhdenie("node не найден", "разбор ответа ЦБ не проверен")
+    except Exception as e:
+        razobrano = None
+        preduprezhdenie("разбор ответа ЦБ не выполнен", repr(e)[:120])
+    else:
+        proverka("приложение разбирает сегодняшний ответ ЦБ",
+                 bool(razobrano) and 50 < (razobrano.get("rub_uzs") or 0) < 500,
+                 "поля ответа изменились — приложение молча откатится к запасу: "
+                 + (gotovo.stderr or gotovo.stdout or "")[:160])
+        if razobrano:
+            proverka("у разобранного курса есть дата публикации",
+                     bool(razobrano.get("date")),
+                     "цифра без даты в этом продукте не показывается")
 
 kod_robots, _, _ = skachat(PRILOZHENIE + "robots.txt")
 proverka("robots.txt отдаётся", kod_robots == 200, "код " + str(kod_robots))
