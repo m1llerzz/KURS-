@@ -251,6 +251,62 @@
       [rovno, vysoko, nizko, padaet].every(function (o) { return !!o.deystvie; })]
   );
 
+  /* ── Курс ЦБ, разобранный из ответа cbu.uz ───────────────────────
+     Приложение спрашивает официальный курс у ЦБ само — бот один и он уже
+     приостанавливался. Разбор ответа повторён на Python в bot/rates.py;
+     совпадение двух реализаций сверяет bot/test_parity.py, а здесь
+     проверяются сами правила: что берём, что округляем и когда молчим. */
+
+  function otvetCB(pary, data) {
+    return pary.map(function (p) {
+      return { Ccy: p[0], Rate: String(p[1]), Nominal: String(p[2] || 1),
+               Date: data };
+    });
+  }
+
+  var cbNormalno = C.razborKursaCB(
+    otvetCB([['USD', 11801.23, 1], ['RUB', 136.73, 1]], '28.08.2026'),
+    '2026-08-31');
+  var cbNominal = C.razborKursaCB(
+    otvetCB([['USD', 11801.23, 1], ['RUB', 1367.3, 10]], '28.08.2026'), null);
+  var cbBezRublya = C.razborKursaCB(
+    otvetCB([['USD', 11801.23, 1], ['EUR', 13000, 1]], '28.08.2026'), null);
+  var cbIzBudushchego = C.razborKursaCB(
+    otvetCB([['USD', 11801.23, 1], ['RUB', 136.73, 1]], '05.09.2026'),
+    '2026-08-31');
+  var cbBezDaty = C.razborKursaCB(
+    otvetCB([['USD', 11801.23, 1], ['RUB', 136.73, 1]], 'позавчера'), null);
+  var cbNol = C.razborKursaCB(
+    otvetCB([['USD', 11801.23, 1], ['RUB', 0, 1]], '28.08.2026'), null);
+
+  proverki.push(
+    ['ГРУППА', 'Курс ЦБ напрямую из браузера'],
+    ['Курс разобран', cbNormalno && cbNormalno.rub_uzs === 136.73
+      && cbNormalno.usd_uzs === 11801.23],
+    ['Дата берётся из ответа и переводится в ISO',
+      cbNormalno && cbNormalno.date === '2026-08-28', cbNormalno && cbNormalno.date],
+    ['Источник назван', cbNormalno && cbNormalno.source === 'cbu.uz'],
+    ['Номинал делится, а не игнорируется',
+      cbNominal && cbNominal.rub_uzs === 136.73, cbNominal && cbNominal.rub_uzs],
+    ['Нет рубля в ответе — нет и курса', cbBezRublya === null],
+    ['Дата из будущего отвергается', cbIzBudushchego === null],
+    ['Незнакомая дата не подменяется днём запроса', cbBezDaty === null],
+    ['Нулевой курс — не курс', cbNol === null],
+    ['Пустой ответ не роняет разбор', C.razborKursaCB([], '2026-08-31') === null],
+    ['Не список — не курс', C.razborKursaCB(null, null) === null],
+    ['Витрина без даты запроса разбирается',
+      !!C.razborKursaCB(otvetCB([['USD', 11801.23, 1], ['RUB', 136.73, 1]],
+        '28.08.2026'), null)],
+    ['День считается по Ташкенту, а не по UTC',
+      C.denVTashkente(Date.UTC(2026, 7, 30, 20, 0, 0)) === '2026-08-31',
+      C.denVTashkente(Date.UTC(2026, 7, 30, 20, 0, 0))],
+    ['До семи вечера UTC день ещё вчерашний',
+      C.denVTashkente(Date.UTC(2026, 7, 30, 18, 0, 0)) === '2026-08-30'],
+    ['Русская дата переводится в ISO', C.vISO('4.09.2026') === '2026-09-04'],
+    ['ISO остаётся ISO', C.vISO('2026-08-14T10:00:00') === '2026-08-14'],
+    ['Мусор не превращается в дату', C.vISO('позавчера') === null]
+  );
+
   /* ── Вывод ──────────────────────────────────────────────────── */
 
   var telo = document.querySelector('#checks tbody');

@@ -116,29 +116,74 @@ def kursy_cb(data=None):
     except Exception:
         return None
 
-    def nayti(kod):
-        for v in spisok:
-            if v.get("Ccy") == kod:
-                nominal = float(v.get("Nominal") or 1)
-                # Номинал у большинства валют 1, но у некоторых 10 или 100.
-                # Делить обязательно, иначе курс завышается на порядок.
-                return float(v["Rate"]) / (nominal or 1)
+    # Потолок даты — запрошенное число, а для витрины (её спрашивают без
+    # даты) сегодняшнее ташкентское. Без потолка витрина принимала бы
+    # любую дату, включая завтрашнюю: архив такое отвергает, и разойтись
+    # двум дверям в один источник нельзя.
+    return razobrat_kursy(spisok, data or segodnya_v_tashkente().isoformat())
+
+
+def razobrat_kursy(spisok, zaprosheno=None):
+    """Разбор ответа ЦБ. Числа на входе — числа на выходе, сети здесь нет.
+
+    Вынесено из `kursy_cb` не ради красоты. Тот же ответ разбирает
+    приложение в браузере (`CALC.razborKursaCB` в calc.js): бот один, он
+    уже приостанавливался, и курс обязан доезжать до человека без него.
+    Две реализации одного разбора — это два официальных курса на одном
+    экране в тот день, когда они разойдутся. Пока разбор был заперт
+    внутри сетевой функции, сверить их было нечем; теперь сверяет
+    `test_parity.py` на живых ответах ЦБ.
+
+    `zaprosheno` — дата, за которую спрашивали, или None для витрины.
+    """
+    if not isinstance(spisok, list) or not spisok:
         return None
 
-    usd, rub = nayti("USD"), nayti("RUB")
+    def nayti(kod):
+        for v in spisok:
+            if isinstance(v, dict) and v.get("Ccy") == kod:
+                return v
+        return None
+
+    def kurs(v):
+        # Номинал у большинства валют 1, но у некоторых 10 или 100.
+        # Делить обязательно, иначе курс завышается на порядок.
+        try:
+            znachenie = float(v.get("Rate"))
+            nominal = float(v.get("Nominal") or 1)
+        except (TypeError, ValueError):
+            return None
+        if znachenie <= 0:
+            return None
+        return znachenie / (nominal or 1)
+
+    zapis_usd, zapis_rub = nayti("USD"), nayti("RUB")
+    if not zapis_usd or not zapis_rub:
+        return None
+
+    usd, rub = kurs(zapis_usd), kurs(zapis_rub)
     if not usd or not rub:
         return None
 
     # Дату берём из ответа, а не из системных часов: на выходных ЦБ отдаёт
     # пятничный курс, и подписать его субботой значит соврать о свежести.
-    data_otveta = None
-    for v in spisok:
-        if v.get("Ccy") == "USD":
-            data_otveta = v.get("Date")
-            break
+    opublikovano = _data_v_iso(zapis_usd.get("Date"))
+    if not opublikovano:
+        # Формат даты сменился. Подставить дату запроса — вернуться ровно
+        # к той ошибке, которую этот разбор и чинит.
+        print("[rates] ЦБ прислал дату в незнакомом виде: %r"
+              % (zapis_usd.get("Date"),), flush=True)
+        return None
+
+    # Архив отдаёт прошлое. Дата позже запрошенной — это не «выходные», а
+    # сломавшийся источник, и такому числу верить нельзя.
+    if zaprosheno and opublikovano > str(zaprosheno)[:10]:
+        print("[rates] ЦБ на %s ответил датой из будущего: %s"
+              % (zaprosheno, opublikovano), flush=True)
+        return None
 
     return {"usd_uzs": round(usd, 2), "rub_uzs": round(rub, 2),
-            "date": data_otveta, "source": "cbu.uz"}
+            "date": opublikovano, "source": "cbu.uz"}
 
 
 def _data_v_iso(syraya):

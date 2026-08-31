@@ -86,6 +86,100 @@ window.CALC = (function () {
     return 'skryt';
   }
 
+
+  /* ── Курс ЦБ, разобранный из ответа cbu.uz ──────────────────────────
+   *
+   * Тот же ответ разбирает bot/rates.py, и это дублирование сознательное:
+   * приложение обязано уметь спросить курс само, когда бот молчит. Цена
+   * дублирования одна — реализации разойдутся и покажут одному человеку
+   * два разных официальных курса. Поэтому правила здесь повторены слово
+   * в слово, а совпадение сверяет bot/test_parity.py на живых ответах ЦБ.
+   *
+   * Функция чистая: получает уже разобранный JSON, возвращает числа.
+   * В сеть ходит app.js — здесь только правила.
+   */
+
+  // Узбекистан живёт в UTC+5, и курс датируется ЕГО днём, а не нашим.
+  // С семи вечера по UTC там уже следующее число: спросив по-нашему, мы
+  // не спросим про день, за который курс уже опубликован.
+  const CHASOVOY_POYAS_UZ = 5;
+
+  function denVTashkente(teper) {
+    const t = new Date((teper === undefined ? Date.now() : teper)
+      + CHASOVOY_POYAS_UZ * 3600000);
+    return t.toISOString().slice(0, 10);
+  }
+
+  /**
+   * «14.08.2026» → «2026-08-14». Не разобрали — null, без догадок.
+   *
+   * ЦБ пишет дату по-русски, продукт всюду держит ISO: такие строки
+   * сравниваются как числа, и «свежее ли это» решается сравнением, а не
+   * разбором календаря.
+   */
+  function vISO(syraya) {
+    const stroka = String(syraya === undefined || syraya === null ? '' : syraya).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(stroka)) return stroka.slice(0, 10);
+    const najdeno = stroka.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (!najdeno) return null;
+    const den = najdeno[1].length === 1 ? '0' + najdeno[1] : najdeno[1];
+    const mesyac = najdeno[2].length === 1 ? '0' + najdeno[2] : najdeno[2];
+    return najdeno[3] + '-' + mesyac + '-' + den;
+  }
+
+  /**
+   * Разбор ответа ЦБ. Возвращает {usd_uzs, rub_uzs, date, source} или null.
+   *
+   * zaprosheno — ISO-дата, за которую спрашивали, или null для витрины
+   * без даты. Молчание здесь — рабочий ответ: курс, которому нельзя
+   * верить, хуже отсутствия курса, потому что выглядит он точно так же.
+   */
+  function razborKursaCB(spisok, zaprosheno) {
+    if (!Array.isArray(spisok) || !spisok.length) return null;
+
+    function nayti(kod) {
+      for (let i = 0; i < spisok.length; i++) {
+        if (spisok[i] && spisok[i].Ccy === kod) return spisok[i];
+      }
+      return null;
+    }
+
+    // Номинал у большинства валют 1, но у некоторых 10 или 100. Делить
+    // обязательно, иначе курс завышается на порядок.
+    function kurs(v) {
+      const nominal = parseFloat(v.Nominal);
+      const znachenie = parseFloat(v.Rate);
+      if (!isFinite(znachenie) || znachenie <= 0) return null;
+      return znachenie / (isFinite(nominal) && nominal > 0 ? nominal : 1);
+    }
+
+    const usd = nayti('USD'), rub = nayti('RUB');
+    if (!usd || !rub) return null;
+
+    const kursUsd = kurs(usd), kursRub = kurs(rub);
+    if (!kursUsd || !kursRub) return null;
+
+    /* Дата — из ответа, а не с наших часов.
+     *
+     * По выходным и праздникам ЦБ отдаёт последний рабочий курс, помечая
+     * его ЕГО датой публикации: спросишь про воскресенье — получишь
+     * пятничные числа с пятничной датой. Подписать их днём запроса значит
+     * сочинить свежесть, и ровно этот дефект уже чинили в сборщике. */
+    const opublikovano = vISO(usd.Date);
+    if (!opublikovano) return null;
+
+    /* Архив отдаёт прошлое. Дата позже запрошенной — это не «выходные»,
+     * а сломавшийся источник, и такое число не берётся вовсе. */
+    if (zaprosheno && opublikovano > zaprosheno) return null;
+
+    return {
+      usd_uzs: Math.round(kursUsd * 100) / 100,
+      rub_uzs: Math.round(kursRub * 100) / 100,
+      date: opublikovano,
+      source: 'cbu.uz',
+    };
+  }
+
   /** Маршрут A: итог = (сумма − комиссия) × курс_сервиса − зачисление */
   function marshrutA(summa, servis) {
     const baza = posleKomissii(summa, servis.fee_fixed, servis.fee_percent);
@@ -437,6 +531,9 @@ window.CALC = (function () {
     nacenkaBanka: nacenkaBanka,
     okruglitVniz: okruglitVniz,
     statusSvezhesti: statusSvezhesti,
+    razborKursaCB: razborKursaCB,
+    denVTashkente: denVTashkente,
+    vISO: vISO,
     nacenkaPravdopodobna: nacenkaPravdopodobna,
     sovet: sovet,
     vygodaNaSumme: vygodaNaSumme,

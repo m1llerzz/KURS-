@@ -61,7 +61,7 @@ function bezApostrofa(tekst) {
  * pamyat — что лежит в localStorage ДО запуска: у каждого окна jsdom своё
  * хранилище, и без этого прошлый визит человека не воспроизвести.
  */
-function podnyat(otvet, pamyat, startParam) {
+function podnyat(otvet, pamyat, startParam, otvetCB) {
   const html = fs.readFileSync(path.join(KORNI, 'index.html'), 'utf8')
     // Внешний скрипт Telegram в проверке не нужен и тянуть его неоткуда.
     .replace(/<script src="https:\/\/telegram[^<]*<\/script>/, '');
@@ -92,9 +92,16 @@ function podnyat(otvet, pamyat, startParam) {
   });
 
   // Настоящего Telegram здесь нет: приложение обязано работать и в браузере.
-  w.fetch = function () {
-    return otvet
-      ? Promise.resolve({ json: function () { return Promise.resolve(otvet); } })
+  //
+  // Адресов теперь два, и различать их обязательно: приложение спрашивает
+  // курс у ЦБ напрямую, помимо бота. Общий на оба ответ означал бы, что
+  // проверка «бот молчит» на самом деле молчащего бота не проверяет —
+  // курс всё равно приезжал бы, только из другой двери.
+  w.fetch = function (adres) {
+    const vCB = String(adres || '').indexOf('cbu.uz') !== -1;
+    const chto = vCB ? otvetCB : otvet;
+    return chto
+      ? Promise.resolve({ json: function () { return Promise.resolve(chto); } })
       : Promise.reject(new Error('сети нет'));
   };
 
@@ -1623,6 +1630,120 @@ function dozhdatsya() {
   proverka('блок канала спрятан, пока канала нет',
     kanalBlok && kanalBlok.hasAttribute('hidden'),
     'ссылка на # в выдаче читается как поломка');
+
+  /* ── Второй слой курса: ЦБ напрямую, без бота ──────────────────
+   *
+   * Бот один, и он уже приостанавливался на неделю: приложение осталось
+   * с запасом в файле и погасло, когда запасу стало больше трёх суток.
+   * Теперь официальный курс приложение спрашивает у ЦБ само. Проверяем
+   * не «функция вернула объект», а то, ради чего слой написан: человек
+   * при молчащем боте видит СЕГОДНЯШНИЙ курс и вердикт по нему.
+   */
+
+  function otvetCBna(data, kursRub) {
+    return [
+      { Ccy: 'USD', Rate: '11801.23', Nominal: '1', Date: data },
+      { Ccy: 'RUB', Rate: String(kursRub), Nominal: '1', Date: data },
+    ];
+  }
+
+  // Дата берётся от сегодняшнего дня, а не пишется числом: проверка,
+  // прибитая к календарю, краснеет сама собой через сутки.
+  const segodnyaUZ = new Date(Date.now() + 5 * 3600000).toISOString().slice(0, 10);
+  const segodnyaRu = segodnyaUZ.slice(8, 10).replace(/^0/, '')
+    + '.' + segodnyaUZ.slice(5, 7) + '.' + segodnyaUZ.slice(0, 4);
+
+  // Курс заведомо отличный от запаса: иначе не видно, чей он на экране.
+  const KURS_CB = 149.55;
+
+  const wCB = podnyat(null, { intro_pokazan: '1' }, null,
+    otvetCBna(segodnyaRu, KURS_CB));
+  await dozhdatsya();
+
+  proverka('при молчащем боте курс приезжает прямо из ЦБ',
+    tekst(wCB, 'vRate').indexOf('149,55') !== -1,
+    tekst(wCB, 'vRate') + ' — ждали 149,55');
+  /* Ждали не «какой-нибудь вердикт», а тот, который даёт ряд СО СВЕЖЕЙ
+     точкой. Считаем ожидаемое из тех же данных, а не пишем числом:
+     запас пересобирается, и записанное число покраснеет само собой. */
+  const ozhidaemo = wCB.CALC.sovet(
+    wCB.HISTORY_ZAPAS.concat([{ date: segodnyaUZ, rub_uzs: KURS_CB }]));
+  proverka('среднее месяца посчитано по ряду со свежей точкой',
+    tekst(wCB, 'vAvg').indexOf(String(ozhidaemo.srednee_30).replace('.', ',')) !== -1,
+    tekst(wCB, 'vAvg') + ' — ждали ' + ozhidaemo.srednee_30);
+  proverka('отклонение на значке — от свежего курса',
+    tekst(wCB, 'vBadge').indexOf(
+      Math.abs(ozhidaemo.otklonenie_percent).toFixed(1).replace('.', ',')) !== -1,
+    tekst(wCB, 'vBadge') + ' — ждали ' + ozhidaemo.otklonenie_percent);
+
+  // Дату показываем ту, которой ЦБ подписал курс. Число без даты в этом
+  // продукте не показывается вовсе, а чужая дата хуже отсутствия даты.
+  wCB.document.getElementById('summa').value = '50000';
+  wCB.document.getElementById('schitat').click();
+  await dozhdatsya();
+  proverka('дата курса на экране — дата публикации ЦБ',
+    !/\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4}/.test(tekst(wCB, 'kursDate'))
+      && tekst(wCB, 'kursDate').length > 0,
+    tekst(wCB, 'kursDate'));
+  proverka('при живом ЦБ приложение не жалуется на связь',
+    tekst(wCB, 'kursDate').toLowerCase().indexOf('связ') === -1,
+    tekst(wCB, 'kursDate'));
+
+  /* Старый курс из ЦБ не откатывает свежий от бота.
+   *
+   * Страховка, которая иногда делает хуже, — это не страховка. Бот отдаёт
+   * снимок с курсом за сегодня, ЦБ по какой-то причине отвечает позавчерашним
+   * (кеш на их стороне, запрос не за тот день) — на экране обязан остаться
+   * сегодняшний. */
+  const vchera = new Date(Date.now() + 5 * 3600000 - 2 * 86400000)
+    .toISOString().slice(0, 10);
+  const otBota = {
+    cbu: { usd_uzs: 11801.23, rub_uzs: 138.88, date: segodnyaUZ },
+    services: [{ id: 'a', name: 'Способ А', route: 'A', corridors: ['RU-UZ'],
+      fee_fixed: 0, fee_percent: 0, rate_rub_uzs: 135, limit_per_operation: 200000,
+      delivery_minutes: 60, incoming_fee: 0, checked_at: new Date().toISOString() }],
+    banks: [],
+    history: w.HISTORY_ZAPAS.concat([{ date: segodnyaUZ, rub_uzs: 138.88 }]),
+  };
+  const wStaryiCB = podnyat(otBota, { intro_pokazan: '1' }, null,
+    otvetCBna('01.07.2026', 111.11));
+  await dozhdatsya();
+  proverka('старый курс из ЦБ не откатывает свежий от бота',
+    tekst(wStaryiCB, 'vRate').indexOf('111,11') === -1
+      && tekst(wStaryiCB, 'vRate').indexOf('138,88') !== -1,
+    tekst(wStaryiCB, 'vRate'));
+
+  /* Откат виден не только в вердикте.
+   *
+   * Вердикт считается по РЯДУ, и точку в ряд старая дата не добавит в
+   * любом случае — то есть проверка выше на снятой защите оставалась бы
+   * зелёной. А курс, по которому считаются деньги, и дата под ним живут
+   * отдельно: вот там откат и был бы виден человеку. Поэтому смотрим на
+   * дату курса — июльскую в этом наборе видеть не должны. */
+  wStaryiCB.document.getElementById('summa').value = '50000';
+  wStaryiCB.document.getElementById('schitat').click();
+  await dozhdatsya();
+  proverka('дата курса не откатывается на старую',
+    !/июл|iyul/i.test(tekst(wStaryiCB, 'kursDate')),
+    tekst(wStaryiCB, 'kursDate'));
+
+  // Дата из будущего — признак сломавшегося источника, а не свежести.
+  const zavtra = new Date(Date.now() + 5 * 3600000 + 3 * 86400000)
+    .toISOString().slice(0, 10);
+  const zavtraRu = zavtra.slice(8, 10) + '.' + zavtra.slice(5, 7) + '.' + zavtra.slice(0, 4);
+  const wBudushchee = podnyat(null, { intro_pokazan: '1' }, null,
+    otvetCBna(zavtraRu, 199.99));
+  await dozhdatsya();
+  proverka('курс с датой из будущего на экран не попадает',
+    tekst(wBudushchee, 'vRate').indexOf('199,99') === -1,
+    tekst(wBudushchee, 'vRate'));
+
+  // Молчащий ЦБ не должен ломать то, что работало без него.
+  const wBezCB = podnyat(null, { intro_pokazan: '1' });
+  await dozhdatsya();
+  proverka('молчащий ЦБ не роняет приложение',
+    vidno(wBezCB, 'verdict') && tekst(wBezCB, 'vRate').length > 0,
+    tekst(wBezCB, 'vRate'));
 
   /* ── Ноль ошибок в консоли ─────────────────────────────────────── */
   //

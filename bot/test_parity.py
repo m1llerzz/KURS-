@@ -15,6 +15,7 @@ import os
 import subprocess
 import sys
 
+import rates
 import sovet
 
 CALC_JS = os.path.normpath(os.path.join(
@@ -236,9 +237,92 @@ for _imya_k, (_fayl_py, _shab_py), (_fayl_js, _shab_js), _chem in PARY_KONSTANT:
     else:
         print("  = %-20s %s в обоих" % (_imya_k, _v_py))
 
+# ── Разбор ответа ЦБ: тот же JSON двумя реализациями ─────────────────
+#
+# Курс приложение теперь спрашивает у ЦБ само, напрямую из браузера: бот
+# один, он уже приостанавливался на неделю, и официальный курс обязан
+# доезжать до человека без него. Значит один и тот же ответ cbu.uz
+# разбирают двое — rates.razobrat_kursy и CALC.razborKursaCB. Разойдясь,
+# они покажут два разных ОФИЦИАЛЬНЫХ курса, и это хуже, чем разные советы:
+# официальный курс — то единственное, что человек может проверить сам.
+
+OTVETY_CB = {
+    "обычный день": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "28.08.2026"},
+        {"Ccy": "RUB", "Rate": "136.73", "Nominal": "1", "Date": "28.08.2026"},
+    ], "2026-08-31"),
+    "номинал не единица": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "28.08.2026"},
+        {"Ccy": "RUB", "Rate": "1367.30", "Nominal": "10", "Date": "28.08.2026"},
+    ], "2026-08-31"),
+    "выходной: курс пятницы": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "28.08.2026"},
+        {"Ccy": "RUB", "Rate": "136.73", "Nominal": "1", "Date": "28.08.2026"},
+    ], "2026-08-30"),
+    "дата из будущего": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "05.09.2026"},
+        {"Ccy": "RUB", "Rate": "136.73", "Nominal": "1", "Date": "05.09.2026"},
+    ], "2026-08-31"),
+    "незнакомая дата": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "позавчера"},
+        {"Ccy": "RUB", "Rate": "136.73", "Nominal": "1", "Date": "позавчера"},
+    ], "2026-08-31"),
+    "без рубля": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "28.08.2026"},
+        {"Ccy": "EUR", "Rate": "13000.00", "Nominal": "1", "Date": "28.08.2026"},
+    ], "2026-08-31"),
+    "курс нулём": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "28.08.2026"},
+        {"Ccy": "RUB", "Rate": "0", "Nominal": "1", "Date": "28.08.2026"},
+    ], "2026-08-31"),
+    "пустой ответ": ([], "2026-08-31"),
+    "витрина без даты запроса": ([
+        {"Ccy": "USD", "Rate": "11801.23", "Nominal": "1", "Date": "28.08.2026"},
+        {"Ccy": "RUB", "Rate": "136.73", "Nominal": "1", "Date": "28.08.2026"},
+    ], None),
+}
+
+skript_cb = """
+global.window = {};
+require(%s);
+const nabory = JSON.parse(process.argv[1]);
+const itog = {};
+for (const imya in nabory) {
+  itog[imya] = global.window.CALC.razborKursaCB(nabory[imya][0], nabory[imya][1]);
+}
+process.stdout.write(JSON.stringify(itog));
+""" % json.dumps(CALC_JS.replace("\\", "/"))
+
+gotovo_cb = subprocess.run(
+    ["node", "-e", skript_cb, json.dumps(OTVETY_CB, ensure_ascii=False)],
+    capture_output=True, text=True, encoding="utf-8", timeout=60)
+
+if gotovo_cb.returncode != 0:
+    print("node упал на разборе ответа ЦБ:\n", gotovo_cb.stderr[:2000])
+    sys.exit(1)
+
+js_cb = json.loads(gotovo_cb.stdout)
+
+for _imya in OTVETY_CB:
+    _spisok, _zaprosheno = OTVETY_CB[_imya]
+    _py = rates.razobrat_kursy(_spisok, _zaprosheno)
+    _js = js_cb.get(_imya)
+
+    if _py != _js:
+        print("РАСХОЖДЕНИЕ [разбор ЦБ: %s]" % _imya)
+        print("     py=%r" % (_py,))
+        print("     js=%r" % (_js,))
+        rashozhdeniy += 1
+    elif _py is None:
+        print("  = разбор ЦБ: %-22s оба молчат" % _imya)
+    else:
+        print("  = разбор ЦБ: %-22s %s за %s" % (_imya, _py["rub_uzs"], _py["date"]))
+
+
 print()
 if rashozhdeniy:
     print("РАСХОЖДЕНИЙ:", rashozhdeniy)
     sys.exit(1)
 print("Обе реализации считают одинаково на", len(NABORY),
-      "наборах, пороги совпадают.")
+      "наборах, разбирают ЦБ одинаково на", len(OTVETY_CB),
+      "ответах, пороги совпадают.")
