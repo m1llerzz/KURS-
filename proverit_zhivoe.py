@@ -89,6 +89,11 @@ def skachat(url, timeout=90):
         return None, "ОШИБКА " + repr(e)[:160], {}
 
 
+# Возраст запаса в data.js: считается при разборе приложения, а судится
+# после ответа бота — пока бот жив, запас никто не видит.
+vozrast_zapasa = None
+sobran_zapas = ""
+
 print("Проверка боевого — то, что видит человек")
 print("=" * 62)
 
@@ -172,19 +177,65 @@ if kod == 200:
                 kogda, svezhaya = max(kogdy)
                 chasov = (datetime.now(timezone.utc) - kogda).total_seconds() / 3600
 
-            if chasov is not None:
-                # Пороги те же, что в calc.js: до 24 часов точно, до 72 —
-                # с пометкой, старше — скрываем. Считать их здесь заново
-                # нельзя, поэтому они и названы теми же словами.
-                proverka("люди видят способы (запас моложе 72 ч)",
-                         chasov <= 72,
-                         "запасу %d ч, собран %s — курсы сервисов скрыты "
-                         "целиком, человек не видит ни одного способа"
-                         % (chasov, svezhaya[:16]))
-                if 24 < chasov <= 72:
-                    preduprezhdenie(
-                        "запасу больше суток",
-                        "%d ч — способы помечены как вчерашние" % chasov)
+            # Судить о запасе будем ПОСЛЕ того, как спросим бота.
+            #
+            # Запас — страховка, а не то, что человек видит обычно: пока
+            # бот отвечает, приложение считает по его свежим курсам, и
+            # протухший запас никому не мешает. Красное здесь, когда бот
+            # жив, — это красное на работающем продукте.
+            vozrast_zapasa = chasov
+            sobran_zapas = svezhaya[:16]
+
+# ── Второй слой курса: ЦБ прямо из браузера ──────────────────────────
+#
+# Официальный курс приложение спрашивает у ЦБ само, минуя наш сервер. Всё
+# это держится на двух вещах, которые нам никто не обещал: на заголовке
+# `access-control-allow-origin` у cbu.uz и на том, что поля в их ответе
+# называются так же, как вчера. Пропадёт первое — слой умрёт молча, у
+# каждого человека в браузере и ни у кого в журналах. Изменится второе —
+# разбор вернёт None, и приложение тихо откатится к запасу.
+#
+# Проверяем оба, на живом ответе и тем же кодом, что стоит в приложении.
+
+razobrano_cb = None
+print("\nВторой слой курса: " + CBU_SEGODNYA)
+kod_cb, otvet_cb, zagolovki_cb = skachat(CBU_SEGODNYA, timeout=30)
+proverka("ЦБ отвечает приложению", kod_cb == 200, "код " + str(kod_cb))
+
+if kod_cb == 200:
+    proverka("ЦБ разрешает читать себя из браузера",
+             zagolovki_cb.get("access-control-allow-origin") == "*",
+             "без этого заголовка приложение не сможет спросить курс само: "
+             + str(zagolovki_cb.get("access-control-allow-origin")))
+
+    # Разбираем ТЕМ ЖЕ кодом, что стоит в приложении. Своя проверка полей
+    # здесь проверяла бы себя: разойтись она может ровно так же, как и
+    # приложение, и молча.
+    try:
+        gotovo = subprocess.run(
+            ["node", "-e",
+             "global.window={};require(process.argv[1]);"
+             "const d=JSON.parse(process.argv[2]);"
+             "process.stdout.write(JSON.stringify("
+             "window.CALC.razborKursaCB(d, process.argv[3])||null));",
+             os.path.join(KORNI_APP, "calc.js"), otvet_cb, _SEGODNYA_UZ],
+            capture_output=True, text=True, encoding="utf-8", timeout=60)
+        razobrano_cb = json.loads(gotovo.stdout or "null")
+    except FileNotFoundError:
+        razobrano_cb = None
+        preduprezhdenie("node не найден", "разбор ответа ЦБ не проверен")
+    except Exception as e:
+        razobrano_cb = None
+        preduprezhdenie("разбор ответа ЦБ не выполнен", repr(e)[:120])
+    else:
+        proverka("приложение разбирает сегодняшний ответ ЦБ",
+                 bool(razobrano_cb) and 50 < (razobrano_cb.get("rub_uzs") or 0) < 500,
+                 "поля ответа изменились — приложение молча откатится к запасу: "
+                 + (gotovo.stderr or gotovo.stdout or "")[:160])
+        if razobrano_cb:
+            proverka("у разобранного курса есть дата публикации",
+                     bool(razobrano_cb.get("date")),
+                     "цифра без даты в этом продукте не показывается")
 
 # ── Страница под поиск ───────────────────────────────────────────────
 #
@@ -232,65 +283,32 @@ if kod == 200:
         if not razobrano or razobrano.group(2).lower() not in MESYACY_RU_:
             preduprezhdenie("дату на странице не разобрал", syraya)
         else:
-            kogda_ = datetime(
-                int(razobrano.group(3)),
+            na_stranice = "%s-%02d-%02d" % (
+                razobrano.group(3),
                 MESYACY_RU_.index(razobrano.group(2).lower()) + 1,
-                int(razobrano.group(1)), tzinfo=timezone.utc)
-            dney_ = (datetime.now(timezone.utc) - kogda_).days
-            proverka("курс на странице поиска не старше пяти дней",
-                     dney_ <= 5,
-                     "%s — это %d дней назад. Человек из поиска пришёл за "
-                     "сегодняшним числом" % (syraya, dney_))
+                int(razobrano.group(1)))
 
-# ── Второй слой курса: ЦБ прямо из браузера ──────────────────────────
-#
-# Официальный курс приложение спрашивает у ЦБ само, минуя наш сервер. Всё
-# это держится на двух вещах, которые нам никто не обещал: на заголовке
-# `access-control-allow-origin` у cbu.uz и на том, что поля в их ответе
-# называются так же, как вчера. Пропадёт первое — слой умрёт молча, у
-# каждого человека в браузере и ни у кого в журналах. Изменится второе —
-# разбор вернёт None, и приложение тихо откатится к запасу.
-#
-# Проверяем оба, на живом ответе и тем же кодом, что стоит в приложении.
-
-print("\nВторой слой курса: " + CBU_SEGODNYA)
-kod_cb, otvet_cb, zagolovki_cb = skachat(CBU_SEGODNYA, timeout=30)
-proverka("ЦБ отвечает приложению", kod_cb == 200, "код " + str(kod_cb))
-
-if kod_cb == 200:
-    proverka("ЦБ разрешает читать себя из браузера",
-             zagolovki_cb.get("access-control-allow-origin") == "*",
-             "без этого заголовка приложение не сможет спросить курс само: "
-             + str(zagolovki_cb.get("access-control-allow-origin")))
-
-    # Разбираем ТЕМ ЖЕ кодом, что стоит в приложении. Своя проверка полей
-    # здесь проверяла бы себя: разойтись она может ровно так же, как и
-    # приложение, и молча.
-    try:
-        gotovo = subprocess.run(
-            ["node", "-e",
-             "global.window={};require(process.argv[1]);"
-             "const d=JSON.parse(process.argv[2]);"
-             "process.stdout.write(JSON.stringify("
-             "window.CALC.razborKursaCB(d, process.argv[3])||null));",
-             os.path.join(KORNI_APP, "calc.js"), otvet_cb, _SEGODNYA_UZ],
-            capture_output=True, text=True, encoding="utf-8", timeout=60)
-        razobrano = json.loads(gotovo.stdout or "null")
-    except FileNotFoundError:
-        razobrano = None
-        preduprezhdenie("node не найден", "разбор ответа ЦБ не проверен")
-    except Exception as e:
-        razobrano = None
-        preduprezhdenie("разбор ответа ЦБ не выполнен", repr(e)[:120])
-    else:
-        proverka("приложение разбирает сегодняшний ответ ЦБ",
-                 bool(razobrano) and 50 < (razobrano.get("rub_uzs") or 0) < 500,
-                 "поля ответа изменились — приложение молча откатится к запасу: "
-                 + (gotovo.stderr or gotovo.stdout or "")[:160])
-        if razobrano:
-            proverka("у разобранного курса есть дата публикации",
-                     bool(razobrano.get("date")),
-                     "цифра без даты в этом продукте не показывается")
+            # Сверяем с ДАТОЙ ПУБЛИКАЦИИ ЦБ, а не с календарём.
+            #
+            # Календарь тут врёт: ЦБ не публикует по выходным и в
+            # праздники, а с 29 августа по 1 сентября 2026 не публиковал
+            # четыре дня подряд — выходные плюс День независимости. Проверка
+            # «не старше пяти дней» покраснела бы на исправной странице, а
+            # красное на исправном продукте обесценивает весь прогон и
+            # будит сторожа зря.
+            #
+            # Правильный вопрос не «давно ли», а «то ли самое число, что
+            # ЦБ публикует сейчас».
+            if razobrano_cb and razobrano_cb.get("date"):
+                proverka("на странице поиска — сегодняшний курс ЦБ",
+                         na_stranice == razobrano_cb["date"],
+                         "на странице %s, а ЦБ сейчас публикует %s — значит "
+                         "пересборка данных не доезжает"
+                         % (na_stranice, razobrano_cb["date"]))
+            else:
+                preduprezhdenie(
+                    "дату страницы не с чем сверить",
+                    "ЦБ не ответил — сравнивать с календарём здесь нельзя")
 
 kod_robots, _, _ = skachat(PRILOZHENIE + "robots.txt")
 proverka("robots.txt отдаётся", kod_robots == 200, "код " + str(kod_robots))
@@ -535,6 +553,38 @@ if ne_vklyucheno:
     print("ЕЩЁ НЕ ВКЛЮЧЕНО (см. DEYSTVIYA-SEMYONA.md):")
     for stroka in ne_vklyucheno:
         print("  · " + stroka)
+
+# ── Запас: судим после того, как спросили бота ───────────────────────
+#
+# С 24 по 31 августа бот был приостановлен, запас не пересобирался, и
+# приложение показывало пустой список: правило свежести прячет курсы
+# старше 72 часов. Это и была настоящая поломка — та, которую никто не
+# заметил восемь дней.
+#
+# Но когда бот отвечает, приложение считает по ЕГО курсам, а запас лежит
+# страховкой. Тогда протухший запас — предупреждение: он сработает в
+# следующий раз, когда бот замолчит, и лучше знать об этом заранее.
+
+if vozrast_zapasa is not None:
+    _bot_zhiv = "бот отвечает" in proshlo
+    if vozrast_zapasa > 72:
+        if _bot_zhiv:
+            preduprezhdenie(
+                "запас протух (%d ч, собран %s)" % (vozrast_zapasa, sobran_zapas),
+                "сейчас его прикрывает бот, но замолчит он — и человек не "
+                "увидит ни одного способа")
+        else:
+            proverka("люди видят способы", False,
+                     "бот молчит, а запасу %d ч (собран %s) — курсы сервисов "
+                     "скрыты целиком, человек не видит ни одного способа"
+                     % (vozrast_zapasa, sobran_zapas))
+    else:
+        proverka("люди видят способы", True)
+        if vozrast_zapasa > 24:
+            preduprezhdenie("запасу больше суток",
+                            "%d ч — способы помечены как вчерашние"
+                            % vozrast_zapasa)
+
 
 # ── Итог ─────────────────────────────────────────────────────────────
 
