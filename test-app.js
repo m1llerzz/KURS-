@@ -188,7 +188,12 @@ function podnyat(otvet, pamyat, startParam, otvetCB, bezFetch, bezPamyati) {
   }
 
   ['i18n.js', 'data.js', 'calc.js', 'app.js'].forEach(function (f) {
-    w.eval(fs.readFileSync(path.join(KORNI, f), 'utf8'));
+    /* `sourceURL` — не украшение: без него всё, что выполняется через
+     * eval, зовётся «evalmachine» и в трассировках, и в покрытии. С ним
+     * видно, в каком файле упало и какие строки формул прогон не трогал:
+     *     NODE_V8_COVERAGE=~/pokrytie node test-app.js */
+    w.eval(fs.readFileSync(path.join(KORNI, f), 'utf8')
+      + '\n//# sourceURL=' + f);
 
     /* Запасу проставляем сегодняшнее время сбора — сразу после data.js и
      * до того, как приложение его прочитает.
