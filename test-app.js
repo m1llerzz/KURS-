@@ -653,6 +653,33 @@ function dozhdatsya() {
   proverka('узбекский не подменён русским', odinakovye.length === 0,
     'совпали: ' + odinakovye.join(', '));
 
+  /* И обратная сторона: ключ, названный в РАЗМЕТКЕ, обязан быть в словаре.
+   *
+   * Словарь проверялся сам по себе, а разметка — сама по себе, и между
+   * ними оставалась щель: `t()` на неизвестном ключе возвращает сам ключ,
+   * то есть человек увидел бы на экране служебное «intro.p2» вместо
+   * текста. Молчаливее дыры не бывает: разметка цела, скрипт не падает,
+   * в консоли пусто.
+   *
+   * Смотрим оба файла: страницу приложения и страницу под поиск. */
+  const razmetka = ['index.html', 'kurs.html']
+    .filter(function (f) { return fs.existsSync(path.join(KORNI, f)); })
+    .map(function (f) { return [f, fs.readFileSync(path.join(KORNI, f), 'utf8')]; });
+
+  const bezPerevoda = [];
+  razmetka.forEach(function (para) {
+    const najdeno = para[1].match(/data-i18n(?:-html)?="([^"]+)"/g) || [];
+    najdeno.forEach(function (kusok) {
+      const klyuch = kusok.replace(/^data-i18n(?:-html)?="/, '').replace(/"$/, '');
+      if (klyuchiIzFayla.indexOf(klyuch) === -1) {
+        bezPerevoda.push(para[0] + ': ' + klyuch);
+      }
+    });
+  });
+
+  proverka('каждый ключ из разметки есть в словаре', bezPerevoda.length === 0,
+    'нет строк: ' + bezPerevoda.join(', '));
+
   /* У каждого вердикта и совета, какие умеет выдавать calc.js, обязана
    * быть подпись в словаре. Иначе человек увидит на главном экране
    * служебное имя вроде «v.novyy» — и это будет выглядеть поломкой,
