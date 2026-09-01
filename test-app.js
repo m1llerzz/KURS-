@@ -18,6 +18,31 @@
 const fs = require('fs');
 const path = require('path');
 
+/* Сдвиг часов на сутки вперёд: `QY_DNEY=40 node test-app.js`.
+ *
+ * Часы сдвигаются В ДВУХ местах — здесь, у самого прогона, и у окна
+ * приложения (см. `podnyat`). Иначе они разъезжаются: прогон считает
+ * возраст запаса по одним часам, приложение показывает надпись по другим,
+ * и красное берётся из самого измерения, а не из продукта. Так и вышло с
+ * первой попытки — сутки вперёд «сломали» совет, которого никто не ломал.
+ */
+const SDVIG_SUTOK = Number(process.env.QY_DNEY || 0);
+if (SDVIG_SUTOK) {
+  const NastoyashchayaDate = Date;
+  const sdvig = SDVIG_SUTOK * 86400000;
+  const teper = function () { return NastoyashchayaDate.now() + sdvig; };
+  function SdvinutayaDate(...a) {
+    return a.length ? new NastoyashchayaDate(...a) : new NastoyashchayaDate(teper());
+  }
+  SdvinutayaDate.prototype = NastoyashchayaDate.prototype;
+  SdvinutayaDate.now = teper;
+  SdvinutayaDate.parse = NastoyashchayaDate.parse;
+  SdvinutayaDate.UTC = NastoyashchayaDate.UTC;
+  global.Date = SdvinutayaDate;
+  console.log('ЧАСЫ СДВИНУТЫ на ' + SDVIG_SUTOK + ' сут: ' +
+              new Date().toISOString().slice(0, 10));
+}
+
 let JSDOM, VirtualConsole;
 try {
   JSDOM = require('jsdom').JSDOM;
@@ -91,6 +116,31 @@ function podnyat(otvet, pamyat, startParam, otvetCB, bezFetch, bezPamyati) {
     oshibkiKonsoli.push('window.onerror: ' + (e && e.message));
   });
 
+  /* Часы окна можно сдвинуть: `QY_DNEY=40 node test-app.js`.
+   *
+   * Зачем. Правило проекта — не прибивать проверки к датам, но соблюдение
+   * этого правила само проверялось только временем: бомба находилась в тот
+   * день, когда взрывалась. Со сдвигом часов весь прогон можно прожить в
+   * будущем за полторы минуты — и увидеть то, что иначе увидит человек.
+   *
+   * Сдвигать надо ИМЕННО ОКНО: приложение живёт внутри jsdom и берёт время
+   * у него, а не у Node. Первая попытка сдвинула часы процесса, и
+   * проверки честно разошлись с приложением — оно осталось в сегодня. */
+  const sdvigSutok = SDVIG_SUTOK;
+  if (sdvigSutok) {
+    const NastoyashchayaDate = w.Date;
+    const sdvig = sdvigSutok * 86400000;
+    const teper = function () { return NastoyashchayaDate.now() + sdvig; };
+    function SdvinutayaDate(...a) {
+      return a.length ? new NastoyashchayaDate(...a) : new NastoyashchayaDate(teper());
+    }
+    SdvinutayaDate.prototype = NastoyashchayaDate.prototype;
+    SdvinutayaDate.now = teper;
+    SdvinutayaDate.parse = NastoyashchayaDate.parse;
+    SdvinutayaDate.UTC = NastoyashchayaDate.UTC;
+    w.Date = SdvinutayaDate;
+  }
+
   // Настоящего Telegram здесь нет: приложение обязано работать и в браузере.
   //
   // Адресов теперь два, и различать их обязательно: приложение спрашивает
@@ -158,6 +208,38 @@ function podnyat(otvet, pamyat, startParam, otvetCB, bezFetch, bezPamyati) {
     if (f === 'data.js' && Array.isArray(w.SERVICES)) {
       const teper = new Date().toISOString();
       w.SERVICES.forEach(function (s) { s.checked_at = teper; });
+    }
+
+    /* И ряд запаса сдвигаем так, чтобы он кончался ВЧЕРА.
+     *
+     * Та же причина, что и у `checked_at` выше, но правило шире, чем
+     * казалось: возраст запаса — свойство файла, а не поведение кода. У
+     * ряда стареет не только дата снимка. Окно месяца считается от
+     * ПОСЛЕДНЕЙ точки, и стоит приложению добавить в ряд сегодняшнюю
+     * точку от ЦБ, как все точки старше тридцати дней выпадают: через три
+     * недели после пересборки запаса окно истончается, вердикт по правилу
+     * замолкает, и половина прогона краснеет на исправном коде.
+     *
+     * Найдено сдвигом часов: `QY_DNEY=40 node test-app.js`. Сдвиг
+     * равномерный — значения, шаги и дыры ряда сохраняются, меняется
+     * только его положение на календаре.
+     */
+    if (f === 'data.js' && Array.isArray(w.HISTORY_ZAPAS) && w.HISTORY_ZAPAS.length) {
+      const posledniaya = w.HISTORY_ZAPAS[w.HISTORY_ZAPAS.length - 1].date;
+      const vchera = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const sdvig = Date.parse(vchera) - Date.parse(posledniaya);
+      if (sdvig) {
+        w.HISTORY_ZAPAS = w.HISTORY_ZAPAS.map(function (t) {
+          return {
+            date: new Date(Date.parse(t.date) + sdvig).toISOString().slice(0, 10),
+            rub_uzs: t.rub_uzs,
+          };
+        });
+        if (w.KURSY_ZAPAS) {
+          w.KURSY_ZAPAS.date =
+            w.HISTORY_ZAPAS[w.HISTORY_ZAPAS.length - 1].date;
+        }
+      }
     }
   });
 
