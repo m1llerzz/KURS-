@@ -26,6 +26,45 @@ if os.path.exists(_VREMENNYY):
 import bot          # noqa: E402
 import sovet        # noqa: E402
 
+# ── Часы можно сдвинуть: QY_DNEY=40 py test_bot.py ───────────────────
+#
+# Формат поста в канал выбирается по дню, оповещения уходят только днём,
+# «уже публиковали?» помнит дату курса — то есть половина бота смотрит на
+# календарь. Проверки, прибитые к тому же календарю, находят свои бомбы в
+# тот день, когда взрываются: 1 сентября так и вышло — набор покраснел на
+# исправном продукте, потому что первого числа выходит месячный пост, а
+# проверка искала слова дневного.
+#
+# Со сдвигом часов тот же прогон можно прожить в любом дне за минуту.
+_SDVIG_SUTOK = int(os.environ.get("QY_DNEY") or 0)
+if _SDVIG_SUTOK:
+    import datetime as _dt
+
+    class _SdvinutayaData(_dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return _dt.datetime.now(tz) + _dt.timedelta(days=_SDVIG_SUTOK)
+
+        @classmethod
+        def utcnow(cls):
+            return _dt.datetime.utcnow() + _dt.timedelta(days=_SDVIG_SUTOK)
+
+    bot.datetime = _SdvinutayaData
+    print("ЧАСЫ СДВИНУТЫ на %d сут: %s"
+          % (_SDVIG_SUTOK, _SdvinutayaData.now(_dt.timezone.utc).date()))
+
+
+def _teper():
+    """Сейчас — с учётом сдвига часов, если он задан.
+
+    Проверкам нужны ТЕ ЖЕ часы, что и боту. Сдвинуть только бота — значит
+    развести измерение с измеряемым: набор начнёт краснеть на исправном
+    коде, и красное будет про часы, а не про продукт. Ровно так и вышло с
+    первой попытки, и в javascript-прогоне тоже.
+    """
+    import datetime as _d
+    return _d.datetime.now() + _d.timedelta(days=_SDVIG_SUTOK)
+
 provereno, provalov, predupredit = [], [], []
 
 
@@ -1245,7 +1284,7 @@ from datetime import datetime as _dtt, timedelta as _tdd   # noqa: E402
 
 def _ocenka_vozrasta(dney):
     """Оценка, у которой дата курса — столько-то дней назад."""
-    kogda = (_dtt.now() - _tdd(days=dney)).strftime("%Y-%m-%d")
+    kogda = (_teper() - _tdd(days=dney)).strftime("%Y-%m-%d")
     return {"deystvie": "otpravlyat", "data": kogda}
 
 
