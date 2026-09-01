@@ -34,6 +34,23 @@ KURS_HTML = os.path.normpath(os.path.join(
 SITEMAP = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "sitemap.xml"))
 
+# Все метки, которые скрипт умеет заполнять на странице под поиск.
+#
+# Список нужен не здесь, а в проверках: метка, которую скрипт не знает,
+# останется на странице с числом, набранным руками при вёрстке, — и
+# застынет там навсегда. Заметит это первый человек из поиска, а мы —
+# никогда: страницу никто из нас не открывает.
+#
+# Часть меток заполняется не всегда (нет истории — нет коридора месяца,
+# нет сервисов — нет наценки). Поэтому список объявлен полным здесь, а
+# не собирается из того, что вышло в конкретном запуске.
+METKI_STRANICY = (
+    "kurs", "data_ru", "data_uz",
+    "kurs_min", "kurs_max", "razmah_percent", "razmah_sum",
+    "period_ru", "period_uz",
+    "kurs_servisa", "nacenka_percent", "nacenka_sum", "itog_50k",
+)
+
 MESYACY_RU = ["января", "февраля", "марта", "апреля", "мая", "июня",
               "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 MESYACY_UZ = ["yanvar", "fevral", "mart", "aprel", "may", "iyun",
@@ -165,6 +182,13 @@ def _obnovit_stranicu_poiska(snimok):
 
     with open(KURS_HTML, "r", encoding="utf-8") as f:
         tekst = f.read()
+
+    # Считаем не только «метку не нашли», но и обратное: заполняем ли мы
+    # то, что объявили. Разойдётся — узнаем здесь, а не через полгода.
+    chuzhie = set(znacheniya) - set(METKI_STRANICY)
+    if chuzhie:
+        print("  ВНИМАНИЕ: заполняем метки, которых нет в METKI_STRANICY: %s"
+              % ", ".join(sorted(chuzhie)), flush=True)
 
     zameneno, ne_naydeno = 0, []
     for metka, znachenie in znacheniya.items():

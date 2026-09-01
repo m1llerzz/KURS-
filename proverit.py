@@ -301,6 +301,59 @@ def proverit_utverzhdeniya():
     return "proshlo"
 
 
+def proverit_metki_stranicy():
+    """Числа на странице под поиск обязан переписывать скрипт — все.
+
+    Зачем. Страницу под поиск не открывает никто из нас, и ломается она
+    молча. Число, у которого нет метки `data-zapas`, скрипт не тронет — оно
+    останется таким, каким его набрали при вёрстке, и застынет навсегда.
+    Человек из поиска увидит позапрошлый курс рядом со свежей датой и
+    уйдёт, а мы об этом не узнаем.
+
+    Обратная сторона тоже проверяется: метка, объявленная скриптом, но
+    отсутствующая на странице, означает, что страницу переделали и число
+    перестало обновляться.
+    """
+    imya_nabora = "метки страницы поиска"
+    stranica = os.path.join(KORNI, "kurs.html")
+    if not os.path.exists(stranica):
+        print("%s~ %-28s пропущено: страницы нет%s"
+              % (ZHELTY, imya_nabora, SBROS))
+        return "propushcheno"
+
+    sys.path.insert(0, BOT)
+    try:
+        import obnovit_zapas
+    except Exception as oshibka:
+        print("%s~ %-28s пропущено: %s%s"
+              % (ZHELTY, imya_nabora, repr(oshibka)[:60], SBROS))
+        return "propushcheno"
+
+    with open(stranica, "r", encoding="utf-8") as f:
+        tekst = f.read()
+
+    na_stranice = set(re.findall(r'data-zapas="([a-z_0-9]+)"', tekst))
+    umeem = set(obnovit_zapas.METKI_STRANICY)
+
+    plohie = []
+    for metka in sorted(na_stranice - umeem):
+        plohie.append("на странице есть метка «%s», а скрипт её не "
+                      "заполняет — число застынет навсегда" % metka)
+    for metka in sorted(umeem - na_stranice):
+        plohie.append("скрипт заполняет метку «%s», а на странице её нет — "
+                      "страницу переделали" % metka)
+
+    if plohie:
+        print("%s- %-28s метки разошлись%s" % (KRASNY, imya_nabora, SBROS))
+        for p in plohie:
+            print("      " + p)
+        return "upalo"
+
+    print("%s+ %-28s все %d меток заполняются%s"
+          % (ZELYONY, imya_nabora, len(umeem), SBROS))
+    return "proshlo"
+
+
 def proverit_rabotu_github():
     """Работа GitHub опирается только на то, что есть в репозитории.
 
@@ -406,6 +459,7 @@ def main():
         proverit_krakozyabry(),
         proverit_utverzhdeniya(),
         proverit_rabotu_github(),
+        proverit_metki_stranicy(),
         zapustit("сбор курсов (rates.py)", [sys.executable, "test_rates.py"], BOT),
         zapustit("вердикт (sovet.py)", [sys.executable, "test_sovet.py"], BOT),
         zapustit("обложка и шрифты", [sys.executable, "test_oblozhka.py"], BOT),
