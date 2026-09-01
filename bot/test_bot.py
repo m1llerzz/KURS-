@@ -7,6 +7,7 @@
 """
 import json
 import os
+import re
 import tempfile
 import threading
 import urllib.error
@@ -583,9 +584,25 @@ try:
         post = poslannye[0]["text"] if poslannye else ""
         proverka("в посте есть курс", "149" in post, post[:120])
         proverka("в посте есть среднее за месяц", "140" in post or "141" in post)
+        # Языки ищем по ПИСЬМЕННОСТИ, а не по словам.
+        #
+        # Здесь стояло «"урс рубля" in post and "ubl kursi" in post» — слова
+        # дневного поста. Формат меняется по дням, и первого числа выходит
+        # месячный: «Последние 30 дней» / «Oxirgi 30 kun». Оба языка на
+        # месте, продукт исправен, а проверка красная — то есть красная она
+        # по календарю, а таких бомб в проекте быть не должно.
+        #
+        # Разметку снимаем: латиница есть в любом `<b>`, и без этого
+        # проверка нашла бы её даже в чисто русском тексте.
+        poloviny = [re.sub(r"<[^>]+>", "", ch) for ch in post.split("· · ·")]
         proverka("в посте оба языка",
-                 "урс рубля" in post and "ubl kursi" in post,
+                 len(poloviny) == 2
+                 and re.search(r"[a-z]", poloviny[0], re.I)
+                 and re.search(r"[а-яё]", poloviny[1], re.I),
                  "канал читают и те, и другие")
+        proverka("узбекская половина не подменена русской",
+                 len(poloviny) == 2 and not re.search(r"[а-яё]", poloviny[0], re.I),
+                 "узбекский первый и обязателен")
         proverka("в посте нет незаполненных мест", "{" not in post,
                  "фигурная скобка в публичном посте — это позор")
         proverka("в посте есть размах месяца в сумах",
