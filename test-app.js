@@ -1610,6 +1610,31 @@ function dozhdatsya() {
     datyKarty.length === (sitemap.match(/<loc>/g) || []).length,
     datyKarty.length + ' дат на ' + (sitemap.match(/<loc>/g) || []).length + ' адресов');
 
+  /* Каждая местная ссылка страницы обязана вести на существующий файл.
+   *
+   * Скрипт, картинка или стиль, которых нет на диске, — это не «чуть
+   * хуже», а пустой экран: приложение собирается из четырёх файлов, и
+   * потеря любого останавливает его целиком. Прогон этого не ловит: он
+   * грузит файлы сам, по именам, и переименование в разметке проходит
+   * мимо него. */
+  ['index.html', 'kurs.html'].forEach(function (imyaStranicy) {
+    const put = path.join(KORNI, imyaStranicy);
+    if (!fs.existsSync(put)) return;
+    const dom = new JSDOM(fs.readFileSync(put, 'utf8'));
+    const uzly = Array.from(dom.window.document.querySelectorAll(
+      'script[src], img[src], link[href]'));
+    const propavshie = [];
+    uzly.forEach(function (u) {
+      const adres = u.getAttribute('src') || u.getAttribute('href') || '';
+      // Чужие адреса и данные внутри страницы проверять нечем и незачем.
+      if (!adres || /^(https?:|data:|#|mailto:)/.test(adres)) return;
+      const fayl = adres.split('?')[0].split('#')[0];
+      if (!fs.existsSync(path.join(KORNI, fayl))) propavshie.push(fayl);
+    });
+    proverka('все местные файлы ' + imyaStranicy + ' на месте',
+      propavshie.length === 0, 'нет: ' + propavshie.join(', '));
+  });
+
   /* И каждый адрес карты обязан существовать.
    *
    * Карта — единственное, по чему поисковик знает, что у нас вообще есть.
