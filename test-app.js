@@ -1610,6 +1610,31 @@ function dozhdatsya() {
     datyKarty.length === (sitemap.match(/<loc>/g) || []).length,
     datyKarty.length + ' дат на ' + (sitemap.match(/<loc>/g) || []).length + ' адресов');
 
+  /* И каждый адрес карты обязан существовать.
+   *
+   * Карта — единственное, по чему поисковик знает, что у нас вообще есть.
+   * Переименуют файл, и в карте останется адрес, ведущий в 404: робот
+   * ходит по нему неделями, страница выпадает из выдачи, а на глаз всё
+   * цело — файл-то на месте, просто зовут его иначе. */
+  const KORENЬ_SAJTA = 'https://m1llerzz.github.io/KURS-/';
+  const adresaKarty = (sitemap.match(/<loc>([^<]+)<\/loc>/g) || [])
+    .map(function (s) { return s.replace(/<\/?loc>/g, ''); });
+  const bityeAdresa = adresaKarty.filter(function (adres) {
+    if (adres.indexOf(KORENЬ_SAJTA) !== 0) return true;
+    const hvost = adres.slice(KORENЬ_SAJTA.length) || 'index.html';
+    return !fs.existsSync(path.join(KORNI, hvost));
+  });
+  proverka('каждый адрес карты сайта существует', bityeAdresa.length === 0,
+    'ведут в никуда: ' + bityeAdresa.join(', '));
+
+  /* А robots.txt обязан указывать на карту по тому же адресу, по которому
+   * она лежит. Разъедутся — робот попросит несуществующий файл и решит,
+   * что карты нет вовсе. */
+  const robots = fs.readFileSync(path.join(KORNI, 'robots.txt'), 'utf8');
+  const adresKarty = (robots.match(/Sitemap:\s*(\S+)/i) || [])[1] || '';
+  proverka('robots.txt зовёт карту по её настоящему адресу',
+    adresKarty === KORENЬ_SAJTA + 'sitemap.xml', adresKarty || 'адреса нет');
+
   const dataNaStranice = kd.querySelector('[data-zapas="data_ru"]');
   if (dataNaStranice && datyKarty.length) {
     /* «14 августа 2026» -> «2026-08-14». Сверяем по-настоящему: карта и
