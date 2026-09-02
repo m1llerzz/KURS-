@@ -2208,6 +2208,62 @@ def odnazhdy(kluch, metka, deystvie):
     return True
 
 
+
+def utrenniy_post(teper, data_kursa):
+    """Утренний пост в канал: какого вида, под какой отметкой и нужен ли.
+
+    **Один код на две двери.** Обычно публикует бот на Render. Когда
+    Render молчит — а бесплатных часов там хватает примерно на месяц, и
+    молчал он девять дней подряд, — тот же пост публикует работа GitHub
+    (`post_iz_github.py`). Решение «что сегодня и под какой отметкой»
+    обязано быть одним на обе двери: две реализации разошлись бы, и
+    канал получил бы либо два поста за день, либо ни одного.
+
+    `teper` — время по Ташкенту. Раньше девяти утра не пишем: пост,
+    пришедший ночью, читают как спам, каким бы полезным он ни был.
+
+    Ключ дня — ДАТА КУРСА, а не сегодняшнее число. ЦБ не публикует по
+    выходным, и по календарю в субботу и воскресенье выходили бы ещё два
+    поста с теми же числами и той же пятничной датой: три одинаковых
+    сообщения подряд. Итоги недели и месяца привязаны к своим срокам, а
+    не к курсу: они выходят раз в неделю и раз в месяц независимо от
+    того, обновился ли курс в этот день.
+
+    Возвращает True, только если пост действительно ушёл.
+    """
+    if teper.hour < 9:
+        return False
+
+    vid = vid_posta_na_segodnya(teper)
+    if vid == "nedelya":
+        metka = "%d-%02d" % teper.isocalendar()[:2]
+    elif vid == "mesyac":
+        metka = teper.strftime("%Y-%m")
+    else:
+        metka = data_kursa
+
+    # Про один курс — один пост дня, каким бы видом он ни был рассказан.
+    # Иначе выходило так: в пятницу итог недели с пятничным курсом, а в
+    # субботу ещё и пост дня с ним же — те же числа и та же дата, только
+    # сутки спустя. Читатель видит не два поста, а один отставший.
+    #
+    # Не удалось прочитать — считаем, что говорили. Ошибиться тут можно в
+    # две стороны, и они неравны: пропущенный пост стоит одного дня,
+    # лишний — подписчиков.
+    osveshchen = hranilishche.sostoyanie("kurs_osveshchen")
+    uzhe_govorili = (vid == "den" and data_kursa
+                     and (osveshchen is hranilishche.NEIZVESTNO
+                          or osveshchen == data_kursa))
+
+    if not metka or uzhe_govorili:
+        return False
+
+    poslali = odnazhdy("post_" + vid, metka, lambda: _opublikovat(vid))
+    if poslali and data_kursa:
+        hranilishche.zapisat_sostoyanie("kurs_osveshchen", data_kursa)
+    return poslali
+
+
 def chasovoy_uvedomleniy():
     """Проверяем раз в час, шлём не чаще раза в сутки и только днём.
 
@@ -2246,37 +2302,8 @@ def chasovoy_uvedomleniy():
             # Итоги недели и месяца привязаны к своим срокам, а не к
             # курсу: они выходят раз в неделю и раз в месяц независимо от
             # того, обновился ли курс в этот день.
-            vid = vid_posta_na_segodnya(teper)
             data_kursa = data_kursa_seychas()
-            tolko_chto_pisali = False
-            if teper.hour >= 9:
-                if vid == "nedelya":
-                    metka = "%d-%02d" % teper.isocalendar()[:2]
-                elif vid == "mesyac":
-                    metka = teper.strftime("%Y-%m")
-                else:
-                    metka = data_kursa
-
-                # Про один курс — один пост дня, каким бы видом он ни был
-                # рассказан. Иначе выходило так: в пятницу итог недели с
-                # пятничным курсом, а в субботу ещё и пост дня с ним же —
-                # те же числа и та же дата, только сутки спустя. Читатель
-                # видит не два поста, а один отставший.
-                #
-                # Не удалось прочитать — считаем, что говорили. Ошибиться
-                # тут можно в две стороны, и они неравны: пропущенный
-                # пост стоит одного дня, лишний — подписчиков.
-                osveshchen = hranilishche.sostoyanie("kurs_osveshchen")
-                uzhe_govorili = (vid == "den" and data_kursa
-                                 and (osveshchen is hranilishche.NEIZVESTNO
-                                      or osveshchen == data_kursa))
-
-                if metka and not uzhe_govorili:
-                    tolko_chto_pisali = odnazhdy(
-                        "post_" + vid, metka, lambda: _opublikovat(vid))
-                    if tolko_chto_pisali and data_kursa:
-                        hranilishche.zapisat_sostoyanie("kurs_osveshchen",
-                                                        data_kursa)
+            tolko_chto_pisali = utrenniy_post(teper, data_kursa)
 
             # Внеочередной пост про резкое движение курса — после обеда и
             # никогда в том же проходе, что утренний. Два сообщения подряд
