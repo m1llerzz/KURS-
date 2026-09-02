@@ -12,6 +12,8 @@
     bot/test_rates.py    сбор курсов: даты, ряд за месяц, кеш
     bot/test_sovet.py    логика вердикта «отправлять или подождать»
     bot/test_bot.py      тексты двух языков и живой /api/rates
+    bot/test_post_iz_github.py
+                         вторая дверь канала: пост, когда Render молчит
     bot/test_parity.py   sovet.py и calc.js обязаны считать одинаково
     test.html            расчёт, старые дефекты, вердикт  (нужен node)
     test-app.js          сквозной прогон приложения       (нужен node+jsdom)
@@ -464,6 +466,10 @@ def main():
         zapustit("вердикт (sovet.py)", [sys.executable, "test_sovet.py"], BOT),
         zapustit("обложка и шрифты", [sys.executable, "test_oblozhka.py"], BOT),
         zapustit("бот и /api/rates", [sys.executable, "test_bot.py"], BOT),
+        # Идёт следом за ботом не случайно: вторая дверь канала опирается
+        # на его же `utrenniy_post`, и красное там объясняет красное здесь.
+        zapustit("вторая дверь канала",
+                 [sys.executable, "test_post_iz_github.py"], BOT),
         zapustit("паритет py и js", [sys.executable, "test_parity.py"], BOT,
                  net_node, "не найден node"),
         zapustit("расчёт (test.html)",
