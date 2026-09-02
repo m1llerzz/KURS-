@@ -45,17 +45,21 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # Версии действий держим на тех, что собраны под Node 24. Node 20
+      # снят с поддержки, и GitHub гонит на нём старые действия
+      # принудительно, предупреждая: сегодня это жёлтая строка в выводе,
+      # завтра — упавшая работа. Понижать обратно нельзя.
       # Вся история, а не последний коммит. Заливка ниже делает
       # `git pull --rebase`, а перемотке нужна общая точка с origin:
       # на срезанной истории её может не оказаться, и работа упадёт на
       # последнем шаге — уже собрав и проверив всё.
       - name: Забрать репозиторий
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Поставить Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -63,7 +67,7 @@ jobs:
       # `engines: ^22.22.2 || ^24.15.0 || >=26`, и на двадцатом npm
       # ругается на несовместимость ещё до того, как проверки запустятся.
       - name: Поставить Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
 

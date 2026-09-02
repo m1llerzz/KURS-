@@ -45,11 +45,15 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      # Версии действий держим на тех, что собраны под Node 24. Node 20
+      # снят с поддержки, и GitHub гонит на нём старые действия
+      # принудительно, предупреждая: сегодня это жёлтая строка в выводе,
+      # завтра — упавшая работа. Понижать обратно нельзя.
       - name: Забрать репозиторий
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Поставить Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -57,7 +61,7 @@ jobs:
       # что стоит у людей. Без него она превращается в предупреждение —
       # то есть в молчание, а сторож молчать не должен.
       - name: Поставить Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
 
