@@ -2261,6 +2261,18 @@ def utrenniy_post(teper, data_kursa):
     poslali = odnazhdy("post_" + vid, metka, lambda: _opublikovat(vid))
     if poslali and data_kursa:
         hranilishche.zapisat_sostoyanie("kurs_osveshchen", data_kursa)
+
+    # Копия отметки туда, где её прочитает вторая дверь. Наша правда
+    # лежит в Postgres, и работа GitHub её не видит: увидев, что Render
+    # не ответил — а он может не ответить и живым, — она напишет второй
+    # пост поверх этого. После публикации, а не до: пост уже ушёл, и
+    # копия на него повлиять не может. Подробности — в
+    # `hranilishche.otrazit_v_zapasnoy`.
+    if poslali:
+        hranilishche.otrazit_v_zapasnoy(
+            vyzov, os.environ.get("CHANNEL_ID", "").strip(),
+            {"post_" + vid: metka, "kurs_osveshchen": data_kursa})
+
     return poslali
 
 

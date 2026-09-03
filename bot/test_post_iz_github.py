@@ -251,9 +251,15 @@ def _den_s_vidom(vid):
     return None
 
 
-def _prigotovit(otpravka_udayotsya=True, render_zhiv=False, den=None):
-    """Чистая площадка: пустая память, подставной Telegram, наши часы."""
-    telegram = _Telegram(otpravka_udayotsya)
+def _prigotovit(otpravka_udayotsya=True, render_zhiv=False, den=None,
+                telegram=None):
+    """Чистая площадка: пустая память, подставной Telegram, наши часы.
+
+    Готовый `telegram` передаётся, когда проверяется передача отметки
+    между дверями: там память обязана быть ТОЙ ЖЕ, иначе проверка
+    доказывала бы только то, что пустая память пуста.
+    """
+    telegram = telegram or _Telegram(otpravka_udayotsya)
     hranilishche._telegram = None
     bot.vyzov = telegram
     bot.svezhie_dannye = lambda *a, **k: _DANNYE
@@ -551,6 +557,74 @@ proverka("отставание видно через смену года",
 
 proverka("старые даты курса отставанием не считаются",
          tishina.ne_osveshcheno("2026-08-28", ["2026-08-01"] + _KURS_NEDELI) == [])
+
+
+# ── 13. Бот предупреждает вторую дверь ───────────────────────────────
+#
+# Отметки бота лежат в Postgres, работы GitHub — у Telegram. Работа не
+# публикует, пока Render отвечает, но «не ответил» и «мёртв» — не одно и
+# то же: перезапуск, моргнувшая сеть, и работа честно решит, что бот
+# молчит, а бот к тому времени уже написал.
+#
+# Поэтому после публикации бот кладёт копию отметки туда, куда работа
+# смотрит. Проверяем на ОДНОЙ И ТОЙ ЖЕ памяти: сначала кладёт бот с
+# базой, потом эту память читает работа.
+
+_telegram = _Telegram()
+_nastoyashchiy_postgres = hranilishche.na_postgres
+hranilishche.na_postgres = lambda: True
+hranilishche._telegram = None
+
+_legli = hranilishche.otrazit_v_zapasnoy(
+    _telegram, os.environ["CHANNEL_ID"],
+    {"post_den": _DATA_KURSA, "kurs_osveshchen": _DATA_KURSA})
+proverka("бот кладёт копию отметки для второй двери", _legli == 2,
+         "легло %s" % _legli)
+proverka("копия видна в памяти у Telegram",
+         _telegram.komandy.get("post_den") == _DATA_KURSA,
+         str(sorted(_telegram.komandy)))
+
+# Без базы копия не кладётся: бот тогда пишет в ту же память, что и
+# работа, и лишний круг обращений к Telegram не нужен.
+hranilishche.na_postgres = _nastoyashchiy_postgres
+proverka("без базы копия не кладётся",
+         hranilishche.otrazit_v_zapasnoy(_telegram, os.environ["CHANNEL_ID"],
+                                         {"post_den": _DATA_KURSA}) == 0)
+
+# Главное: работа читает ту же память и молчит, ХОТЯ до Render не
+# дозвонилась. Ровно тот случай, ради которого копия и кладётся.
+_telegram.poslano = []
+_prigotovit(den=_den_s_vidom("den"), telegram=_telegram)
+post_iz_github.main()
+proverka("после поста бота вторая дверь молчит",
+         _telegram.poslano == [],
+         "работа не достучалась до Render, но прочла отметку бота — "
+         "второго поста в канале быть не должно")
+
+# Копия не легла — хуже, чем было, не стало и бот не упал: пост к этому
+# времени уже ушёл, и ронять его из-за копии нельзя.
+class _GluhoyTelegram(_Telegram):
+    def __call__(self, metod, telo=None, popytok=2):
+        if metod.startswith("set"):
+            return {"ok": False, "error_code": 400, "description": "подстава"}
+        return _Telegram.__call__(self, metod, telo, popytok)
+
+
+hranilishche.na_postgres = lambda: True
+hranilishche._telegram = None
+_gluhoy = _GluhoyTelegram()
+proverka("неудачная копия не роняет бота",
+         hranilishche.otrazit_v_zapasnoy(_gluhoy, os.environ["CHANNEL_ID"],
+                                         {"post_den": _DATA_KURSA}) == 0)
+hranilishche.na_postgres = _nastoyashchiy_postgres
+hranilishche._telegram = None
+
+# Один код на две двери — и здесь тоже: копия кладётся внутри
+# `utrenniy_post`, а не рядом с ней, иначе вторая сторона о ней забудет.
+proverka("копия кладётся из utrenniy_post",
+         "otrazit_v_zapasnoy(" in _bot_ishodnik.split(
+             "def utrenniy_post(")[-1].split("\ndef ")[0],
+         "положенная снаружи, она отвяжется от публикации")
 
 
 # ── Итог ─────────────────────────────────────────────────────────────
