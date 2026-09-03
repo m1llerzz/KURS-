@@ -22,14 +22,27 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 PRILOZHENIE = "https://m1llerzz.github.io/KURS-/"
 BOT = "https://qanchayetadi-bot.onrender.com"
 
+# Канал читается с его публичной страницы, без токена. Токен здесь был
+# бы лишним доступом ради одной даты, а у сторожа на GitHub его нет и
+# быть не должно.
+KANAL = "https://t.me/rublkursi_bugun"
+
 # Папка приложения — отсюда берётся calc.js, чтобы разбирать ответ ЦБ тем
 # же кодом, что стоит у людей.
 KORNI_APP = os.path.dirname(os.path.abspath(__file__))
+
+# Правило «молчит ли канал» лежит у бота и ввозится, а не переписывается
+# здесь: по нему сторож шлёт письма, и вторая его копия однажды разойдётся
+# с первой. Ввоз стоит ниже обычного места для ввозов, потому что раньше
+# неизвестен путь. Зависимостей `tishina` не тянет — сторож ничего не
+# ставит, и ставить ему нечего.
+sys.path.insert(0, os.path.join(KORNI_APP, "bot"))
+import tishina  # noqa: E402
 
 # Сегодняшнее ТАШКЕНТСКОЕ число: курс датируется днём того места, где его
 # публикуют, и приложение спрашивает архив именно за него.
@@ -93,6 +106,7 @@ def skachat(url, timeout=90):
 # после ответа бота — пока бот жив, запас никто не видит.
 vozrast_zapasa = None
 sobran_zapas = ""
+data_js = ""
 
 print("Проверка боевого — то, что видит человек")
 print("=" * 62)
@@ -584,6 +598,86 @@ if vozrast_zapasa is not None:
             preduprezhdenie("запасу больше суток",
                             "%d ч — способы помечены как вчерашние"
                             % vozrast_zapasa)
+
+
+# ── Канал: молчит ли он ──────────────────────────────────────────────
+#
+# ЗАЧЕМ. Канал — единственное, что приводит людей в продукт, и до сих пор
+# за ним не следил никто. С 21 по 30 августа он молчал девять дней
+# подряд, пока лежал Render, и заметили это по календарю, а не по
+# тревоге. Теперь у утреннего поста две двери — бот и работа GitHub, — и
+# тем нужнее знать, что закрыты обе: вторая может молча не заработать
+# (не тот секрет, не поднявшаяся память у Telegram), и узнали бы мы об
+# этом снова через неделю по пустой ленте.
+#
+# КАК СУДИМ. Не по числу дней молчания: ЦБ не публикует по выходным и в
+# праздники, и канал в такие дни молчит ПРАВИЛЬНО — молчание лучше
+# повтора, это правило проекта. Судим по тому, освещён ли курс: берём
+# даты публикаций ЦБ новее последнего поста.
+#
+#   ни одной  — канал в порядке, сказать ему нечего;
+#   одна      — сегодня ещё успеется: бот пишет с 9:00, работа GitHub в
+#               11:00 и 15:00 по Ташкенту. До четырёх дня это жёлтое;
+#   две и больше — молчат обе двери, и это уже поломка.
+#
+# Даты курса берём из ДВУХ источников. У бота они свежее, но именно он и
+# лежит в тот день, когда канал замолкает; запас приложения пересобирает
+# GitHub четыре раза в сутки, и он переживает падение Render — то есть
+# работает ровно тогда, когда нужен.
+
+print("\nКанал: " + KANAL)
+_kod_kanala, _stranica, _ = skachat(KANAL.replace("t.me/", "t.me/s/"))
+
+_daty_kursa = set()
+if isinstance(d, dict):
+    _daty_kursa |= {str(z.get("date"))[:10] for z in (d.get("history") or [])
+                    if z.get("date")}
+_daty_kursa |= set(re.findall(r"date:\s*'(\d{4}-\d{2}-\d{2})'", data_js))
+
+_posledniy_post = None
+for _metka in re.findall(r'datetime="([^"]+)"', _stranica or ""):
+    try:
+        _moment = datetime.fromisoformat(_metka)
+    except ValueError:
+        continue
+    if _moment.tzinfo is None:
+        _moment = _moment.replace(tzinfo=timezone.utc)
+    # Сутки канала считаются по Ташкенту, как и всё остальное в продукте:
+    # пост, ушедший в 9 утра по Ташкенту, это 4 утра UTC, и по UTC он
+    # попал бы во вчера через день на третий.
+    _den_posta = (_moment.astimezone(timezone.utc) + timedelta(hours=5)).date()
+    if _posledniy_post is None or _den_posta > _posledniy_post:
+        _posledniy_post = _den_posta
+
+_teper_uz = datetime.now(timezone.utc) + timedelta(hours=5)
+
+if _kod_kanala != 200 or not _stranica:
+    preduprezhdenie("канал не прочитался", "код %s — судить о нём нечем"
+                    % _kod_kanala)
+elif _posledniy_post is None:
+    proverka("в канале есть хоть одно сообщение", False,
+             "на публичной странице канала не видно ни одного поста")
+elif not _daty_kursa:
+    preduprezhdenie("канал не с чем сравнить",
+                    "ни бот, ни запас приложения не дали дат публикаций ЦБ")
+else:
+    _cvet, _ne_osveshcheny = tishina.sudit(_posledniy_post.isoformat(),
+                                           _daty_kursa, _teper_uz.hour)
+    if _cvet == tishina.ZELYONOE:
+        proverka("канал не отстал (последний пост %s)" % _posledniy_post, True)
+    elif _cvet == tishina.ZHOLTOE:
+        preduprezhdenie(
+            "курс за %s ещё не в канале" % ", ".join(_ne_osveshcheny),
+            "сегодня успеется: бот пишет с 9:00, работа GitHub в 11:00 и "
+            "15:00. Сейчас в Ташкенте %s" % _teper_uz.strftime("%H:%M"))
+    else:
+        proverka(
+            "канал не отстал", False,
+            "последний пост %s, а курс публиковался после этого %d раз (%s) "
+            "— молчат ОБЕ двери: и бот, и работа GitHub. Проверить секреты "
+            "BOT_TOKEN и CHANNEL_ID в Actions и строки [память] в журнале "
+            "Render" % (_posledniy_post, len(_ne_osveshcheny),
+                        ", ".join(_ne_osveshcheny)))
 
 
 # ── Итог ─────────────────────────────────────────────────────────────
