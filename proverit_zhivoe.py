@@ -329,6 +329,84 @@ proverka("robots.txt отдаётся", kod_robots == 200, "код " + str(kod_r
 kod_sitemap, _, _ = skachat(PRILOZHENIE + "sitemap.xml")
 proverka("карта сайта отдаётся", kod_sitemap == 200, "код " + str(kod_sitemap))
 
+
+# ── Карточка при пересылке ───────────────────────────────────────────
+#
+# ЗАЧЕМ. Продукт растёт пересылкой ссылки в чаты — это и есть весь наш
+# посев. Пересланное сообщение человек видит карточкой, и картинка на ней
+# несёт СЕГОДНЯШНИЙ КУРС. Адрес картинки оканчивается датой этого курса,
+# иначе Telegram отдал бы её из кеша со вчерашним числом.
+#
+# ЧЕГО БОИМСЯ. Не того, что картинка пропадёт: пустая карточка заметна с
+# первого взгляда. Боимся, что она останется, а число на ней устареет.
+# Тогда мы показываем цифру без даты — в чужих чатах, куда уже не
+# дотянуться, и в тех самых сообщениях, ради которых всё затевалось.
+#
+# КАК СУДИМ. Обложку и запас пересобирает ОДНА команда за один проход
+# (`bot/obnovit_vsyo.py`). Значит дата в адресе обложки обязана в точности
+# совпадать с датой курса в `data.js`. Разошлись — пересборка сделала
+# половину работы и промолчала об этом. Судить по часам здесь нельзя:
+# между пересборками шесть часов, и половину суток проверка мигала бы
+# жёлтым на исправном продукте.
+
+_metki_oblozhki = {}
+for _imya, _telo in (("index.html", html), ("kurs.html", stranica)):
+    _nayden = re.search(r'oblozhka\.png(?:\?v=(\d+))?', _telo or "")
+    if _nayden:
+        _metki_oblozhki[_imya] = _nayden.group(1) or ""
+
+proverka("карточка объявлена на обеих страницах",
+         len(_metki_oblozhki) == 2, str(sorted(_metki_oblozhki)))
+
+if len(_metki_oblozhki) == 2:
+    proverka("обе страницы зовут одну и ту же карточку",
+             len(set(_metki_oblozhki.values())) == 1,
+             "%s — одна из двух будет пересылаться со старым числом"
+             % _metki_oblozhki)
+
+if _metki_oblozhki:
+    _metka_oblozhki = sorted(_metki_oblozhki.values())[-1]
+
+    # Дату курса берём ИМЕННО из KURSY_ZAPAS, а не первым совпадением в
+    # файле: ключ `date` есть и у каждой точки истории, и первой в data.js
+    # идёт не она.
+    _zapas_data = re.search(
+        r'KURSY_ZAPAS\s*=\s*\{[^}]*"date":\s*"(\d{4}-\d{2}-\d{2})"',
+        data_js or "")
+
+    if not _metka_oblozhki:
+        proverka("адрес карточки несёт дату курса", False,
+                 "без даты Telegram отдаст карточку из кеша, и в чужих "
+                 "чатах она застынет на одном дне")
+    elif not _zapas_data:
+        preduprezhdenie("дату запаса не нашли",
+                        "не с чем сверить дату карточки")
+    else:
+        _zhdyom = _zapas_data.group(1).replace("-", "")
+        proverka("карточка и запас об одном дне", _metka_oblozhki == _zhdyom,
+                 "на карточке %s, в запасе %s — пересборка сделала половину "
+                 "работы, и в чужие чаты уходит вчерашнее число"
+                 % (_metka_oblozhki, _zhdyom))
+
+    _kod_kartinki, _, _zag_kartinki = skachat(
+        PRILOZHENIE + "oblozhka.png?v=" + _metka_oblozhki)
+    proverka("карточка отдаётся", _kod_kartinki == 200,
+             "код %s — пересылка пойдёт без картинки" % _kod_kartinki)
+
+    if _kod_kartinki == 200:
+        proverka("карточка отдаётся картинкой",
+                 "image" in (_zag_kartinki.get("content-type") or ""),
+                 str(_zag_kartinki.get("content-type")))
+        _razmer = _zag_kartinki.get("content-length")
+        if _razmer and _razmer.isdigit():
+            # 1200x630 с текстом и цифрами весит десятки килобайт. Пара
+            # килобайт означает, что сборщик отдал пустой холст.
+            proverka("карточка не пустая", int(_razmer) > 10000,
+                     "%s байт" % _razmer)
+        else:
+            preduprezhdenie("размер карточки не назван",
+                            "нет заголовка content-length")
+
 # ── Бот ──────────────────────────────────────────────────────────────
 
 # Ответы бота заводим ДО запроса и пустыми.
