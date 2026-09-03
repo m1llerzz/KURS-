@@ -46,6 +46,11 @@ _telegram = None
 # памяти нарочно: когда она не поднялась, спрашивать причину не у кого.
 _pochemu_pamyati = ""
 
+# Почему копия отметки не легла туда, где её читает вторая дверь.
+# Наружу это выходит в `/api/stats`: защита, которая молча не работает,
+# хуже отсутствующей — на неё рассчитывают.
+_pochemu_ne_predupredili = ""
+
 
 class _Neizvestno(object):
     """Ответ «прочитать не удалось». Это НЕ «записи нет».
@@ -261,30 +266,49 @@ def otrazit_v_zapasnoy(vyzov, kanal, otmetki):
     Делается ПОСЛЕ отправки и на успех не влияет: пост уже ушёл, и
     падение здесь не должно ни отменить его, ни уронить бота.
     """
+    global _pochemu_ne_predupredili
+
     if not na_postgres() or not kanal or not otmetki:
         return 0
 
     try:
         zapas = pamyat_kanala.PamyatTelegrama(vyzov, kanal)
         if not zapas.podnyat():
+            _pochemu_ne_predupredili = zapas.pochemu
             print("[хранилище] копию отметки положить некуда: " + zapas.pochemu,
                   flush=True)
             return 0
 
-        legli = []
+        legli, ne_legli = [], []
         for kluch, znachenie in sorted(otmetki.items()):
-            if znachenie and zapas.zapisat(kluch, znachenie):
+            if not znachenie:
+                continue
+            if zapas.zapisat(kluch, znachenie):
                 legli.append("%s=%s" % (kluch, znachenie))
+            else:
+                ne_legli.append("%s: %s" % (kluch, zapas.pochemu))
 
+        _pochemu_ne_predupredili = "; ".join(ne_legli)
         if legli:
             print("[хранилище] вторая дверь предупреждена: " + ", ".join(legli),
                   flush=True)
         return len(legli)
     except Exception as oshibka:
         # Пост уже ушёл. Уронить бота из-за копии отметки нельзя.
-        print("[хранилище] копия отметки не легла:", repr(oshibka)[:200],
+        _pochemu_ne_predupredili = repr(oshibka)[:200]
+        print("[хранилище] копия отметки не легла:", _pochemu_ne_predupredili,
               flush=True)
         return 0
+
+
+def pochemu_ne_predupredili():
+    """Почему копия отметки не легла. Пусто — вопрос не стоит.
+
+    Наружу выходит в `/api/stats`. Защита, которая молча не работает,
+    хуже отсутствующей: на неё рассчитывают, а узнать о ней иначе можно
+    было бы только из журнала Render, то есть только Семёну и вручную.
+    """
+    return _pochemu_ne_predupredili
 
 
 # ── Postgres ─────────────────────────────────────────────────────────

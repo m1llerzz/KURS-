@@ -2436,6 +2436,14 @@ class Stranica(BaseHTTPRequestHandler):
             if pochemu:
                 otvet["pochemu_ne_pishet"] = pochemu
 
+            # Знает ли вторая дверь, что мы уже опубликовали. Пока не
+            # знает — работа GitHub может написать вторым постом, решив
+            # по неотвечающему Render, что бот молчит. Молчать об этом
+            # нельзя: на защиту рассчитывают.
+            pochemu2 = hranilishche.pochemu_ne_predupredili()
+            if pochemu2:
+                otvet["vtoraya_dver_ne_znaet"] = pochemu2
+
             # Какой код сейчас работает. Render кладёт коммит в
             # переменную сам. До этого узнать, доехала ли заливка, можно
             # было только по поведению — то есть гадать: «видишь JSON —

@@ -616,6 +616,12 @@ _gluhoy = _GluhoyTelegram()
 proverka("неудачная копия не роняет бота",
          hranilishche.otrazit_v_zapasnoy(_gluhoy, os.environ["CHANNEL_ID"],
                                          {"post_den": _DATA_KURSA}) == 0)
+# И не молчит об этом: причина уходит в /api/stats. Защита, которая
+# молча не работает, хуже отсутствующей — на неё рассчитывают.
+proverka("о неудачной копии сказано наружу",
+         bool(hranilishche.pochemu_ne_predupredili()),
+         "иначе узнать об этом можно было бы только из журнала Render")
+hranilishche._pochemu_ne_predupredili = ""
 hranilishche.na_postgres = _nastoyashchiy_postgres
 hranilishche._telegram = None
 
