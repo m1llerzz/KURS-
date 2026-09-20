@@ -57,6 +57,7 @@
     razbor:     document.getElementById('razbor'),
     rBar:       document.getElementById('rBar'),
     rRows:      document.getElementById('rRows'),
+    sborToggle: document.getElementById('sborToggle'),
   };
 
   // Telegram кеширует html и js порознь, и какое-то время после обновления
@@ -81,6 +82,10 @@
   let posledniyRaschet = null;
   let posledniyKurs = null;
   let ocenkaDnya = null;
+  // Сценарий будущего сбора 5%. Выключен, пока человек сам не включит:
+  // закона нет, показывать вычет как факт нельзя. См. CALC.nastroitSbor.
+  let sborScenariy = false;
+  const SBOR_STAVKA = 5;
   let SERVISY = window.SERVICES || [];
   let BANKI = window.BANKS || [];
   let ISTORIYA = window.HISTORY_ZAPAS || [];
@@ -1186,19 +1191,32 @@
     const poCB = summaRub * kursy.rub_uzs;
     const itog = luchshiy.vilka ? luchshiy.vilka.ot : luchshiy.total_uzs;
 
+    // Сценарий будущего сбора: он удерживается ПЕРВЫМ, до конвертации,
+    // поэтому комиссия сервиса считается уже от суммы после сбора — ровно
+    // как в calc.js. Выключен — sborSum ноль, и весь разбор как прежде.
+    const sborRub = sborScenariy ? summaRub * (SBOR_STAVKA / 100) : 0;
+    const bazaRub = summaRub - sborRub;
+    const sborSum = Math.round(sborRub * kursy.rub_uzs);
+
     // Комиссия сервиса в рублях — и та же величина в сумах, чтобы всё
     // в разборе считалось в одних единицах и складывалось на глазах.
-    const komissiyaRub = (servis.fee_fixed || 0) + summaRub * ((servis.fee_percent || 0) / 100);
+    const komissiyaRub = (servis.fee_fixed || 0) + bazaRub * ((servis.fee_percent || 0) / 100);
     const komissiya = Math.round(komissiyaRub * kursy.rub_uzs);
 
     // Остальное съел курс. Считаем вычитанием, а не по формуле: так
     // строки гарантированно сходятся с итогом, и человек не поймает нас
     // на арифметике, которая не бьётся.
-    const kurs = Math.max(0, Math.round(poCB - itog - komissiya));
+    const kurs = Math.max(0, Math.round(poCB - itog - komissiya - sborSum));
 
     const stroki = [];
     stroki.push('<span class="rl"><span class="k">' + t('br.cb') +
       '</span><span class="v">' + sum(poCB) + '</span></span>');
+
+    // Госсбор — сразу после официального курса: он и удерживается первым.
+    if (sborSum > 0) {
+      stroki.push('<span class="rl minus"><span class="k">' + t('br.sbor') +
+        '</span><span class="v">− ' + sum(sborSum) + '</span></span>');
+    }
 
     if (kurs > 0) {
       stroki.push('<span class="rl minus"><span class="k">' + t('br.rate') +
@@ -1470,6 +1488,9 @@
     if (el.bank && el.bank.value) pomnit('bank', el.bank.value);
 
     const kursy = posledniyKurs || window.KURSY_ZAPAS;
+    // Флаг сценария живёт в calc.js; держим его в согласии с тумблером
+    // на каждом расчёте, а не только в момент переключения.
+    window.CALC.nastroitSbor(sborScenariy ? SBOR_STAVKA : 0, sborScenariy);
     posledniyRaschet = window.CALC.poschitat(
       { summa: summa, bank_id: (el.bank && el.bank.value) || null, corridor: 'RU-UZ' },
       SERVISY, BANKI, kursy
@@ -1591,6 +1612,17 @@
   el.schitat.addEventListener('click', poschitat);
   el.share.addEventListener('click', otpravitVChat);
   if (el.subBtn) el.subBtn.addEventListener('click', otkrytPodpisku);
+
+  // Тумблер сценария «а если введут 5%». Переключил — пересчитали то же,
+  // что уже на экране, чтобы разница была видна сразу, без второго нажатия.
+  if (el.sborToggle) {
+    el.sborToggle.addEventListener('change', function () {
+      sborScenariy = el.sborToggle.checked;
+      if (posledniyRaschet) poschitat();
+      sobytie('sbor_scenariy', { vklyuchen: sborScenariy });
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    });
+  }
 
   pokazatKanal();
   el.summa.addEventListener('keydown', function (e) { if (e.key === 'Enter') poschitat(); });

@@ -98,6 +98,7 @@ window.I18N = (function () {
       'popup.go':        'Xizmatga oʻtish',
 
       'razbor.sent':        'Yuborildi',
+      'razbor.sbor':        'Davlat yigʻimi',
       'razbor.fee':         'Xizmat komissiyasi',
       'razbor.toconv':      'Konvertatsiyaga',
       'razbor.rate_serv':   'Xizmat kursi',
@@ -184,7 +185,10 @@ window.I18N = (function () {
       'br.rate':         'Xizmat kursi',
       'br.fee':          'Komissiya',
       'br.fee_unknown':  'eʼlon qilinmagan',
+      'br.sbor':         'Davlat yigʻimi (5%)',
       'br.total':        'Kartaga tushadi',
+      'sbor.toggle':     'Agar 5% yigʻim joriy etilsa?',
+      'sbor.note':       'LDPR taklifi, 17.09.2026 — hali qonun emas.',
 
       'err.net':         'Yangi kurslarni olib boʻlmadi — {d} holatidagi maʼlumot bilan hisobladim',
 
@@ -282,6 +286,7 @@ window.I18N = (function () {
       'popup.go':        'Перейти в сервис',
 
       'razbor.sent':        'Отправлено',
+      'razbor.sbor':        'Госсбор с перевода',
       'razbor.fee':         'Комиссия сервиса',
       'razbor.toconv':      'К конвертации',
       'razbor.rate_serv':   'Курс сервиса',
@@ -384,7 +389,10 @@ window.I18N = (function () {
       'br.rate':         'Курс сервиса',
       'br.fee':          'Комиссия',
       'br.fee_unknown':  'не объявлена',
+      'br.sbor':         'Госсбор с перевода (5%)',
       'br.total':        'Придёт на карту',
+      'sbor.toggle':     'А если введут сбор 5%?',
+      'sbor.note':       'Предложение ЛДПР, 17.09.2026 — пока не закон.',
 
       'err.net':         'Свежие курсы не получены — считаю по данным на {d}',
 

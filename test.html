@@ -185,6 +185,31 @@
     ['Пустой список банков не роняет расчёт', bezBankov]
   );
 
+  /* ── Госсбор с перевода (ПРЕДЛОЖЕНИЕ ЛДПР 17.09.2026, закона нет) ──────
+     По умолчанию выключен: итог обязан совпадать с прежним до знака.
+     Включается только под будущий закон, и тогда режет сумму до конвертации. */
+  var sborServis = { id:'sbor-a', name:'Сбор', route:'A', corridors:['RU-UZ'],
+    fee_fixed:0, fee_percent:0, rate_rub_uzs:140, limit_per_operation:500000,
+    delivery_minutes:10, incoming_fee:0, checked_at:svezho };
+  var etalonBezSbora = Math.floor(50000 * 140 / 1000) * 1000;
+  var etalonSoSborom = Math.floor(50000 * 0.95 * 140 / 1000) * 1000;
+  var sborVyklBaza  = C.marshrutA(50000, sborServis);
+  C.nastroitSbor(5, true);
+  var sborVklyuchen = C.marshrutA(50000, sborServis);
+  C.nastroitSbor(0, false);                 // вернуть как было — иначе поедут прочие тесты
+  var sborPosleVozvrata = C.marshrutA(50000, sborServis).total_uzs;
+
+  proverki.push(
+    ['ГРУППА', 'Госсбор с перевода (сценарий, по умолчанию выключен)'],
+    ['Выключен по умолчанию — итог прежний', sborVyklBaza.total_uzs === etalonBezSbora],
+    ['Выключен — строки сбора в разборе нет',
+      !sborVyklBaza.razbor.some(function (p) { return p[0] === 'razbor.sbor'; })],
+    ['Включённый 5% уменьшает итог ровно на 5%', sborVklyuchen.total_uzs === etalonSoSborom],
+    ['Включённый — в разборе появляется строка сбора',
+      sborVklyuchen.razbor.some(function (p) { return p[0] === 'razbor.sbor'; })],
+    ['Выключение возвращает прежний итог', sborPosleVozvrata === etalonBezSbora]
+  );
+
   /* ── Вердикт дня ────────────────────────────────────────────────
      Главная функция продукта: за месяц курс прошёл 9,5%, а это больше
      денег, чем выбор сервиса и банка вместе. Тот же расчёт повторён

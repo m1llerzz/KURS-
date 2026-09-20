@@ -472,6 +472,33 @@
   .razbor .rbar .ost { background: var(--accent); }
   .razbor .rbar .pot { background: color-mix(in srgb, var(--warn) 70%, transparent); }
 
+  /* Сценарий госсбора. Спокойный переключатель под разбором: это гипотеза
+     «если введут», а не факт, поэтому не кричит и красным не красится.
+     Тумблер янтарный (тот же «притормози», что и плохой курс), а не
+     тревожно-красный. Живёт последней строкой карточки, во всю её ширину. */
+  .razbor .sbortog {
+    display: flex; align-items: flex-start; gap: 11px; cursor: pointer;
+    border-top: 1px solid var(--line); margin: 4px -16px -14px;
+    padding: 12px 16px 14px;
+  }
+  .razbor .sbortog input {
+    appearance: none; -webkit-appearance: none; flex: none;
+    width: 40px; height: 24px; margin: 1px 0 0; border-radius: 999px;
+    background: color-mix(in srgb, var(--ink) 18%, transparent);
+    position: relative; cursor: pointer; transition: background-color .18s ease;
+  }
+  .razbor .sbortog input::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%; background: var(--bg);
+    box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .18s ease;
+  }
+  .razbor .sbortog input:checked { background: var(--warn); }
+  .razbor .sbortog input:checked::after { transform: translateX(16px); }
+  .razbor .sbortog input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .razbor .sbortog .stxt { display: flex; flex-direction: column; gap: 2px; }
+  .razbor .sbortog .sl { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+  .razbor .sbortog .sn { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+
   /* Быстрый выбор суммы. Набирать «50000» на телефоне — пять точных
      попаданий по цифрам и открытая клавиатура поверх половины экрана.
      Одно нажатие вместо этого убирает главное трение перед цифрой,
@@ -723,6 +750,16 @@
     <span class="rt" data-i18n="br.t"></span>
     <div class="rbar" id="rBar" aria-hidden="true"></div>
     <div class="rr" id="rRows"></div>
+    <!-- Сценарий будущего сбора. Выключен по умолчанию: пока закона нет,
+         показывать вычет как факт нельзя. Включённый — пересчитывает всё
+         и добавляет строку сбора в разбор. -->
+    <label class="sbortog">
+      <input type="checkbox" id="sborToggle">
+      <span class="stxt">
+        <span class="sl" data-i18n="sbor.toggle"></span>
+        <span class="sn" data-i18n="sbor.note"></span>
+      </span>
+    </label>
   </div>
 
   <button id="share" class="ghost hidden" data-i18n="btn.share"></button>
@@ -779,9 +816,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=98"></script>
-<script src="data.js?v=98"></script>
-<script src="calc.js?v=98"></script>
-<script src="app.js?v=98"></script>
+<script src="i18n.js?v=99"></script>
+<script src="data.js?v=99"></script>
+<script src="calc.js?v=99"></script>
+<script src="app.js?v=99"></script>
 </body>
 </html>

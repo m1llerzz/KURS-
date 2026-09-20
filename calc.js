@@ -30,6 +30,33 @@ window.CALC = (function () {
     return summa - (feeFixed || 0) - summa * ((feePercent || 0) / 100);
   }
 
+  /* ── Сценарий: сбор государства с переводов за границу ───────────────
+   *
+   * 17.09.2026 ЛДПР предложила удерживать процент со всех переводов
+   * иностранцев из РФ за рубеж. ЗАКОНА НЕТ — это предложение. Пока его
+   * нет, показывать человеку этот вычет — та же ложь, что число без даты:
+   * продукт обещал бы потерю, которой в реальности ещё не существует.
+   *
+   * Поэтому по умолчанию сбор ВЫКЛЮЧЕН и на итог не влияет ни на копейку —
+   * весь расчёт идентичен прежнему, это проверяет test.html. Когда/если
+   * закон примут, включить одним вызовом из app.js:
+   *     CALC.nastroitSbor(5, true);
+   * Ставку не зашиваем в код цифрой: примут — впишется настоящая, с датой.
+   */
+  let sborPercent = 0;
+  let sborVklyuchen = false;
+
+  function nastroitSbor(procent, vklyuchen) {
+    sborPercent = procent > 0 ? procent : 0;
+    sborVklyuchen = !!vklyuchen && sborPercent > 0;
+  }
+
+  /** Сумма после удержания сбора. Выключен — возвращает как есть, точь-в-точь. */
+  function posleSbora(summa) {
+    if (!sborVklyuchen) return summa;
+    return summa - summa * (sborPercent / 100);
+  }
+
   /** Округление ВНИЗ до тысяч. Никогда не вверх. */
   /**
    * Дробное число так, как его пишут в обеих странах: 141,76.
@@ -190,7 +217,8 @@ window.CALC = (function () {
 
   /** Маршрут A: итог = (сумма − комиссия) × курс_сервиса − зачисление */
   function marshrutA(summa, servis) {
-    const baza = posleKomissii(summa, servis.fee_fixed, servis.fee_percent);
+    const posleGos = posleSbora(summa);
+    const baza = posleKomissii(posleGos, servis.fee_fixed, servis.fee_percent);
     const itog = baza * servis.rate_rub_uzs - (servis.incoming_fee || 0);
     return {
       total_uzs: okruglitVniz(itog),
@@ -199,7 +227,10 @@ window.CALC = (function () {
       // язык — забота экрана, формулы про него знать не должны.
       razbor: [
         ['razbor.sent',      summa + ' ₽'],
-        ['razbor.fee',       '− ' + Math.round(summa - baza) + ' ₽'],
+        // Строка сбора появляется только когда он включён. Выключен —
+        // разбор совпадает с прежним до знака, и старые проверки целы.
+        ...(sborVklyuchen ? [['razbor.sbor', '− ' + Math.round(summa - posleGos) + ' ₽']] : []),
+        ['razbor.fee',       '− ' + Math.round(posleGos - baza) + ' ₽'],
         ['razbor.toconv',    Math.round(baza) + ' ₽'],
         ['razbor.rate_serv', '× ' + zapyataya(servis.rate_rub_uzs)],
       ],
@@ -208,7 +239,8 @@ window.CALC = (function () {
 
   /** Маршрут B: перевод уходит в валюте, конвертирует банк получателя. */
   function marshrutB(summa, servis, bank, kursy) {
-    const baza = posleKomissii(summa, servis.fee_fixed, servis.fee_percent);
+    const posleGos = posleSbora(summa);
+    const baza = posleKomissii(posleGos, servis.fee_fixed, servis.fee_percent);
     const kursRubUsd = krossKursRubUsd(kursy.usd_uzs, kursy.rub_uzs);
     const vValute = baza / kursRubUsd;
     const itog = vValute * bank.rate_usd_uzs - (bank.incoming_fee || 0);
@@ -220,7 +252,8 @@ window.CALC = (function () {
       nacenka_percent: nacenkaBanka(bank.rate_usd_uzs, kursy.usd_uzs),
       razbor: [
         ['razbor.sent',        summa + ' ₽'],
-        ['razbor.fee',         '− ' + Math.round(summa - baza) + ' ₽'],
+        ...(sborVklyuchen ? [['razbor.sbor', '− ' + Math.round(summa - posleGos) + ' ₽']] : []),
+        ['razbor.fee',         '− ' + Math.round(posleGos - baza) + ' ₽'],
         ['razbor.toconv',      Math.round(baza) + ' ₽'],
         ['razbor.rate_rubusd', '÷ ' + zapyataya(kursRubUsd)],
         ['razbor.in_currency', zapyataya(vValute) + ' $'],
@@ -552,6 +585,8 @@ window.CALC = (function () {
     poschitat: poschitat,
     marshrutA: marshrutA,
     marshrutB: marshrutB,
+    nastroitSbor: nastroitSbor,
+    posleSbora: posleSbora,
     krossKursRubUsd: krossKursRubUsd,
     nacenkaBanka: nacenkaBanka,
     okruglitVniz: okruglitVniz,
