@@ -479,14 +479,15 @@ def ruchnye():
     перекрывает автоматику по совпадению id.
     """
     if not os.path.exists(FAYL_RUCHNOY):
-        return {"services": [], "banks": []}
+        return {"services": [], "banks": [], "cards": []}
     try:
         with open(FAYL_RUCHNOY, "r", encoding="utf-8") as f:
             d = json.load(f)
-        return {"services": d.get("services") or [], "banks": d.get("banks") or []}
+        return {"services": d.get("services") or [], "banks": d.get("banks") or [],
+                "cards": d.get("cards") or []}
     except Exception as oshibka:
         print("[rates] ручной файл не читается:", repr(oshibka)[:160], flush=True)
-        return {"services": [], "banks": []}
+        return {"services": [], "banks": [], "cards": []}
 
 
 # ── Сборка снимка ────────────────────────────────────────────────────
@@ -599,6 +600,10 @@ def snimok(s_istoriey=True):
         "cbu": cb,
         "services": servisy,
         "banks": banki,
+        # Карты банков РФ — только ручной слой (rates_manual.json), машиной
+        # не берутся. Пусто по умолчанию: пока нет реальных офферов с датой,
+        # приложение блок карт не показывает вовсе.
+        "cards": r.get("cards") or [],
         # Дату свежего курса передаём внутрь: если ЦБ уже опубликовал
         # сегодняшний, а в кеше только вчерашний ряд, кеш пересоберётся —
         # иначе на экране стоял бы сегодняшний курс при вердикте,

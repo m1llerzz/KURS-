@@ -189,6 +189,8 @@ window.I18N = (function () {
       'br.total':        'Kartaga tushadi',
       'sbor.toggle':     'Agar 5% yigʻim joriy etilsa?',
       'sbor.note':       'LDPR taklifi, 17.09.2026 — hali qonun emas.',
+      'karty.t':         'Rossiyada karta — oʻtkazmada kamroq yoʻqotasiz',
+      'karty.note':      'Faqat haqiqiy takliflar, sana bilan. Roʻyxat toʻlov uchun emas, foyda uchun tuzilgan.',
 
       'err.net':         'Yangi kurslarni olib boʻlmadi — {d} holatidagi maʼlumot bilan hisobladim',
 
@@ -393,6 +395,8 @@ window.I18N = (function () {
       'br.total':        'Придёт на карту',
       'sbor.toggle':     'А если введут сбор 5%?',
       'sbor.note':       'Предложение ЛДПР, 17.09.2026 — пока не закон.',
+      'karty.t':         'Карта в России — меньше теряешь на переводе',
+      'karty.note':      'Только реальные предложения, с датой. Список составлен по пользе, а не по выплате.',
 
       'err.net':         'Свежие курсы не получены — считаю по данным на {d}',
 

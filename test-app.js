@@ -951,6 +951,11 @@ function dozhdatsya() {
   proverka('разбор показан', vidno(w, 'razbor'),
     'это главное обещание продукта — показать невидимое');
 
+  // Блок карты спит по умолчанию: KARTY пуст, значит на экране его нет.
+  // Пустой оффер показывать нельзя — это была бы реклама без содержания.
+  proverka('блок карты скрыт, пока нет офферов', !vidno(w, 'karty'),
+    'при пустом window.KARTY блока быть не должно');
+
   const strokiRazbora = w.document.querySelectorAll('#rRows .rl');
   proverka('в разборе есть строки', strokiRazbora.length >= 3,
     'строк: ' + strokiRazbora.length);
@@ -1388,6 +1393,40 @@ function dozhdatsya() {
   proverka('на свежих данных совет по-прежнему даётся',
     !/устарел|eski/i.test(tekst(wSvezh, 'vHint')),
     tekst(wSvezh, 'vHint'));
+
+  /* ── 4г. Карта банка РФ — спящий блок дохода ───────────────────────
+     По умолчанию KARTY пуст и блока нет (проверено выше на главном окне).
+     Здесь — что при РЕАЛЬНОМ свежем оффере блок появляется, ведёт по
+     партнёрской ссылке и несёт пользу с источником; а протухший оффер
+     скрыт так же, как протухший способ. */
+  const otvetSKartoy = starye(0, 2);
+  otvetSKartoy.cards = [{
+    id: 'tbank', name: 'Т-Банк',
+    benefit: 'перевод в Узбекистан без комиссии',
+    url: 'https://www.tbank.ru/', partner_url: 'https://saleads.pro/ref/xyz',
+    source: 'tbank.ru', checked_at: new Date().toISOString(),
+  }];
+  const wKarta = await posle_rascheta(otvetSKartoy);
+  proverka('свежий оффер карты показан', vidno(wKarta, 'karty'),
+    'при непустом свежем window.KARTY блок обязан появиться');
+  const kcard = wKarta.document.querySelector('#kartyList .kcard');
+  proverka('карта ведёт по партнёрской ссылке',
+    !!kcard && kcard.getAttribute('href') === 'https://saleads.pro/ref/xyz',
+    kcard ? kcard.getAttribute('href') : 'карточки нет');
+  proverka('у карты видна польза и источник',
+    !!kcard && /без комиссии/.test(kcard.textContent) &&
+      /tbank\.ru/.test(kcard.textContent),
+    kcard ? kcard.textContent : '');
+
+  const otvetStaraya = starye(0, 2);
+  otvetStaraya.cards = [{
+    id: 'old', name: 'Старый оффер', benefit: 'что-то',
+    url: 'https://x/', source: 'x',
+    checked_at: new Date(Date.now() - 200 * 3600000).toISOString(),
+  }];
+  const wKartaStar = await posle_rascheta(otvetStaraya);
+  proverka('протухший оффер карты не показан', !vidno(wKartaStar, 'karty'),
+    'оффер старше 72 ч показывать нельзя — как и способ');
 
   /* ── 5a. Учёт ──────────────────────────────────────────────────── */
 

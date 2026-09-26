@@ -58,6 +58,8 @@
     rBar:       document.getElementById('rBar'),
     rRows:      document.getElementById('rRows'),
     sborToggle: document.getElementById('sborToggle'),
+    karty:      document.getElementById('karty'),
+    kartyList:  document.getElementById('kartyList'),
   };
 
   // Telegram кеширует html и js порознь, и какое-то время после обновления
@@ -88,6 +90,9 @@
   const SBOR_STAVKA = 5;
   let SERVISY = window.SERVICES || [];
   let BANKI = window.BANKS || [];
+  // Карты банков РФ — ручной слой. Пусто по умолчанию: блок не показывается,
+  // пока нет реального оффера с датой. Наполняется через rates_manual.json.
+  let KARTY = window.KARTY || [];
   let ISTORIYA = window.HISTORY_ZAPAS || [];
   let dannyeUstareli = null;   // дата, если считаем по запасу
 
@@ -376,6 +381,9 @@
   function primenit(d) {
     if (d.services && d.services.length) SERVISY = d.services;
     if (d.banks) BANKI = d.banks;
+    // Карты приходят из того же живого ответа. Массив может быть пустым —
+    // тогда блок так и останется скрытым, как и на запасе.
+    if (d.cards) KARTY = d.cards;
     if (d.history && d.history.length) ISTORIYA = d.history;
 
     /* Адрес канала приходит от бота, а не лежит в data.js.
@@ -1156,6 +1164,7 @@
         : t('kurs.date', { d: dataSlovom(kursy.date) });
 
     narisovatRazbor(luchshiy, kursy);
+    narisovatKarty();
 
     el.share.classList.remove('hidden');
     // Просьбу о подписке показываем только теперь — после того, как
@@ -1470,12 +1479,58 @@
   }
 
   /** Прячем прошлый результат: он посчитан по другой сумме и уже врёт. */
+  /**
+   * Карта банка РФ, которая уменьшает потерю на переводе.
+   *
+   * Это главный источник дохода (см. PLAN-DENGI.md), но правила продукта
+   * сильнее любой выплаты:
+   *  — показываем ТОЛЬКО реальные офферы с датой и источником. Нет свежих —
+   *    блока нет вовсе. Ровно как способ без свежих данных;
+   *  — порядок НЕ зависит от размера выплаты. Никогда;
+   *  — если оффер человеку не помогает, его тут просто нет.
+   *
+   * Пусто по умолчанию (KARTY = []), поэтому по умолчанию блок скрыт и
+   * ничего на экране не меняет.
+   */
+  function narisovatKarty() {
+    if (!el.karty) return;
+    const svezhie = (KARTY || []).filter(function (k) {
+      // Дата обязательна: оффер без даты — то же самое, что курс без даты.
+      return k && k.checked_at &&
+        window.CALC.statusSvezhesti(k.checked_at) !== 'skryt' &&
+        (k.name || k.benefit);
+    });
+    if (!svezhie.length) { el.karty.classList.add('hidden'); return; }
+
+    const stroki = svezhie.map(function (k) {
+      const adres = k.partner_url || k.url || '';
+      const istochnik = [k.source, k.checked_at ? dataSlovom(k.checked_at) : null]
+        .filter(Boolean).join(' · ');
+      // rel=noopener — переход уходит на чужой сайт; target _blank, чтобы
+      // человек не терял свой расчёт. Метка партнёрская или нет — в учёте.
+      const otkr = adres
+        ? '<a class="kcard" href="' + adres + '" target="_blank" rel="noopener nofollow"' +
+          ' data-karta="' + (k.id || '') + '" data-partner="' + (k.partner_url ? '1' : '') + '">'
+        : '<div class="kcard">';
+      const zakr = adres ? '</a>' : '</div>';
+      return otkr +
+        '<span class="knm">' + (k.name || '') + '</span>' +
+        (k.benefit ? '<span class="kben">' + k.benefit + '</span>' : '') +
+        (istochnik ? '<span class="ksrc">' + istochnik + '</span>' : '') +
+        zakr;
+    }).join('');
+
+    el.kartyList.innerHTML = stroki;
+    el.karty.classList.remove('hidden');
+  }
+
   function ochistitRezultat() {
     el.results.innerHTML = '';
     el.loss.classList.add('hidden');
     el.share.classList.add('hidden');
     el.disclaimer.classList.add('hidden');
     if (el.razbor) el.razbor.classList.add('hidden');
+    if (el.karty) el.karty.classList.add('hidden');
     posledniyRaschet = null;
     if (el.idle) el.idle.classList.remove('hidden');
   }
@@ -1611,6 +1666,19 @@
   el.introOk.addEventListener('click', zakrytIntro);
   el.schitat.addEventListener('click', poschitat);
   el.share.addEventListener('click', otpravitVChat);
+
+  // Переход по карте — в учёт: по нему видно, приносит ли блок доход.
+  // Метку «партнёрская» кладём отдельно, порядок карт от неё не зависит.
+  if (el.kartyList) {
+    el.kartyList.addEventListener('click', function (e) {
+      const a = e.target.closest ? e.target.closest('.kcard[data-karta]') : null;
+      if (!a) return;
+      sobytie('perehod_karta', {
+        karta: a.getAttribute('data-karta'),
+        partner: a.getAttribute('data-partner') === '1',
+      });
+    });
+  }
   if (el.subBtn) el.subBtn.addEventListener('click', otkrytPodpisku);
 
   // Тумблер сценария «а если введут 5%». Переключил — пересчитали то же,

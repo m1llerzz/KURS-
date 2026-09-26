@@ -285,6 +285,13 @@ def main():
     tekst = _zamenit_blok(tekst, "HISTORY_ZAPAS",
                           "[\n" + "\n".join(stroki) + "\n]")
 
+    # Карты банков РФ — ручной слой из rates_manual.json. Пусто по умолчанию:
+    # пока нет реальных офферов, приложение блок не показывает. Кладём в запас,
+    # чтобы карта была видна и при спящем боте, ровно как курс и способы.
+    karty = snimok.get("cards") or []
+    tekst = _zamenit_blok(tekst, "KARTY",
+                          json.dumps(karty, ensure_ascii=False, indent=2))
+
     with open(DATA_JS, "w", encoding="utf-8") as f:
         f.write(tekst)
 

@@ -62,7 +62,7 @@ window.SERVICES = [
     "limit_per_operation": 100000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-09-26T05:49:42+00:00",
+    "checked_at": "2026-09-26T06:54:38+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
     "nacenka_percent": 3.09,
@@ -83,7 +83,7 @@ window.SERVICES = [
     "limit_per_operation": 200000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-09-26T05:49:42+00:00",
+    "checked_at": "2026-09-26T06:54:38+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
     "nacenka_percent": 3.81,
@@ -106,6 +106,16 @@ window.SERVICES = [
  * Пустой список приложение понимает и просто прячет выбор.
  */
 window.BANKS = [];
+
+/**
+ * Карты банков РФ — ручной слой из bot/rates_manual.json (машиной не
+ * берутся). Пусто по умолчанию: пока нет реального оффера с датой и
+ * источником, приложение блок карты не показывает вовсе. Пересобирается
+ * `obnovit_zapas.py`, править руками не нужно. Каждая запись честна:
+ * есть чем помочь человеку (меньше теряет на переводе) — показываем,
+ * нет — молчим. Порядок НЕ зависит от выплаты никогда.
+ */
+window.KARTY = [];
 
 /**
  * Запасные курсы ЦБ — если и бот, и ЦБ недоступны, а кеша ещё нет.

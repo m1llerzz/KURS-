@@ -499,6 +499,36 @@
   .razbor .sbortog .sl { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.3; }
   .razbor .sbortog .sn { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
 
+  /* ── Карта банка РФ ──────────────────────────────────────────────
+     Главный источник дохода, но ведёт себя как помощь, а не реклама:
+     показывается только реальный оффер с датой, и лишь если уменьшает
+     потерю. Скрыт по умолчанию. Материал тот же, что у подписки. */
+  .karty {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-mid); padding: 15px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .karty .rt {
+    font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+  }
+  .karty .klist { display: flex; flex-direction: column; gap: 8px; }
+  /* Карта — тапабельная строка со своим лёгким выделением акцентом.
+     Не заливка и не тень: это предложение, а не главный экран. */
+  .karty .kcard {
+    display: flex; flex-direction: column; gap: 3px;
+    text-decoration: none; color: var(--ink);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+    border-radius: var(--r-min); padding: 11px 13px;
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    transition: border-color .15s ease, background-color .15s ease;
+  }
+  .karty a.kcard:active { transform: translateY(1px); }
+  .karty .knm { font-size: 14px; font-weight: 700; letter-spacing: -.005em; }
+  .karty .kben { font-size: 12.5px; color: var(--ink); line-height: 1.4; }
+  .karty .ksrc { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .karty .knote { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+
   /* Быстрый выбор суммы. Набирать «50000» на телефоне — пять точных
      попаданий по цифрам и открытая клавиатура поверх половины экрана.
      Одно нажатие вместо этого убирает главное трение перед цифрой,
@@ -762,6 +792,15 @@
     </label>
   </div>
 
+  <!-- Карта банка РФ, которая уменьшает потерю на переводе. Скрыта, пока в
+       window.KARTY нет реального оффера со свежей датой. Порядок карт не
+       зависит от выплаты — только от пользы человеку. См. app.js. -->
+  <div id="karty" class="karty hidden">
+    <span class="rt" data-i18n="karty.t"></span>
+    <div id="kartyList" class="klist"></div>
+    <span class="knote" data-i18n="karty.note"></span>
+  </div>
+
   <button id="share" class="ghost hidden" data-i18n="btn.share"></button>
 
   <!-- ── Подписка на оповещения ───────────────────────────── -->
@@ -816,9 +855,9 @@
      ?v= обязателен: Telegram держит файлы мини-аппа в кеше по нескольку
      часов, и без смены адреса человек продолжает видеть старую версию.
      Правило: поменял js — увеличил число здесь, иначе правка не доедет. -->
-<script src="i18n.js?v=100"></script>
-<script src="data.js?v=100"></script>
-<script src="calc.js?v=100"></script>
-<script src="app.js?v=100"></script>
+<script src="i18n.js?v=101"></script>
+<script src="data.js?v=101"></script>
+<script src="calc.js?v=101"></script>
+<script src="app.js?v=101"></script>
 </body>
 </html>
