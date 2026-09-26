@@ -562,8 +562,19 @@ function dozhdatsya() {
   proverka('значок отклонения показан', /%/.test(tekst(w, 'vBadge')), tekst(w, 'vBadge'));
   proverka('у отклонения есть знак',
     /^[+−]/.test(tekst(w, 'vBadge')), tekst(w, 'vBadge') + ' — без знака читается в любую сторону');
-  proverka('значок при плохом курсе показывает минус',
-    tekst(w, 'vBadge').charAt(0) === '−', tekst(w, 'vBadge'));
+  /* Знак значка обязан совпадать со знаком отклонения, а не быть всегда
+     минусом. Раньше здесь стояло «всегда −»: проверка была зелёной ровно
+     в те дни, когда курс случайно оказывался ниже среднего, и краснела на
+     каждом хорошем дне — ловя не дефект, а сегодняшнюю погоду. Считаем
+     отклонение из тех же данных, что видит приложение, и сверяем знак:
+     так проверка находит настоящую поломку — потерю знака в значке — и не
+     зависит от того, какой курс выпал на день прогона. */
+  const oczenkaZnaka = w.CALC.sovet(w.HISTORY_ZAPAS);
+  const znakOtkl = oczenkaZnaka && oczenkaZnaka.otklonenie_percent < 0 ? '−' : '+';
+  proverka('знак значка совпадает со знаком отклонения',
+    tekst(w, 'vBadge').charAt(0) === znakOtkl,
+    tekst(w, 'vBadge') + ' — отклонение ' +
+      (oczenkaZnaka ? oczenkaZnaka.otklonenie_percent : '?'));
 
   proverka('подписана нижняя граница месяца', /1\d\d[.,]\d\d/.test(tekst(w, 'vOsL')), tekst(w, 'vOsL'));
   proverka('подписана верхняя граница месяца', /1\d\d[.,]\d\d/.test(tekst(w, 'vOsR')), tekst(w, 'vOsR'));
