@@ -58,14 +58,14 @@ window.SERVICES = [
     ],
     "fee_fixed": 0,
     "fee_percent": 0,
-    "rate_rub_uzs": 142.0,
+    "rate_rub_uzs": 140.0,
     "limit_per_operation": 100000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-10-22T18:55:05+00:00",
+    "checked_at": "2026-10-22T23:44:19+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
-    "nacenka_percent": 2.71,
+    "nacenka_percent": 4.6,
     "url": "https://yubor.ru/",
     "limit_min": 9000,
     "istochnik_uslovij": "yubor.ru, 16.08.2026"
@@ -83,10 +83,10 @@ window.SERVICES = [
     "limit_per_operation": 200000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-10-22T18:55:05+00:00",
+    "checked_at": "2026-10-22T23:44:19+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
-    "nacenka_percent": 3.4,
+    "nacenka_percent": 3.92,
     "url": "https://avosend.com/",
     "limit_v_sutki": 380000,
     "limit_v_mesyac": 1500000,
@@ -122,7 +122,7 @@ window.KARTY = [];
  * Флаг zapas заставляет приложение честно предупредить: без свежего
  * курса весь расчёт становится ориентировочным.
  */
-window.KURSY_ZAPAS = {"usd_uzs": 11965.51, "rub_uzs": 145.96, "date": "2026-10-22", "zapas": true};
+window.KURSY_ZAPAS = {"usd_uzs": 11903.15, "rub_uzs": 146.75, "date": "2026-10-23", "zapas": true};
 
 /**
  * Запасная история курса рубля за 30 дней (курсы ЦБ, замер 15.08.2026).
@@ -130,15 +130,15 @@ window.KURSY_ZAPAS = {"usd_uzs": 11965.51, "rub_uzs": 145.96, "date": "2026-10-2
  * главная ценность приложения, и терять его при сбое сети нельзя.
  */
 window.HISTORY_ZAPAS = [
-  { date: '2026-09-23', rub_uzs: 139.87 }, { date: '2026-09-24', rub_uzs: 139.93 },
-  { date: '2026-09-25', rub_uzs: 139.27 }, { date: '2026-09-26', rub_uzs: 140.34 },
-  { date: '2026-09-29', rub_uzs: 139.86 }, { date: '2026-09-30', rub_uzs: 140.44 },
-  { date: '2026-10-01', rub_uzs: 142.16 }, { date: '2026-10-03', rub_uzs: 141.14 },
-  { date: '2026-10-06', rub_uzs: 138.35 }, { date: '2026-10-07', rub_uzs: 137.78 },
-  { date: '2026-10-08', rub_uzs: 138.15 }, { date: '2026-10-09', rub_uzs: 138.95 },
-  { date: '2026-10-10', rub_uzs: 140.18 }, { date: '2026-10-13', rub_uzs: 141.53 },
-  { date: '2026-10-14', rub_uzs: 142.39 }, { date: '2026-10-15', rub_uzs: 142.33 },
-  { date: '2026-10-16', rub_uzs: 143.17 }, { date: '2026-10-17', rub_uzs: 144.16 },
-  { date: '2026-10-20', rub_uzs: 145.46 }, { date: '2026-10-21', rub_uzs: 145.33 },
-  { date: '2026-10-22', rub_uzs: 145.96 },
+  { date: '2026-09-24', rub_uzs: 139.93 }, { date: '2026-09-25', rub_uzs: 139.27 },
+  { date: '2026-09-26', rub_uzs: 140.34 }, { date: '2026-09-29', rub_uzs: 139.86 },
+  { date: '2026-09-30', rub_uzs: 140.44 }, { date: '2026-10-01', rub_uzs: 142.16 },
+  { date: '2026-10-03', rub_uzs: 141.14 }, { date: '2026-10-06', rub_uzs: 138.35 },
+  { date: '2026-10-07', rub_uzs: 137.78 }, { date: '2026-10-08', rub_uzs: 138.15 },
+  { date: '2026-10-09', rub_uzs: 138.95 }, { date: '2026-10-10', rub_uzs: 140.18 },
+  { date: '2026-10-13', rub_uzs: 141.53 }, { date: '2026-10-14', rub_uzs: 142.39 },
+  { date: '2026-10-15', rub_uzs: 142.33 }, { date: '2026-10-16', rub_uzs: 143.17 },
+  { date: '2026-10-17', rub_uzs: 144.16 }, { date: '2026-10-20', rub_uzs: 145.46 },
+  { date: '2026-10-21', rub_uzs: 145.33 }, { date: '2026-10-22', rub_uzs: 145.96 },
+  { date: '2026-10-23', rub_uzs: 146.75 },
 ];
