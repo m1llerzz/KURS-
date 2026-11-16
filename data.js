@@ -58,14 +58,14 @@ window.SERVICES = [
     ],
     "fee_fixed": 0,
     "fee_percent": 0,
-    "rate_rub_uzs": 140.0,
+    "rate_rub_uzs": 141.0,
     "limit_per_operation": 100000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-11-13T10:13:38+00:00",
+    "checked_at": "2026-11-16T23:34:17+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
-    "nacenka_percent": 3.13,
+    "nacenka_percent": 3.12,
     "url": "https://yubor.ru/",
     "limit_min": 9000,
     "istochnik_uslovij": "yubor.ru, 16.08.2026"
@@ -79,14 +79,14 @@ window.SERVICES = [
     ],
     "fee_fixed": 29,
     "fee_percent": 0,
-    "rate_rub_uzs": 139.0,
+    "rate_rub_uzs": 140.0,
     "limit_per_operation": 200000,
     "delivery_minutes": 60,
     "incoming_fee": 0,
-    "checked_at": "2026-11-13T10:13:38+00:00",
+    "checked_at": "2026-11-16T23:34:17+00:00",
     "verified_by_receipt": false,
     "fee_unknown": false,
-    "nacenka_percent": 3.83,
+    "nacenka_percent": 3.81,
     "url": "https://avosend.com/",
     "limit_v_sutki": 380000,
     "limit_v_mesyac": 1500000,
@@ -122,7 +122,7 @@ window.KARTY = [];
  * Флаг zapas заставляет приложение честно предупредить: без свежего
  * курса весь расчёт становится ориентировочным.
  */
-window.KURSY_ZAPAS = {"usd_uzs": 11973.44, "rub_uzs": 144.53, "date": "2026-11-13", "zapas": true};
+window.KURSY_ZAPAS = {"usd_uzs": 12023.61, "rub_uzs": 145.54, "date": "2026-11-17", "zapas": true};
 
 /**
  * Запасная история курса рубля за 30 дней (курсы ЦБ, замер 15.08.2026).
@@ -130,7 +130,6 @@ window.KURSY_ZAPAS = {"usd_uzs": 11973.44, "rub_uzs": 144.53, "date": "2026-11-1
  * главная ценность приложения, и терять его при сбое сети нельзя.
  */
 window.HISTORY_ZAPAS = [
-  { date: '2026-10-15', rub_uzs: 142.33 }, { date: '2026-10-16', rub_uzs: 143.17 },
   { date: '2026-10-17', rub_uzs: 144.16 }, { date: '2026-10-20', rub_uzs: 145.46 },
   { date: '2026-10-21', rub_uzs: 145.33 }, { date: '2026-10-22', rub_uzs: 145.96 },
   { date: '2026-10-23', rub_uzs: 146.75 }, { date: '2026-10-24', rub_uzs: 147.05 },
@@ -141,4 +140,5 @@ window.HISTORY_ZAPAS = [
   { date: '2026-11-06', rub_uzs: 146.59 }, { date: '2026-11-07', rub_uzs: 146.29 },
   { date: '2026-11-10', rub_uzs: 145.79 }, { date: '2026-11-11', rub_uzs: 144.58 },
   { date: '2026-11-12', rub_uzs: 144.49 }, { date: '2026-11-13', rub_uzs: 144.53 },
+  { date: '2026-11-14', rub_uzs: 146.19 }, { date: '2026-11-17', rub_uzs: 145.54 },
 ];
